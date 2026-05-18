@@ -1,0 +1,31 @@
+separation_of_powers:
+  generator_not_approver: A unit that generates an artifact or candidate may not approve
+    it.
+  auditor_not_publisher: A unit that audits may not publish or promote.
+  refactorer_not_promoter: A unit that proposes a refactor may not promote the refactor
+    alone.
+  proposer_not_deployer: A unit that writes an ECP may not deploy it without approval.
+authority_levels:
+  suggest_only: Can produce ideas or observations; cannot write official files.
+  draft_only: Can draft content but cannot create official records.
+  write_candidate: Can create candidate specs or artifacts only.
+  write_inactive: Can write draft/inactive files.
+  mutate_active: Can modify active operational files; requires strict approval.
+  approve: Can approve a change or artifact; not allowed for AI-only execution.
+  publish: Can release final output; not allowed for AI-only execution.
+risk_escalation:
+  domains:
+  - finance
+  - health
+  - legal
+  - safety
+  - children
+  - public claims
+  - publication
+  - governance
+  automatic_requirements:
+  - human approver
+  - evidence audit
+  - decision record
+  - cannot_delegate final decision
+  - trace required

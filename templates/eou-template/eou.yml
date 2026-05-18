@@ -1,0 +1,64 @@
+id: candidate-eou-id
+name: Candidate EOU Name
+version: 0.1.0
+classification:
+  function: execute
+  target_object: target artifact
+  automation_mode: hybrid
+  authority_level: write_candidate
+  risk_level: medium
+  lifecycle_stage: candidate
+purpose:
+  statement: What this EOU is meant to do.
+  non_goals:
+  - What this EOU must not do.
+operating_hypothesis: >
+  Given explicit inputs, context, procedure, and validation, this EOU can produce
+  its intended output within acceptable risk.
+inputs:
+  required: []
+  optional: []
+  forbidden_assumptions: []
+context_manifest:
+  source_of_truth: []
+  supporting: []
+  forbidden: []
+execution:
+  steps: []
+  decision_points: []
+  stop_conditions: []
+  allowed_tools: []
+  prohibited_actions: []
+outputs:
+  primary: []
+  secondary: []
+  trace:
+  - runs/{run_id}/trace.yml
+success_criteria:
+  must_pass: []
+  should_pass: []
+validation:
+  deterministic: []
+  judgment: []
+  red_team: []
+failure_modes:
+  known: []
+  warning_signs: []
+  repair_actions: []
+escalation:
+  require_human_when: []
+  require_approval_for: []
+responsibility:
+  executor: Claude / script / human
+  reviewer: human owner or designated auditor
+  approver: human owner
+  cannot_delegate:
+  - final approval
+versioning:
+  supersedes: []
+  changelog:
+  - 0.1.0: Initial candidate.
+blast_radius:
+  allowed_scope: []
+  forbidden_scope:
+  - foundry/constitution.yml

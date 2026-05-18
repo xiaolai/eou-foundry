@@ -1,0 +1,37 @@
+failure_taxonomy:
+  F1_INPUT_FAILURE:
+    definition: Required input is missing, malformed, stale, or ambiguous.
+    repair: Tighten input schema or repair input.
+  F2_CONTEXT_FAILURE:
+    definition: Wrong context loaded or source of truth omitted.
+    repair: Repair context manifest.
+  F3_SCHEMA_FAILURE:
+    definition: Spec, input, output, or validator schemas diverge.
+    repair: Canonicalize schema and update validators.
+  F4_SCOPE_FAILURE:
+    definition: EOU is too broad, too narrow, or mixes incompatible tasks.
+    repair: Split, merge, or redefine EOU.
+  F5_INSTRUCTION_FAILURE:
+    definition: Steps are unclear, contradictory, or non-executable.
+    repair: Rewrite execution procedure.
+  F6_JUDGMENT_FAILURE:
+    definition: EOU lacks tests needed to distinguish good from bad.
+    repair: Add judgment predicates or human review.
+  F7_VALIDATION_FAILURE:
+    definition: Validator passes invalid output or rejects valid output.
+    repair: Improve validation and add regression case.
+  F8_TOOL_FAILURE:
+    definition: Script, model, API, plugin, or external tool fails.
+    repair: Isolate dependency or add fallback.
+  F9_TRACE_FAILURE:
+    definition: Run cannot be reconstructed.
+    repair: Improve trace capture.
+  F10_RESPONSIBILITY_FAILURE:
+    definition: No clear owner, approval gate, or escalation path.
+    repair: Add responsibility mapping.
+  F11_LIFECYCLE_FAILURE:
+    definition: EOU is judged by the wrong maturity standard.
+    repair: Declare lifecycle stage and validation level.
+  F12_DRIFT_FAILURE:
+    definition: Specs, scripts, docs, and validators diverge.
+    repair: Reconcile against canonical schema.

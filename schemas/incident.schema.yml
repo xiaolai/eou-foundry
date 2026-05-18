@@ -1,0 +1,13 @@
+schema_id: incident.schema.v2
+required:
+- id
+- date
+- affected_eou
+- failure_class
+- summary
+- impact
+- root_causes
+- corrective_actions
+- status
+purpose: Incident reports preserve operational memory and should generate regression
+  cases or ECPs.

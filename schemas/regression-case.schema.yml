@@ -1,0 +1,14 @@
+schema_id: regression-case.schema.v2
+required:
+- id
+- target_eou
+- failure_class
+- failure_observed
+- fixture
+- expected_behavior
+- activation_status
+- requires_approval
+activation_status_values:
+- candidate
+- active
+- retired

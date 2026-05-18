@@ -1,0 +1,12 @@
+patterns:
+  split_eou: Use when one EOU has multiple primary success criteria.
+  merge_eou: Use when two EOUs always run together and share the same success criterion.
+  promote_check_to_script: Use when a judgment has become deterministic.
+  demote_to_human_judgment: Use when automation pretends to decide a responsibility-heavy
+    matter.
+  add_stop_condition: Use when an EOU continues in invalid states.
+  add_context_manifest: Use when performance depends on hidden context.
+  add_regression_case: Use after every serious failure that could recur.
+  retire_eou: Use when a unit is obsolete, duplicate, or net-negative.
+minimality_rule: Before creating a new EOU, ask whether a rule, schema field, validator,
+  regression case, stop condition, or human checklist would be enough.

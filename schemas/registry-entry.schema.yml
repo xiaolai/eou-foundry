@@ -1,0 +1,30 @@
+schema_id: registry-entry.schema.v2
+required:
+- eou_id
+- current_version
+- path
+- status
+- maturity
+- owner
+- classification
+- dependencies
+- last_audit
+- known_issues
+status_values:
+- candidate
+- draft
+- simulated
+- pilot
+- active
+- monitored
+- stable
+- deprecated
+- retired
+maturity_values:
+- L0_TACIT
+- L1_NARRATIVE
+- L2_STRUCTURED
+- L3_EXECUTABLE
+- L4_AUDITABLE
+- L5_GOVERNED
+- L6_SELF_IMPROVING

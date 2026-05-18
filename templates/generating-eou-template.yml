@@ -1,0 +1,122 @@
+id: candidate-generating-eou-id
+name: Candidate Generating EOU Name
+version: 0.1.0
+classification:
+  function: generate
+  target_object: candidate objects
+  automation_mode: LLM_assisted
+  authority_level: write_candidate
+  risk_level: medium
+  lifecycle_stage: candidate
+purpose:
+  statement: What this generating EOU proposes.
+  non_goals:
+  - Do not activate generated outputs.
+  - Do not approve generated outputs.
+  - Do not mutate active governance.
+operating_hypothesis: >
+  Given explicit workflow context and failure modes, this EOU can propose useful
+  candidates while exposing arguments against creation and minimality checks.
+inputs:
+  required: []
+  optional: []
+  forbidden_assumptions: []
+context_manifest:
+  source_of_truth:
+  - foundry/constitution.yml
+  supporting:
+  - foundry/failure-taxonomy.yml
+  forbidden:
+  - active registry mutation
+execution:
+  steps: []
+  decision_points: []
+  stop_conditions: []
+  allowed_tools: []
+  prohibited_actions:
+  - activate generated outputs
+  - approve generated outputs
+outputs:
+  primary: []
+  secondary: []
+  trace:
+  - runs/{run_id}/trace.yml
+success_criteria:
+  must_pass:
+  - Generated outputs are candidate-only.
+  should_pass: []
+validation:
+  deterministic: []
+  judgment:
+  - candidate set audit
+  red_team: []
+failure_modes:
+  known:
+  - process inflation
+  - duplicate candidates
+  - fake operational value
+  warning_signs: []
+  repair_actions: []
+escalation:
+  require_human_when:
+  - high-risk domain
+  require_approval_for:
+  - activation
+responsibility:
+  executor: Claude / human analyst
+  reviewer: Foundry maintainer
+  approver: human owner
+  cannot_delegate:
+  - activation of generated outputs
+  - final candidate approval
+versioning:
+  supersedes: []
+  changelog:
+  - 0.1.0: Initial candidate.
+blast_radius:
+  allowed_scope:
+  - foundry/self-evolution/ecp/proposed/
+  - foundry/self-evolution/regression/cases/
+  forbidden_scope:
+  - foundry/constitution.yml
+  - active registry entries
+generation_envelope:
+  allowed_outputs: []
+  forbidden_outputs:
+  - active_eou
+  - approved_eou
+  - constitution_change
+  - validator_weakening
+  max_candidates: 7
+  default_status: candidate
+  required_for_each_candidate:
+  - purpose
+  - non_goal
+  - operational_value
+  - arguments_against
+generation_budget:
+  max_candidates: 7
+  max_new_schemas: 2
+  max_new_validators: 3
+  max_open_questions: 10
+  must_rank_candidates: true
+  must_select_minimal_set: true
+registry_diff:
+  required: true
+  questions: []
+minimality_test:
+  questions: []
+operational_value_test:
+  required_answer:
+  - prevents_failure
+  - improves_decision
+  - exposes_hidden_judgment
+  - improves_traceability
+  reject_if:
+  - exists only for completeness
+  - duplicates existing EOU
+counter_generation:
+  required: true
+  requires_for_each_candidate:
+  - arguments_against
+  - minimality_result

@@ -1,0 +1,15 @@
+schema_id: run-trace.schema.v2
+required:
+- run_id
+- eou_id
+- eou_version
+- status
+- inputs
+- context_loaded
+- steps_completed
+- warnings
+- outputs
+- validation
+- human_approval
+purpose: Run traces make execution reconstructable and convert each EOU run into evidence
+  about the EOU itself.

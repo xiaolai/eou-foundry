@@ -1,0 +1,23 @@
+runtime_sequence:
+- resolve EOU ID
+- load EOU spec
+- validate inputs
+- load context manifest
+- create run ID
+- execute steps
+- capture trace
+- run deterministic validation
+- run judgment audit if needed
+- emit output and run report
+run_report_required_fields:
+- run_id
+- eou_id
+- eou_version
+- input_versions
+- status
+- warnings
+- outputs
+- validation
+- next_actions
+principle: The output of an EOU run is both the intended artifact and evidence about
+  the EOU itself.

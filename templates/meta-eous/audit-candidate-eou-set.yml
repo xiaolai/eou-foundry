@@ -1,0 +1,94 @@
+id: audit-candidate-eou-set
+name: Audit Candidate EOU Set
+version: 0.2.0
+classification:
+  function: audit
+  target_object: candidate EOU set
+  automation_mode: LLM_assisted
+  authority_level: write_inactive
+  risk_level: medium
+  lifecycle_stage: draft
+purpose:
+  statement: Audit a generated candidate EOU set for boundary quality, minimality,
+    authority, operational value, and governance risk.
+  non_goals:
+  - Do not activate candidates.
+  - Do not rewrite candidates inside the audit unless requested as a separate refactor.
+operating_hypothesis: Given a candidate EOU set, this EOU can identify whether the
+  set is useful, minimal, non-overlapping, and safe to advance to specification.
+inputs:
+  required:
+  - candidate_eou_set.yml
+  - foundry/registry.yml
+  - foundry/constitution.yml
+  optional: []
+  forbidden_assumptions:
+  - Do not assume missing context exists.
+context_manifest:
+  source_of_truth: []
+  supporting: []
+  forbidden: []
+execution:
+  steps:
+  - Check each candidate for distinct success criterion.
+  - Check set-level coverage and overlap.
+  - Check authority and risk classification.
+  - Check operational value and anti-case.
+  - Check registry duplicates.
+  - Recommend keep, merge, defer, reject, or convert-to-rule/validator/regression-case.
+  decision_points: []
+  stop_conditions: []
+  allowed_tools: []
+  prohibited_actions: []
+outputs:
+  primary:
+  - audits/candidate-set-audits/{set_id}.audit.yml
+  secondary: []
+  trace:
+  - runs/{run_id}/trace.yml
+success_criteria:
+  must_pass:
+  - Audit includes keep/reject/defer recommendations.
+  - Audit identifies duplicates and overproduction.
+  - High-risk candidates have human approval requirements.
+  should_pass: []
+validation:
+  deterministic: []
+  judgment:
+  - candidate set audit tests
+  red_team: []
+failure_modes:
+  known:
+  - Audits individual candidates but misses weak system composition
+  - Fails to punish process inflation
+  warning_signs:
+  - Audit verdict is approved without populating candidate_recommendations.{keep,merge,defer,reject}.
+  - rejected_candidates list omits the dangerous IDs (auto-approve-*, recursive-proof-generator, ...) defined in process-evidence-distillation-rules.yml.
+  - approval_status.approved_for_active_use is set to true at version v0.X.
+  repair_actions:
+  - Force-fail the audit if any of the four recommendation buckets is empty.
+  - Re-add the canonical dangerous-ID set to rejected_candidates and re-run the audit.
+  - Reset approved_for_active_use to false until human owner explicitly approves.
+escalation:
+  require_human_when: []
+  require_approval_for: []
+responsibility:
+  executor: Claude / script / human depending on run mode
+  reviewer: human owner or designated auditor
+  approver: human owner
+  cannot_delegate:
+  - final approval
+  - weakening validation
+  - publication or high-stakes decisions
+versioning:
+  supersedes: []
+  changelog:
+  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+blast_radius:
+  allowed_scope:
+  - foundry/audits/
+  - audits/eou-audits/
+  forbidden_scope:
+  - foundry/constitution.yml
+  - approved ECPs
+  - production schemas unless ECP-approved

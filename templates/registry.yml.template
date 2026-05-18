@@ -1,0 +1,8 @@
+registry_version: 0.1.0
+# Application: {{APP_NAME}}
+# Description: {{DESCRIPTION}}
+#
+# Add EOU registrations under `entries:` as you specify them with
+# /eou-foundry:eou-specify. Each entry has the shape documented in
+# schemas/registry-entry.schema.yml.
+entries: []

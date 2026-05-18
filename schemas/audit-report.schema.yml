@@ -1,0 +1,19 @@
+schema_id: audit-report.schema.v2
+required:
+- id
+- audit_type
+- target
+- verdict
+- findings
+- required_actions
+- approval
+audit_types:
+- output
+- run
+- eou
+- candidate_set
+- foundry
+verdicts:
+- pass
+- revise
+- fail

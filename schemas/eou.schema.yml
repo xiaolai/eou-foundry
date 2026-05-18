@@ -1,0 +1,76 @@
+schema_id: eou.schema.v2
+description: Canonical EOU spec schema using multi-dimensional classification, authority
+  limits, and traceable governance.
+required_top_level:
+- id
+- name
+- version
+- classification
+- purpose
+- operating_hypothesis
+- inputs
+- context_manifest
+- execution
+- outputs
+- success_criteria
+- validation
+- failure_modes
+- escalation
+- responsibility
+- versioning
+classification:
+  required:
+  - function
+  - target_object
+  - automation_mode
+  - authority_level
+  - risk_level
+  - lifecycle_stage
+  valid_function:
+  - execute
+  - audit
+  - generate
+  - decide
+  - govern
+  - validate
+  - refactor
+  valid_automation_mode:
+  - deterministic
+  - LLM_assisted
+  - human_executed
+  - hybrid
+  valid_authority_level:
+  - suggest_only
+  - draft_only
+  - write_candidate
+  - write_inactive
+  - mutate_active
+  - approve
+  - publish
+  valid_risk_level:
+  - low
+  - medium
+  - high
+  - critical
+  valid_lifecycle_stage:
+  - candidate
+  - draft
+  - simulated
+  - pilot
+  - active
+  - monitored
+  - stable
+  - deprecated
+  - retired
+generating_eou_required:
+- generation_envelope
+- generation_budget
+- registry_diff
+- minimality_test
+- operational_value_test
+- counter_generation
+invariants:
+- Generated operating units default to candidate status.
+- Generating EOUs may not activate, approve, publish, or weaken validators.
+- Each EOU must declare owner/reviewer/approver and non-delegable decisions.
+- High-risk and critical units require human approval.

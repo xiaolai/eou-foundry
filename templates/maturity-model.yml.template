@@ -1,0 +1,40 @@
+maturity_levels:
+  L0_TACIT:
+    definition: Human knows how to do it, but nothing is formalized.
+    promotion_requires:
+    - workflow narrative
+  L1_NARRATIVE:
+    definition: Workflow is described in plain language.
+    promotion_requires:
+    - artifact inventory
+    - known failure modes
+  L2_STRUCTURED:
+    definition: Inputs, outputs, steps, and success criteria exist.
+    promotion_requires:
+    - EOU spec
+    - input schema
+    - output schema
+  L3_EXECUTABLE:
+    definition: A human, AI agent, or script can run it.
+    promotion_requires:
+    - successful pilot run
+    - run trace
+  L4_AUDITABLE:
+    definition: Runs produce trace and validation evidence.
+    promotion_requires:
+    - output audit
+    - run audit
+    - known failure taxonomy
+  L5_GOVERNED:
+    definition: Versioning, regression tests, and approval gates exist.
+    promotion_requires:
+    - registry entry
+    - regression cases
+    - owner approval
+  L6_SELF_IMPROVING:
+    definition: Failures generate ECPs and controlled refactors.
+    promotion_requires:
+    - ECP history
+    - successful regression suite
+    - monitored improvement record
+rule: Do not allow an EOU to self-declare maturity; promotion requires evidence.

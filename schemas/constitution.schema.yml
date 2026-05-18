@@ -1,0 +1,10 @@
+schema_id: constitution.schema.v2
+required:
+- purpose
+- optimize_for
+- do_not_optimize_for_alone
+- invariants
+- forbidden
+- generation_invariants
+- change_rules
+purpose: Constitution bounds recursive Foundry self-evolution and prevents self-approval.

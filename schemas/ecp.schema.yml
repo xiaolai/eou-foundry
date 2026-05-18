@@ -1,0 +1,14 @@
+schema_id: ecp.schema.v2
+required:
+- id
+- target_eou
+- target_version_from
+- target_version_to
+- problem
+- proposed_change
+- expected_benefit
+- risks
+- tests_required
+- simulation
+- approval
+purpose: EOU Change Proposals are the only path for significant Foundry mutation.

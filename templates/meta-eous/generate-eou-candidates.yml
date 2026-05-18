@@ -1,0 +1,211 @@
+id: generate-eou-candidates
+name: Generate EOU Candidates
+version: 0.2.0
+classification:
+  function: generate
+  target_object: candidate EOU set
+  automation_mode: LLM_assisted
+  authority_level: write_candidate
+  risk_level: medium
+  lifecycle_stage: draft
+purpose:
+  statement: Convert a messy workflow description into a minimal, ranked set of candidate
+    EOUs.
+  non_goals:
+  - Do not activate generated EOUs.
+  - Do not approve generated EOUs.
+  - Do not mutate the registry.
+  - Do not generate candidates without operational value.
+operating_hypothesis: Given a workflow narrative, artifacts, failure cases, and context,
+  this EOU can propose useful candidate EOUs without granting them authority.
+inputs:
+  required:
+  - workflow_narrative
+  - desired_artifact
+  - known_failure_modes
+  optional:
+  - example_good_outputs
+  - example_bad_outputs
+  - expert_notes
+  - existing_checklists
+  - existing_prompts
+  - existing_scripts
+  forbidden_assumptions:
+  - Do not assume every step deserves its own EOU.
+  - Do not assume automation is desirable.
+  - Do not assume the visible artifact reveals the hidden judgment.
+  - Do not assume generated EOUs are valid.
+context_manifest:
+  source_of_truth:
+  - workflow_narrative
+  - known_failure_modes
+  - constitution.yml
+  supporting:
+  - failure-taxonomy.yml
+  - maturity-model.yml
+  - eou.schema.yml
+  forbidden:
+  - active registry mutation
+  - constitution changes
+execution:
+  steps:
+  - Summarize the messy workflow.
+  - Identify desired artifacts and hidden judgments.
+  - Identify failure modes and decision boundaries.
+  - Generate a minimal candidate set plus rejected candidates.
+  - Run registry-diff and minimality checks.
+  - Add operational value and arguments against each candidate.
+  - Rank candidates and recommend a minimal subset.
+  - Write candidate_eou_set.yml.
+  decision_points:
+  - Reject candidates that are better expressed as a rule, validator, schema field,
+    stop condition, regression case, or checklist.
+  stop_conditions:
+  - Workflow goal unclear.
+  - Desired artifact undefined.
+  - No failure modes provided or inferable.
+  - Responsibility boundary unclear.
+  - High-stakes workflow lacks owner.
+  allowed_tools:
+  - generate-eou-candidates skill
+  prohibited_actions:
+  - Activating generated EOUs
+  - Approving generated EOUs
+  - Mutating active registry
+  - Weakening validators
+outputs:
+  primary:
+  - candidate_eou_set.yml
+  secondary:
+  - decomposition_rationale.md
+  - open_questions.md
+  trace:
+  - runs/{run_id}/trace.yml
+success_criteria:
+  must_pass:
+  - Each candidate has a clear purpose, non-goal, success criterion, failure modes,
+    authority level, and activation requirements.
+  - No generated EOU is active or approved.
+  - Candidate set includes rejected candidates and recommended minimal set.
+  - Each kept candidate has operational value and arguments against creation.
+  should_pass: []
+validation:
+  deterministic:
+  - candidate count <= generation budget
+  - no candidate has active status
+  - required candidate fields present
+  judgment:
+  - boundary quality audit
+  - automation-risk audit
+  - hidden-judgment audit
+  - non-bureaucracy audit
+  red_team:
+  - candidate set adversarial review
+failure_modes:
+  known:
+  - Generates too many EOUs
+  - Splits workflow by visible action instead of decision boundary
+  - Turns judgment into fake automation
+  - Duplicates existing EOUs
+  - Ignores human approval boundary
+  - Optimizes completeness over usefulness
+  warning_signs:
+  - Candidate count equals generation_budget.max_candidates (rounding suggests filler).
+  - Candidates omit arguments_against or minimality_test fields.
+  - recommended_minimal_set references candidate IDs that are absent from the candidates list.
+  repair_actions:
+  - Re-run with a lower max_candidates budget and re-run audit-candidate-eou-set.
+  - Block candidates lacking arguments_against from entering the candidate set.
+  - Reconcile recommended_minimal_set against candidate IDs before audit.
+escalation:
+  require_human_when:
+  - generated EOU affects publication, finance, health, legal, safety, children, governance,
+    or public claims
+  - candidate proposes weakening validation
+  - candidate proposes self-approval
+  - candidate automates judgment-heavy approval
+  require_approval_for: []
+responsibility:
+  executor: Claude / script / human depending on run mode
+  reviewer: human owner or designated auditor
+  approver: human owner
+  cannot_delegate:
+  - final approval
+  - weakening validation
+  - publication or high-stakes decisions
+versioning:
+  supersedes: []
+  changelog:
+  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+blast_radius:
+  allowed_scope:
+  - foundry/self-evolution/ecp/proposed/
+  - foundry/self-evolution/regression/cases/
+  - candidate output locations explicitly provided by user
+  forbidden_scope:
+  - foundry/constitution.yml
+  - approved ECPs
+  - production schemas unless ECP-approved
+generation_envelope:
+  allowed_outputs:
+  - candidate_eou_spec
+  - decomposition_rationale
+  - open_questions
+  - rejected_candidates
+  - recommended_minimal_set
+  forbidden_outputs:
+  - active_eou
+  - approved_eou
+  - constitution_change
+  - validator_weakening
+  - human_approval_record
+  max_candidates: 7
+  default_status: candidate
+  required_for_each_candidate:
+  - purpose
+  - non_goal
+  - distinct_success_criterion
+  - failure_modes
+  - authority_level
+  - risk_level
+  - owner_required
+  - activation_requirements
+  - operational_value
+  - arguments_against
+generation_budget:
+  max_candidates: 7
+  max_new_schemas: 2
+  max_new_validators: 3
+  max_open_questions: 10
+  must_rank_candidates: true
+  must_select_minimal_set: true
+registry_diff:
+  required: true
+  questions:
+  - Does this candidate duplicate an existing EOU?
+  - Does it extend an existing EOU?
+  - Should it be a refactor instead of a new EOU?
+  - Should it be a test case, rule, or stop condition rather than a new EOU?
+minimality_test:
+  questions:
+  - Can this be a rule instead of an EOU?
+  - Can this be a validator instead of an EOU?
+  - Can this be a regression case instead of an EOU?
+  - Can this be a field in an existing EOU instead of a new EOU?
+  - Can this be a human review checklist instead of automation?
+operational_value_test:
+  required_answer:
+  - prevents_failure
+  - improves_decision
+  - exposes_hidden_judgment
+  - improves_traceability
+  reject_if:
+  - exists only for completeness
+  - duplicates existing EOU
+  - has no distinct success criterion
+counter_generation:
+  required: true
+  requires_for_each_candidate:
+  - arguments_against
+  - rejection_or_keep_reason
+  - minimality_result
