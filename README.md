@@ -48,16 +48,21 @@ function + target_object + automation_mode + authority_level + risk_level + life
 
 ## Install
 
-Local (from a checkout):
+From the xiaolai marketplace (recommended):
 
 ```bash
-claude plugin install /Users/joker/github/xiaolai/myprojects/claude-plugins/eou-foundry --scope project
+# one-time, if you haven't already added the xiaolai marketplace:
+claude plugin marketplace add xiaolai/claude-plugin-marketplace
+
+# then in any project:
+claude plugin install eou-foundry@xiaolai --scope project
 ```
 
-From a marketplace (once published):
+From a local checkout (for plugin development):
 
 ```bash
-claude plugin install eou-foundry@xiaolai --scope project
+claude plugin marketplace add /path/to/eou-foundry
+claude plugin install eou-foundry@eou-foundry-local --scope project
 ```
 
 ## Quick start
