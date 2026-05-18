@@ -1,5 +1,7 @@
 # eou-foundry
 
+[![Validated by NLPM](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/xiaolai/eou-foundry/main/nlpm-badge.json)](https://github.com/xiaolai/eou-foundry/blob/main/nlpm-badge.json)
+
 Recursive governance for **Executable Operating Units (EOUs)** — installable
 as a Claude Code plugin into any project that needs to turn messy human
 workflows into structured, auditable, improvable operating units.
