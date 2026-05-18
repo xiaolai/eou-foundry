@@ -1,0 +1,38 @@
+{
+  "name": "eou-foundry",
+  "version": "0.1.0",
+  "description": "Recursive governance for Executable Operating Units (EOUs). Faceted classification, generating-EOU constraints, ECP-governed change, no-self-approval.",
+  "author": {
+    "name": "xiaolai"
+  },
+  "homepage": "https://github.com/xiaolai/eou-foundry",
+  "repository": "https://github.com/xiaolai/eou-foundry",
+  "license": "ISC",
+  "keywords": [
+    "eou",
+    "governance",
+    "audit",
+    "schema",
+    "ecp",
+    "foundry",
+    "executable-operating-unit",
+    "workflow"
+  ],
+  "skills": "./codex/skills/",
+  "interface": {
+    "displayName": "EOU Foundry",
+    "shortDescription": "Turn messy workflows into auditable, retirable Executable Operating Units with recursive governance",
+    "longDescription": "Install in any project that needs to turn messy workflows into auditable, retirable operating units. Generates candidate EOU sets from a workflow description, audits them for boundary quality and minimality, specifies approved candidates as formal EOUs with faceted classification (function + target + automation + authority + risk + lifecycle), proposes ECP-governed changes, and refactors or retires existing EOUs. Generating-EOU constraints prevent self-activation; no-self-approval keeps generation, auditing, and approval separable.",
+    "developerName": "xiaolai",
+    "category": "Coding",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Generate candidate EOUs from this workflow description.",
+      "Audit the EOU at foundry/eous/<id>.yml for boundary, authority, and blast-radius issues.",
+      "Specify this approved candidate as a formal EOU.",
+      "Propose an ECP for changing this EOU's authority level."
+    ],
+    "websiteURL": "https://github.com/xiaolai/eou-foundry",
+    "screenshots": []
+  }
+}
