@@ -1,0 +1,53 @@
+id: ecp-0001-failure-taxonomy-yaml-malformed
+target_eou: eou-foundry-plugin
+target_version_from: 0.3.0
+target_version_to: 0.3.1
+
+problem:
+  observed_failure: >-
+    templates/failure-taxonomy.yml.template fails YAML parsing when copied
+    into a consuming application. Under F6_BOUNDARY_FAILURE, the subtypes
+    F6a_STRUCTURAL and F6b_COVERAGE are written so that their description
+    text contains "repair:" at the same indentation as a YAML key. PyYAML
+    correctly reads this as a mapping-value-at-wrong-position error and
+    refuses to load the file.
+  failure_class: F7_VALIDATION_FAILURE
+  evidence:
+    - Reproduced on book-workshop application during the v0.1.0 to v0.3.0 catch-up. scripts/validate_workshop.py reports "foundry/failure-taxonomy.yml invalid YAML mapping values are not allowed here at line 24 column 15".
+    - The template ships as part of /eou-foundry init scaffolding. Any fresh-scaffolded application would hit the same parse error on its first validate_foundry run.
+
+proposed_change:
+  summary: >-
+    Restructure F6a_STRUCTURAL and F6b_COVERAGE so each subtype is a YAML
+    mapping with description and repair as proper sibling keys, instead of
+    a flat string whose body contains "repair:" as substring.
+  files_changed:
+    - templates/failure-taxonomy.yml.template
+  shape_before_pseudo:
+    F6a_STRUCTURAL: The EOU conflates two or more distinct judgments ... repair Responsibility separation or split refactor ...
+  shape_after_pseudo:
+    F6a_STRUCTURAL:
+      description: The EOU conflates two or more distinct judgments ...
+      repair: Responsibility-separation or split refactor.
+
+expected_benefit:
+  - /eou-foundry init produces a foundry/ that passes validate_foundry on the first run (currently it fails at parse time before any schema check fires).
+  - failure-taxonomy.yml becomes machine-readable, enabling future tooling that surfaces failure subtypes (e.g. /eou-foundry eou-diagnose can pick the right subtype automatically).
+  - Removes the workshop-side workaround (book-workshop currently keeps its pre-v0.3 copy of failure-taxonomy.yml and ignores the upstream template).
+
+risks:
+  - Existing applications that copy-pasted the broken template and then relied on the flat-string shape (treating subtypes as ad-hoc text) would need to upgrade their copies. Mitigation. ship a migration note in CHANGELOG.md. The new shape is a superset (description is preserved).
+
+tests_required:
+  - regression case. parse templates/failure-taxonomy.yml.template with yaml.safe_load. Must succeed and produce a dict whose F6_BOUNDARY_FAILURE.subtypes.F6a_STRUCTURAL is a mapping containing both description and repair keys.
+  - regression case. /eou-foundry init my-test-app produces a foundry/ that passes validate_foundry.py on first run.
+
+simulation:
+  status: not_simulated
+  rationale: This is a parse-time fix. The change is mechanical and the test is a YAML-load assertion. No EOU-runtime simulation needed.
+
+approval:
+  proposed_by: book-workshop self-evolution (caught during plugin catch-up)
+  audited_by: null
+  approved_by: null
+  status: proposed
