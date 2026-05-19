@@ -1,43 +1,22 @@
-# Executable Operating Units (EOUs)
+# EOU Foundations
 
-This document generalizes the workshop beyond book production.
-
-The book workshop is one instance of a broader problem:
-
-```text
-messy human workflow
-→ structured executable operating units
-→ auditable production system
-```
-
-An **EOU** is not merely a checklist, prompt, SOP, script, or template. A good EOU is a bounded work unit that can be:
-
-```text
-understood
-executed
-delegated
-audited
-improved
-versioned
-partially automated
-```
+An **EOU — Executable Operating Unit** — is a bounded work unit that can be understood, executed, delegated, audited, improved, and versioned.
 
 A weak EOU says:
 
 ```text
-Write a chapter.
+Do the analysis.
 ```
 
 A strong EOU says:
 
 ```text
-Given this chapter card, book kernel, fair-clue register, claim type,
-evidence burden, metaphor/analogy constraints, and protocol target,
-produce a chapter scaffold that satisfies the recognition-reversal contract,
-then run audit tests and record unresolved gaps.
+Given the incident report, failure taxonomy, and constitution,
+classify the root cause using F-codes, rank repair options by blast radius,
+and write a diagnosis report. Do not apply any repair.
 ```
 
-The core question is not only **how to automate work**. It is:
+The core challenge:
 
 > How do we translate tacit, messy, non-programmatic human workflows into units that are executable enough to scale, inspectable enough to trust, and flexible enough to remain intelligent?
 
@@ -85,7 +64,7 @@ People usually remember the desired end state. They often do not know how to spe
 
 Most valuable workflows are not difficult because of visible steps. They are difficult because of hidden judgment.
 
-In the book workshop, the visible step is:
+The visible step might be:
 
 ```text
 compile chapter
@@ -94,12 +73,10 @@ compile chapter
 The real judgment is:
 
 ```text
-Is the reversal earned?
-Is the clue fair?
-Is the metaphor serving the governing mode?
+Is the argument earned?
+Is the evidence sufficient?
 Is the claim overreaching?
-Is this prose becoming generic?
-Does the chapter change the reader's standard of evidence?
+Does this output change the reader's standard of evidence?
 ```
 
 These are **judgment predicates**, not ordinary procedural steps.
@@ -115,12 +92,7 @@ what to do
 how to know whether it was done well
 ```
 
-For the book workshop, this is why the audit system matters more than the compiler.
-
-```text
-compiler = produces output
-audit system = preserves judgment
-```
+For any EOU system, the audit layer matters more than the compiler. The compiler produces output; the audit layer preserves judgment.
 
 ---
 
@@ -142,22 +114,18 @@ EOUs should be divided by **decision boundary**, not by activity label.
 Weak decomposition:
 
 ```text
-Write chapter.
-Edit chapter.
-Audit chapter.
+Write document.
+Edit document.
+Audit document.
 ```
 
 Better decomposition:
 
 ```text
-Extract main reversal.
-Validate fair clue.
-Check evidence burden.
-Compile chapter scaffold.
-Convert scaffold to prose.
-Audit chapter contract.
-Audit metaphor / analogy use.
-Run placeholder and schema validation.
+Extract main argument.
+Validate evidence burden.
+Compile scaffold.
+Audit contract.
 Revise against audit.
 ```
 
@@ -166,12 +134,6 @@ Principle:
 > An EOU boundary should appear where the success criterion changes.
 
 If the success criterion changes, the workflow probably needs a separate EOU.
-
-Example:
-
-```text
-Generate prose ≠ verify evidence burden.
-```
 
 Writing favors flow. Auditing favors suspicion. Combining them creates self-deception.
 
@@ -187,16 +149,7 @@ In EOU design:
 final artifact ≠ process validity
 ```
 
-A generated chapter may look good while violating the engine:
-
-```text
-no fair clue
-no real reversal
-unsupported bold claim
-decorative metaphor
-generic AI rhetoric
-no protocol
-```
+A generated document may look good while violating its own operating contract.
 
 Strategy:
 
@@ -213,16 +166,6 @@ which assumptions remain unresolved
 which human judgment was required
 ```
 
-For the book workshop:
-
-```text
-chapter card
-→ generated scaffold
-→ audit report
-→ revision log
-→ final prose
-```
-
 An EOU without trace is merely an output machine.
 
 ---
@@ -236,20 +179,17 @@ An EOU cannot execute well unless it knows what context to load.
 Weak EOU:
 
 ```text
-Compile this chapter.
+Diagnose the failure.
 ```
 
 Better EOU:
 
 ```text
-Before compiling:
-1. Load book/kernel.yml.
-2. Load book/toc.yml.
-3. Load the target chapter card.
-4. Load fair-clues.yml.
-5. Load analogy-bank.yml if the chapter uses an analogy.
-6. Load evidence-standard.yml.
-7. Load the relevant protocol card.
+Before diagnosing:
+1. Load the failure taxonomy.
+2. Load the constitution.
+3. Load the incident report.
+4. Load the EOU spec under diagnosis if available.
 ```
 
 Strategy:
@@ -263,10 +203,10 @@ What must be known before execution?
 What must not be assumed?
 Which files are source of truth?
 Which materials are optional?
-Which materials are stale?
+Which materials are forbidden?
 ```
 
-Without a context manifest, AI agents hallucinate structure, humans rely on memory, and the workflow becomes non-repeatable.
+Without a context manifest, AI agents hallucinate structure and the workflow becomes non-repeatable.
 
 ---
 
@@ -276,10 +216,8 @@ Real workflows include cases such as:
 
 ```text
 What if the evidence is missing?
-What if the chapter card is incomplete?
-What if the metaphor is powerful but misleading?
-What if a bold claim is attractive but unsupported?
-What if the workflow produces fluent garbage?
+What if the source document is incomplete?
+What if the input is ambiguous?
 ```
 
 Most SOPs fail because they describe only the happy path.
@@ -298,23 +236,15 @@ repair actions
 Example:
 
 ```yaml
-EOU: compile-chapter
-
-stop_if:
-  - chapter card lacks main_claim
-  - fair clue is missing
-  - protocol is undefined
-  - evidence burden is B but no counterclaim exists
-
-repair:
-  - do not draft prose
-  - repair chapter card first
-  - run audit after repair
-
-escalate_to_human_if:
-  - claim is ethically sensitive
-  - evidence is contradictory
-  - metaphor risks distorting the argument
+execution:
+  stop_conditions:
+    - Required input file not found.
+    - Source document contains no observable failure symptoms.
+    - Authority boundary of this EOU would be exceeded.
+  escalation:
+    require_human_when:
+      - Failure involves a constitutional invariant violation.
+      - Self-approval risk is detected.
 ```
 
 A good EOU should know when **not** to execute.
@@ -333,44 +263,33 @@ Parts that should be executable:
 validate YAML
 check required fields
 detect unresolved placeholders
-compile chapter scaffold
+compile structured output
 generate audit report
-export manuscript
 ```
 
 Parts that should remain judgment-heavy:
 
 ```text
-Is this metaphor too strong?
-Is the argument original enough?
-Is the chapter emotionally honest?
-Is the final reversal earned?
+Is this argument original enough?
 Is this claim worth making?
+Is the evidence sufficient?
+Should this EOU be retired?
 ```
 
 Strategy:
 
 > Separate deterministic execution from judgment execution.
 
-Classify EOUs into three types:
+Classify automation_mode into:
 
 ```text
-Type A: Deterministic EOU
-Can be run by script.
-Example: validate required fields.
-
-Type B: Judgment EOU
-Requires an LLM or human evaluator.
-Example: audit whether the reversal is earned.
-
-Type C: Decision EOU
-Requires owner responsibility.
-Example: decide whether to keep a bold claim.
+deterministic:    can be run by script; no LLM judgment needed
+LLM_assisted:     requires LLM evaluation; human review recommended
+human_executed:   must be performed by a human
+hybrid:           deterministic steps and judgment steps explicitly separated
 ```
 
-Many systems fail because they pretend Type B and Type C are Type A.
-
-That creates fake automation.
+Many systems fail because they pretend `LLM_assisted` work is `deterministic`.
 
 ---
 
@@ -381,14 +300,15 @@ Schema drift happens when the workflow's components silently disagree.
 Example:
 
 ```yaml
-# card uses
-result:
+# EOU spec uses
+outputs:
+  primary: foundry/audits/incidents/{id}.diagnosis.yml
 
-# compiler expects
-learner_result:
+# consuming skill reads from
+foundry/audits/{id}.diagnosis.yml
 ```
 
-The validator may still say OK. The output may contain placeholders. The process looks successful while failing.
+The validator may still say OK. The output goes to the wrong path. The process looks successful while failing.
 
 Strategy:
 
@@ -404,70 +324,27 @@ error schema
 trace schema
 ```
 
-For the book workshop, chapter cards, device cards, analogy cards, mirror artifact cards, and protocol scene cards should all depend on canonical schemas.
-
-The compiler, validator, Claude skill, and dev-docs should not each invent their own interpretation.
+The schema, validator, skill, and docs should not each invent their own interpretation.
 
 ---
 
 ## 9. Difficulty: lifecycle mismatch
 
-A workflow at the architecture stage should not be judged by the same standards as a workflow near publication.
+A workflow at the draft stage should not be judged by the same standards as an active, governed workflow.
 
-Possible lifecycle stages:
+Lifecycle stages:
 
 ```text
-idea
-→ architecture
-→ scaffold
-→ draft
-→ audit
-→ revision
-→ production
-→ maintenance
+candidate → draft → simulated → pilot → active → monitored → stable → deprecated → retired
 ```
 
 Validation must vary by stage.
 
-Weak validator:
-
-```text
-Every book must have complete analogies, complete evidence, complete manuscript.
-```
-
-Better validator:
-
-```yaml
-stage: architecture
-required:
-  - kernel
-  - argument graph
-  - rough toc
-
-stage: scaffold
-required:
-  - chapter cards
-  - fair clues
-  - protocol cards
-
-stage: draft
-required:
-  - manuscript chapters
-  - no unresolved placeholders
-  - audit reports
-
-stage: production
-required:
-  - citations resolved
-  - final export
-  - consistency audit
-```
-
 Strategy:
 
-> Every EOU must declare its lifecycle stage.
+> Every EOU must declare its lifecycle_stage.
 
-Otherwise validation is either too strict too early or too weak too late.
+Otherwise validation is either too strict too early or too weak too late. An EOU at `candidate` status has no regression coverage and no audit history; applying `active`-level scrutiny to it wastes effort and generates noise.
 
 ---
 
@@ -481,7 +358,7 @@ For EOU design:
 
 > The audit layer must be more sophisticated than the generation layer.
 
-A chapter compiler can be simple. A chapter auditor must be sharp.
+A generator can be simple. An auditor must be sharp.
 
 Priority order:
 
@@ -503,22 +380,16 @@ An EOU should be executable.
 Too large:
 
 ```text
-Write the book.
-```
-
-Still too large:
-
-```text
-Develop the whole argument.
+Audit the Foundry.
 ```
 
 Better:
 
 ```text
-Generate one chapter card from one act-level reversal.
-Audit one analogy card for mapping and limits.
-Compile one chapter scaffold from one chapter card.
-Validate one book directory against its lifecycle stage.
+Audit one EOU spec for faceted classification completeness.
+Audit all generating EOUs for envelope safety.
+Check registry / spec consistency.
+Check ECP discipline for authority changes.
 ```
 
 Heuristics:
@@ -534,7 +405,7 @@ If an EOU has more than one primary success criterion, split it.
 
 Not every human workflow should be fully formalized.
 
-Writing, investing, parenting, research, and strategy all contain living judgment.
+Research, strategy, writing, and judgment-heavy decisions all contain living intelligence.
 
 The danger is bureaucratic automation:
 
@@ -549,15 +420,15 @@ Strategy:
 
 > Program the frame, not the soul.
 
-For the book workshop, program:
+Program:
 
 ```text
-chapter contract
-claim burden
-fair clue tracking
+schema constraints
+authority boundaries
+stop conditions
 audit requirements
-export process
-schema validation
+trace requirements
+governance pipeline
 ```
 
 Do not over-program:
@@ -567,8 +438,6 @@ taste
 voice
 final judgment
 which claim matters most
-whether a metaphor has force
-whether the book feels alive
 ```
 
 An EOU should constrain the system enough to prevent chaos, but not so much that it kills intelligence.
@@ -584,6 +453,7 @@ Who owns the result?
 Who can approve it?
 Who can override it?
 Who is accountable if it fails?
+What cannot be delegated?
 ```
 
 This matters especially when AI executes part of the workflow.
@@ -604,137 +474,121 @@ Responsibility field:
 
 ```yaml
 responsibility:
-  executor: "Claude / script / human"
-  reviewer: "human owner"
-  approver: "human owner"
+  executor: Claude
+  reviewer: Foundry maintainer
+  approver: human owner
   cannot_delegate:
-    - final claim approval
-    - ethical judgment
-    - publication decision
-    - evidence sufficiency judgment
+    - final approval to advance spec to active
+    - weakening the generation_envelope forbidden_outputs list
 ```
 
 Without this field, automation quietly becomes abdication.
 
 ---
 
-## 14. General EOU schema
+## 14. Current EOU spec schema (V2)
 
 ```yaml
-EOU:
-  id: string
-  name: string
-  type: deterministic | judgment | decision | hybrid
-  lifecycle_stage: idea | architecture | scaffold | draft | production | maintenance
+id: string                   # matches the filename stem
+name: string
+version: string              # semver; bumps on active EOUs require an ECP
 
-  purpose:
-    one_sentence: string
-    non_goal: string
+classification:
+  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose
+  target_object:    string   # what this EOU acts on
+  automation_mode:  deterministic | LLM_assisted | human_executed | hybrid
+  authority_level:  suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
+  risk_level:       low | medium | high | critical
+  lifecycle_stage:  candidate | draft | simulated | pilot | active | monitored | stable | deprecated | retired
 
-  inputs:
-    required: []
-    optional: []
-    forbidden_assumptions: []
+purpose:
+  statement: string          # one sentence: what failure it prevents or decision it improves
+  non_goals: []
 
-  context_manifest:
-    source_of_truth: []
-    supporting_materials: []
-    stale_or_deprecated: []
+operating_hypothesis: string # "Given X, this EOU can produce Y without risk R"
 
-  execution:
-    steps: []
-    decision_points: []
-    allowed_tools: []
-    prohibited_actions: []
+inputs:
+  required: []
+  optional: []
+  forbidden_assumptions: []
 
-  outputs:
-    primary: []
-    secondary: []
-    trace: []
+context_manifest:
+  source_of_truth: []        # canonical files this EOU reads
+  supporting: []             # secondary reference files
+  forbidden: []              # files this EOU must not read or mutate
 
-  success_criteria:
-    must_pass: []
-    should_pass: []
+execution:
+  steps: []                  # ordered, concrete, bounded — no "perform bounded operation"
+  decision_points: []        # named branch conditions with resolution criteria
+  stop_conditions: []        # observable states that stop execution before completion
+  allowed_tools: []
+  prohibited_actions: []
 
-  validation:
-    deterministic_checks: []
-    judgment_checks: []
-    red_team_checks: []
+outputs:
+  primary: []                # concrete file path(s)
+  secondary: []
+  trace:
+    - runs/{run_id}/trace.yml
 
-  failure_modes:
-    known_failures: []
-    warning_signs: []
-    stop_conditions: []
-    repair_actions: []
+success_criteria:
+  must_pass: []              # binary, verifiable conditions
+  should_pass: []            # quality checks that are not hard blockers
 
-  escalation:
-    ask_human_when: []
-    require_approval_for: []
+validation:
+  deterministic: []          # machine-checkable: field presence, schema conformance
+  judgment: []               # requires human or LLM review
+  red_team: []               # adversarial scenarios to test boundary robustness
 
-  responsibility:
-    executor: string
-    reviewer: string
-    approver: string
-    cannot_delegate: []
+failure_modes:
+  known: []
+  warning_signs: []
+  repair_actions: []
 
-  versioning:
-    version: string
-    change_log: []
-    supersedes: []
+escalation:
+  require_human_when: []
+  require_approval_for: []
+
+responsibility:
+  executor: string           # Claude | script | human
+  reviewer: string
+  approver: string
+  cannot_delegate: []
+
+blast_radius:
+  allowed_scope: []          # directories or files this EOU may write to
+  forbidden_scope: []        # directories or files this EOU must never touch
+
+versioning:
+  supersedes: []
+  changelog: []
 ```
+
+The authoritative source is `schemas/eou.schema.yml`. If this document and the schema ever drift, the schema wins.
 
 ---
 
-## 15. EOU ladder
+## 15. EOU progression
 
-Do not convert a messy workflow directly into executable code.
+Do not convert a messy workflow directly into active automation.
 
-Use this ladder:
+Use this progression:
 
 ```text
 messy workflow
 → narrative description
 → artifact inventory
 → decision map
-→ EOU cards
+→ EOU specs (candidates)
 → schemas
 → validators
-→ scripts
-→ Claude skills
-→ audits
-→ versioned operating system
+→ skills / scripts
+→ candidate set audit
+→ simulation
+→ human approval
+→ active governed system
 ```
 
-Example for the book workshop:
-
-```text
-Narrative description:
-  I want to write a book from a messy conversation.
-
-Artifact inventory:
-  kernel, argument graph, chapter cards, fair clues, analogy bank,
-  protocols, manuscript, audits, exports.
-
-Decision map:
-  What counts as a valid reversal?
-  What counts as fair evidence?
-  What counts as metaphor misuse?
-
-EOU cards:
-  new-book, compile-chapter, audit-chapter, evidence-audit,
-  metaphor-audit, export-book.
-
-Schemas and validators:
-  make invalid states impossible or visible.
-
-Scripts and skills:
-  make the workflow executable.
-
-Audit and revision:
-  preserve judgment.
-```
-
-This ladder is safer than jumping straight into automation.
+This progression is safer than jumping straight into automation.
 
 ---
 
@@ -748,18 +602,16 @@ How will it look successful while failing?
 How will we detect that?
 ```
 
-For the book workshop, failure modes include:
+Failure modes include:
 
 ```text
-beautiful but generic prose
-unsupported bold claims
-decorative metaphors
-stale chapter cards
+beautiful but non-compliant output
+unsupported claims
 schema mismatch
-fake validation
-missing fair clue payoff
-AI-generated audit that flatters the draft
-manuscript export with unresolved placeholders
+fake validation passing
+missing required fields
+AI-generated audit that flatters the output
+trace not preserved
 ```
 
 Feature-first design creates bloated systems.
@@ -773,9 +625,9 @@ Failure-first design creates robust systems.
 Every serious EOU system needs three modes:
 
 ```text
-compile mode
-audit mode
-revise mode
+compile / produce mode — produce structured output from structured input
+audit mode            — detect violations, gaps, overreach, missing evidence
+revise mode           — repair specific failures without damaging what works
 ```
 
 They should not be merged.
@@ -801,9 +653,7 @@ Goal: repair specific failures without damaging what works.
 Risk: fixing locally while breaking global coherence.
 ```
 
-For AI agents, these should often be different skills or subagents.
-
-The same agent that writes elegantly may audit poorly.
+For AI agents, these should often be different skills or subagents. The same agent that produces output may audit poorly.
 
 ---
 
@@ -814,18 +664,17 @@ Not all judgment can be fully automated, but much judgment can be partially oper
 Abstract judgment:
 
 ```text
-This chapter is too generic.
+This EOU is too broad.
 ```
 
 Minimum executable judgment:
 
 ```text
 Check:
-- Does the chapter contain one unusual claim?
-- Does it use book-specific terminology?
-- Does it return to the central artifact?
-- Does it avoid banned generic phrases?
-- Could this appear in any AI education book?
+- Does the EOU have exactly one primary success criterion?
+- Does the purpose.statement name a failure prevented or decision improved?
+- Does authority_level match what the execution.steps actually do?
+- Is blast_radius.allowed_scope consistent with authority_level?
 ```
 
 EOUs do not need to eliminate judgment. They need to make judgment inspectable.
@@ -839,19 +688,19 @@ Every EOU output should be falsifiable.
 Weak output:
 
 ```text
-Chapter improved.
+EOU improved.
 ```
 
 Better output:
 
 ```text
-Chapter now passes:
-- Fair Clue Test
-- Single Reversal Test
-- Evidence Burden Test
+EOU spec now passes:
+- Classification completeness check
+- Authority/blast-radius consistency check
+- No placeholder strings check
 
 Still fails:
-- Protocol Dramatization Test
+- Regression coverage (no regression cases on file)
 ```
 
 A falsifiable output can be audited. A non-falsifiable output is just an opinion.
@@ -871,25 +720,7 @@ open issues
 human approval
 ```
 
-Book-workshop equivalent:
-
-```text
-cards/
-manuscript/
-audits/
-exports/
-```
-
-Other workflows might use:
-
-```text
-requests/
-runs/
-logs/
-artifacts/
-reviews/
-approvals/
-```
+The canonical trace path is: `runs/{run_id}/trace.yml`
 
 If the system cannot reconstruct how the output was produced, the EOU is not mature.
 
@@ -949,7 +780,7 @@ For any messy workflow, use this sequence:
 6. Specify input/output schemas.
 7. Add validation and failure modes.
 8. Add trace and versioning.
-9. Separate compile, audit, and revise.
+9. Separate produce, audit, and revise.
 10. Decide what must remain human-owned.
 ```
 
@@ -965,20 +796,6 @@ artifact
 → execution
 → audit
 → responsibility
-```
-
-This applies beyond books:
-
-```text
-writing
-investing
-research
-education
-parenting systems
-company operations
-AI workflows
-personal knowledge management
-software development
 ```
 
 The mature goal is not automation for its own sake.

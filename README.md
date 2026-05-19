@@ -33,7 +33,7 @@ function + target_object + automation_mode + authority_level + risk_level + life
 | Templates | Constitution, governance, registry starters; maturity model, failure taxonomy, refactoring patterns, runtime contract; 11 meta-EOU specs; EOU and generating-EOU spec templates |
 | Scaffolding | `/eou-foundry:init` creates a new application dir with a fresh `foundry/` |
 | Validators | `scripts/validate_foundry.py`, `validate_recursive_case.py` |
-| Architecture history | 5 dev-docs documenting the design evolution |
+| Design docs | 3 dev-docs: foundations, architecture, and doctrine |
 
 ## What the plugin does *not* provide
 

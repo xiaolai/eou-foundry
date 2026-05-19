@@ -37,7 +37,7 @@ What ships:
   generating-EOU spec templates.
 - `scripts/` — `validate_foundry.py`, `validate_recursive_case.py`,
   `_common.py` helpers, `clean_generated.py`.
-- `dev-docs/` — 5 architecture history docs (11, 13, 14, 15, 16).
+- `dev-docs/` — 3 design docs: 01-foundations, 02-architecture, 03-doctrine.
 
 ## Pre-release history (informational, not version-tagged)
 

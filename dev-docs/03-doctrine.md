@@ -1,6 +1,6 @@
 # EOU Design and Maintenance Doctrine
 
-This document is the current practical doctrine for designing, maintaining, and governing EOUs.
+The current practical doctrine for designing, maintaining, and governing EOUs.
 
 ## Definition
 
@@ -49,67 +49,84 @@ A system is improving when it catches more of its own false confidence.
 
 ## 2. Mandatory EOU fields
 
-Every serious EOU should contain these fields.
+Every serious EOU must contain these fields.
 
 ```yaml
-eou:
-  id: string
-  version: string
+id: string
+name: string
+version: string
 
-  classification:
-    function: execute | audit | generate | validate | decide | govern | refactor
-    target_object: string
-    automation_mode: deterministic | LLM_assisted | human_executed | hybrid
-    authority_level: suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
-    risk_level: low | medium | high | critical
-    lifecycle_stage: candidate | draft | simulated | pilot | active | stable | deprecated | retired
+classification:
+  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose
+  target_object:    string
+  automation_mode:  deterministic | LLM_assisted | human_executed | hybrid
+  authority_level:  suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
+  risk_level:       low | medium | high | critical
+  lifecycle_stage:  candidate | draft | simulated | pilot | active | monitored | stable | deprecated | retired
 
-  purpose:
-    statement: string
-    non_goals: []
+purpose:
+  statement: string          # one sentence: what failure it prevents or decision it improves
+  non_goals: []
 
-  operating_hypothesis: string
+operating_hypothesis: string
 
-  inputs:
-    required: []
-    optional: []
-    forbidden_assumptions: []
+inputs:
+  required: []
+  optional: []
+  forbidden_assumptions: []
 
-  context_manifest:
-    source_of_truth: []
-    supporting: []
-    forbidden: []
+context_manifest:
+  source_of_truth: []
+  supporting: []
+  forbidden: []
 
-  execution:
-    steps: []
-    decision_points: []
-    stop_conditions: []
+execution:
+  steps: []
+  decision_points: []
+  stop_conditions: []
+  allowed_tools: []
+  prohibited_actions: []
 
-  outputs:
-    primary: []
-    secondary: []
-    trace: []
+outputs:
+  primary: []
+  secondary: []
+  trace:
+    - runs/{run_id}/trace.yml
 
-  validation:
-    deterministic: []
-    judgment: []
-    regression: []
+success_criteria:
+  must_pass: []
+  should_pass: []
 
-  failure_modes:
-    known: []
-    warning_signs: []
+validation:
+  deterministic: []          # machine-checkable: field presence, schema conformance
+  judgment: []               # requires human or LLM review
+  red_team: []               # adversarial scenarios to test boundary robustness
 
-  escalation:
-    require_human_when: []
+failure_modes:
+  known: []
+  warning_signs: []
+  repair_actions: []
 
-  responsibility:
-    executor: string
-    reviewer: string
-    approver: string
-    cannot_delegate: []
+escalation:
+  require_human_when: []
+  require_approval_for: []
+
+responsibility:
+  executor: string
+  reviewer: string
+  approver: string
+  cannot_delegate: []
+
+blast_radius:
+  allowed_scope: []
+  forbidden_scope: []
+
+versioning:
+  supersedes: []
+  changelog: []
 ```
 
-This is the minimum viable EOU contract. If an EOU lacks purpose, non-goals, authority, stop conditions, validation, trace, and ownership, it is not yet mature.
+The authoritative source is `schemas/eou.schema.yml`. If this document and the schema drift, the schema wins.
 
 ## 3. Three essential questions
 
@@ -126,7 +143,7 @@ It makes the process more organized.
 Good answer:
 
 ```text
-It prevents a generated chapter from entering export without evidence audit.
+It prevents a generated candidate from entering the active registry without a human-approved ECP on record.
 ```
 
 ### What decision does this improve?
@@ -154,7 +171,7 @@ It checks quality.
 Good answer:
 
 ```text
-It exposes whether the chapter's apparent reversal is earned by earlier fair clues rather than created by a cheap surprise.
+It exposes whether the EOU's blast_radius.allowed_scope is consistent with its declared authority_level — a mismatch that is not visible from the authority field alone.
 ```
 
 If an EOU cannot answer these questions, it should remain a note, not an operating unit.
@@ -168,7 +185,6 @@ schema burden
 maintenance burden
 registry burden
 validation burden
-training burden
 audit burden
 retirement burden
 ```
@@ -200,18 +216,18 @@ Never let one unit do all four.
 
 ```text
 generate = produce candidate output
-audit = detect failures
-revise = repair specific failures
-approve = accept responsibility
+audit    = detect failures
+revise   = repair specific failures
+approve  = accept responsibility
 ```
 
 Dangerous design:
 
 ```text
-generate chapter
-→ audit chapter
-→ revise chapter
-→ approve chapter
+generate output
+→ audit output
+→ revise output
+→ approve output
 ```
 
 all inside one EOU.
@@ -219,10 +235,12 @@ all inside one EOU.
 Better design:
 
 ```text
-compile-chapter
-→ audit-chapter
-→ revise-chapter-from-audit
-→ approve-chapter-for-export
+generate-eou-candidates
+→ audit-candidate-eou-set
+→ eou-specify
+→ eou-audit
+→ human approval
+→ promote
 ```
 
 The same unit should not approve its own output.
@@ -234,11 +252,10 @@ A generating EOU is dangerous because it can create operational complexity.
 It may generate:
 
 ```text
-candidate EOUs
+candidate EOU specs
 candidate schemas
 candidate regression cases
 candidate refactor options
-candidate protocols
 candidate ECPs
 ```
 
@@ -268,16 +285,7 @@ generate candidates
 → activate
 ```
 
-Every generating EOU should have:
-
-```yaml
-generation_budget:
-  max_candidates: 7
-  must_rank_candidates: true
-  must_select_minimal_set: true
-  must_include_rejected_candidates: true
-  must_include_arguments_against_each_candidate: true
-```
+Every generating EOU must declare a `generation_envelope`, `generation_budget`, `registry_diff`, `minimality_test`, `operational_value_test`, and `counter_generation`.
 
 Generation without deletion pressure becomes bureaucracy.
 
@@ -308,31 +316,36 @@ This protects the Foundry from process inflation.
 
 Do not treat all EOUs as equally trustworthy.
 
-Use maturity levels:
+Lifecycle stages and their maturity equivalents:
+
+| Stage | Maturity | Trust level |
+|-------|----------|-------------|
+| `candidate` | L1 — Narrative | No trust; under evaluation |
+| `draft` | L2 — Structured | Structured; not yet simulated |
+| `simulated` | L2+ | Simulated; not yet piloted |
+| `pilot` | L3 — Executable | Limited live use; monitored closely |
+| `active` | L4 — Auditable | Full use; audit coverage required |
+| `monitored` | L5 — Governed | Active with governance oversight |
+| `stable` | L6 — Self-improving | Mature; regression coverage; ECP history |
+| `deprecated` | — | Successor documented; no new use |
+| `retired` | — | Removed from registry |
+
+Promotion must require evidence:
 
 ```text
-L0 — Tacit
-L1 — Narrative
-L2 — Structured
-L3 — Executable
-L4 — Auditable
-L5 — Governed
-L6 — Self-improving
-```
-
-Promotion must require evidence.
-
-```text
-L3 → L4 requires trace.
-L4 → L5 requires registry entry, owner, and regression cases.
-L5 → L6 requires ECP history and monitored improvement.
+candidate → draft:    complete spec, no open questions
+draft → pilot:        simulation field populated, regression case exists
+pilot → active:       passing audit, named human owner, regression coverage
+active → monitored:   ECP history, operational trace evidence
+monitored → stable:   demonstrated self-improvement through governed ECPs
+any → deprecated:     successor EOU documented or owner retirement decision recorded
 ```
 
 An EOU should never self-declare maturity.
 
 ## 9. Trace is mandatory
 
-Every meaningful EOU run should produce a trace.
+Every meaningful EOU run must produce a trace:
 
 ```yaml
 run_trace:
@@ -360,117 +373,121 @@ A mature EOU system needs three different audits.
 
 ### Output audit
 
-Question:
-
-```text
-Is the produced artifact valid?
-```
+Question: Is the produced artifact valid?
 
 ### Run audit
 
-Question:
-
-```text
-Was the EOU executed correctly?
-```
+Question: Was the EOU executed correctly?
 
 ### EOU audit
 
-Question:
-
-```text
-Is the EOU itself well designed?
-```
+Question: Is the EOU itself well designed?
 
 Most systems only audit outputs. That is insufficient.
 
 ## 11. Failure taxonomy
 
-Every failure should be named.
+Every failure should be named using the F-code taxonomy.
 
 ```text
-F1 Input Failure
-F2 Context Failure
-F3 Schema Failure
-F4 Scope Failure
-F5 Instruction Failure
-F6 Judgment Failure
-F7 Validation Failure
-F8 Tool Failure
-F9 Trace Failure
-F10 Responsibility Failure
-F11 Lifecycle Failure
-F12 Drift Failure
+F1   Input Failure          — missing or malformed required inputs
+F2   Context Failure        — wrong or stale context loaded
+F3   Schema Failure         — schema mismatch between components
+F4   Scope Failure          — EOU attempts work outside its declared scope
+F5   Instruction Failure    — ambiguous or contradictory execution steps
+F6a  Structural Judgment    — EOU conflates two distinct judgments (repair: split or responsibility-separation)
+F6b  Coverage Judgment      — right judgment framed, but no validation criteria to test it
+F7   Validation Failure     — validator passes while output is invalid
+F8   Tool Failure           — allowed tool produces unexpected or wrong output
+F9   Trace Failure          — run trace absent, incomplete, or unfalsifiable
+F10  Responsibility Failure — no named owner, approver, or non-delegable authority
+F11  Lifecycle Failure      — lifecycle_stage inconsistent with actual maturity or gates
+F12  Drift Failure          — spec, validator, skill, and docs disagree silently
+F13  Performance Failure    — EOU runs correctly at small scale but degrades at operational scale
 ```
 
-Named failures lead to targeted repairs.
+Named failures lead to targeted repairs:
 
 ```text
-F3 Schema Failure → canonicalize schema.
-F4 Scope Failure → split, merge, or redefine EOU.
-F6 Judgment Failure → add judgment predicates or human audit.
-F7 Validation Failure → improve validator and add regression case.
-F10 Responsibility Failure → add owner and approval gate.
-F12 Drift Failure → reconcile specs, scripts, docs, and validators.
+F3  Schema Failure           → canonicalize schema; update all consumers
+F4  Scope Failure            → split, merge, or redefine EOU boundary
+F6a Structural Judgment      → responsibility-separation or split refactor
+F6b Coverage Judgment        → add judgment predicates, regression cases
+F7  Validation Failure       → improve validator; add regression case
+F10 Responsibility Failure   → add named owner and approval gate
+F12 Drift Failure            → reconcile specs, scripts, docs, validators
+F13 Performance Failure      → add scale-specific stop condition or tiered execution path
 ```
 
 ## 12. Incidents and regression memory
 
-Every serious failure should become an incident.
+Every serious failure should become an incident:
 
 ```yaml
 incident:
   id: inc-0007
-  affected_eou: compile-chapter
+  affected_eou: eou-diagnose
   failure_class: F12_DRIFT_FAILURE
   summary: >
-    Compiler emitted TBD because paired-scene card used `result`
-    while compiler expected `learner_result`.
+    Diagnosis EOU referenced old output path foundry/audits/{id}.diagnosis.yml
+    while consuming skill read from foundry/audits/incidents/{id}.diagnosis.yml.
   root_causes:
-    - No canonical schema.
-    - Compiler and validator expected different fields.
+    - Output path in meta-EOU template was not updated when directory structure changed.
+    - No path-consistency check existed in the validator.
   corrective_actions:
-    - Canonicalize paired-scene schema.
-    - Add placeholder validation.
-    - Add regression case.
+    - Align output paths across meta-EOU, skill, and schema.
+    - Add path-pattern regression case.
 ```
 
-Then convert it into regression memory.
+Then convert it into regression memory:
 
 ```yaml
 regression_case:
-  id: reg-placeholder-output-001
-  target_eou: compile-book
+  id: reg-output-path-001
+  target_eou: eou-diagnose
+  failure_class: F12_DRIFT_FAILURE
   failure_observed: >
-    Compiled manuscript contained TBD placeholders while validation passed.
+    Diagnosis EOU wrote to old path; consuming skill could not find the output.
   expected_behavior:
-    validator_status: fail
-    message_contains:
-      - TBD
-      - placeholder
+    output_path_matches: foundry/audits/incidents/{id}.diagnosis.yml
 ```
 
 A failure that does not become memory will return.
 
+### Diagnosis outcomes
+
+Every diagnosis produces one of two outcomes:
+
+- `change` — opens an ECP and enters the governance pipeline
+- `no_change` — records a no-change decision in `foundry/audits/incidents/{incident_id}.no-change.yml`
+
+A no-change record is not failure of the diagnosis process. It is evidence that the system reviewed and rejected a change rather than silently ignoring the incident.
+
 ## 13. ECPs: controlled change
 
-Any significant change should go through an **EOU Change Proposal**.
+Any significant change must go through an **EOU Change Proposal**.
 
 Require ECPs when changing:
 
 ```text
 purpose
 schema
-validation
+validation rules or validators
 stop conditions
-authority
-risk level
-maturity level
-promotion rules
+authority_level
+risk_level
+blast_radius.forbidden_scope
+maturity gate requirements
 constitution
 ```
 
 No silent mutation.
+
+ECP lifecycle:
+
+```text
+proposed → simulated → regression-tested → audited → approved (named human) → implemented
+```
 
 ## 14. Constitution
 
@@ -479,7 +496,7 @@ A recursive Foundry needs a slow-changing constitution.
 Core invariants:
 
 ```text
-No EOU may approve its own change.
+No EOU may approve its own change alone.
 No active EOU may lack an owner.
 Every active EOU must produce trace.
 Every promoted change must pass regression tests.
@@ -490,7 +507,7 @@ Human owner retains final authority over high-impact changes.
 Uncertainty must be exposed, not hidden.
 ```
 
-The constitution is the boundary against runaway recursion.
+The constitution is the boundary against runaway recursion. Constitutional changes require a separate constitutional ECP process — they cannot go through the ordinary ECP flow.
 
 ## 15. EOU portfolio management
 
@@ -534,11 +551,9 @@ maintenance cost
 cognitive overhead
 schema overhead
 audit overhead
-training cost
-false-positive cost
-false-negative cost
-coordination cost
 retirement cost
+false-positive cost (validator too strict)
+false-negative cost (validator too weak)
 ```
 
 Simple test:
@@ -554,15 +569,15 @@ If not, reject or downgrade it.
 Use this sequence:
 
 ```text
-1. Capture messy workflow.
-2. Identify desired artifact.
-3. Identify hidden judgments.
-4. Identify failure modes.
-5. Identify decision boundaries.
-6. Propose minimal candidate EOUs.
-7. Argue against each candidate.
-8. Select minimal useful set.
-9. Specify selected EOUs.
+1.  Capture messy workflow.
+2.  Identify desired artifact.
+3.  Identify hidden judgments.
+4.  Identify failure modes.
+5.  Identify decision boundaries.
+6.  Propose minimal candidate EOUs.
+7.  Argue against each candidate.
+8.  Select minimal useful set.
+9.  Specify selected EOUs (lifecycle_stage: candidate → draft).
 10. Add schemas and stop conditions.
 11. Simulate or pilot.
 12. Produce run trace.
@@ -581,7 +596,7 @@ An EOU system is unhealthy if:
 ```text
 EOUs are created faster than they are audited.
 Many EOUs lack owners.
-Validators mostly check field presence.
+Validators mostly check field presence, not value correctness.
 Warnings do not change behavior.
 Generated candidates become active too quickly.
 Pass rates increase after validators are weakened.
