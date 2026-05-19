@@ -1,6 +1,6 @@
 ---
 name: 93-recursive-governance
-description: Allow the Foundry to inspect and improve its own EOUs only through bounded governance (observe → diagnose → propose → simulate → regression → audit → human approval → deploy). Forbid self-edit + self-approve.
+description: Allow the Foundry to inspect and improve its own EOUs only through bounded governance (observe → diagnose → propose → simulate → regression → audit → human approval → implement). Forbid self-edit + self-approve.
 ---
 
 # Recursive Governance Rule
@@ -33,7 +33,7 @@ No step may be skipped. Each step produces a traceable artifact:
 ```text
 observe → edit EOU spec directly
 observe → edit itself → approve itself
-audit → deploy (skipping ECP and human approval)
+audit → implement (skipping ECP and human approval)
 ```
 
 No EOU may be the sole judge of changes to itself. The EOU that proposes a change (`function: propose`) and the EOU that audits it (`function: audit`) must have different `responsibility.executor` values.

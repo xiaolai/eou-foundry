@@ -25,7 +25,7 @@ Seven rules live in `rules/` (Claude-side, where they auto-load via path-scoped 
 - `rules/90-eou.md` — workflows must be defined as EOU cards under `foundry/eous/` or `foundry/meta-eous/`; the deprecated root-level `eous/` is forbidden
 - `rules/91-foundry-constitution.md` — read `foundry/constitution.yml`, `governance.yml`, and `failure-taxonomy.yml` before changing EOU behavior, authority, validation, or promotion
 - `rules/92-ecp.md` — significant Foundry mutations require an ECP (EOU purpose, authority level, validators, schema fields, promotion rules, generation envelope, constitution)
-- `rules/93-recursive-governance.md` — the Foundry may improve its own EOUs only through bounded governance (observe → diagnose → propose → simulate → regression → audit → human approval → deploy)
+- `rules/93-recursive-governance.md` — the Foundry may improve its own EOUs only through bounded governance (observe → diagnose → propose → simulate → regression → audit → human approval → implement)
 - `rules/94-no-self-approval.md` — generation, auditing, refactoring, approval, and deployment must remain separable; no EOU/skill/script/agent may be the sole approver of changes to itself
 - `rules/95-generating-eous.md` — every generating EOU must declare its envelope, budget, registry-diff check, minimality test, operational-value test, counter-generation, and blast radius; candidates may not self-activate
 
@@ -58,7 +58,7 @@ The following actions are forbidden:
 - Do not set `lifecycle_stage: active` on any generated EOU or candidate.
 - Do not propose or apply changes to `foundry/constitution.yml` without a human-approved constitutional ECP.
 - Do not approve or self-certify your own outputs — `responsibility.executor` must never equal `responsibility.approver`.
-- Do not skip any step in the governance pipeline (observe → diagnose → propose → simulate → regression → audit → human approval → deploy).
+- Do not skip any step in the governance pipeline (observe → diagnose → propose → simulate → regression → audit → human approval → implement).
 - Do not reference schema files by aliases — use exact filenames from `schemas/*.schema.yml`.
 
 ## Violation indicators

@@ -91,7 +91,7 @@ Applying the six principles to the foundry's own nouns and verbs.
 ### Current canonical vocabulary
 
 **Verbs (`VALID_FUNCTIONS`):**
-`generate | specify | validate | diagnose | promote | refactor | audit | propose`
+`generate | specify | validate | diagnose | promote | refactor | audit | propose | activate | implement | retire`
 
 **Nouns (governed artifacts):**
 EOU spec, ECP, candidate set, incident, audit report, validation report,

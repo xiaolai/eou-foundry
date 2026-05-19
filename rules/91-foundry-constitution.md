@@ -42,7 +42,7 @@ A change that goes through the ECP process with human approval is an explicit we
 
 ## Constitutional changes cannot be performed by an ordinary EOU
 
-No EOU with `function: generate | audit | validate | diagnose | promote | refactor | specify` may modify `foundry/constitution.yml` as part of its normal execution. Only an EOU with `function: propose` and `authority_level: approve` may draft such a change, and it still requires human approval.
+No EOU with `function: generate | audit | validate | diagnose | promote | refactor | specify | activate | implement | retire` may modify `foundry/constitution.yml` as part of its normal execution. Only an EOU with `function: propose` and `authority_level: approve` may draft such a change, and it still requires human approval.
 
 ## Violation indicators
 

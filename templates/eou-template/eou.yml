@@ -7,7 +7,7 @@ id: FILL:eou-{short-name}  # e.g. eou-validate-schema, eou-diagnose-failure
 name: FILL:Human Readable Name
 version: 0.1.0
 classification:
-  function: FILL:specify  # generate | specify | validate | diagnose | promote | refactor | audit | propose
+  function: FILL:specify  # generate | specify | validate | diagnose | promote | refactor | audit | propose | activate | implement | retire
   target_object: FILL:the specific artifact or decision this EOU acts on
   automation_mode: FILL:LLM_assisted  # deterministic | LLM_assisted | hybrid | human_executed
   authority_level: FILL:write_candidate  # suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish

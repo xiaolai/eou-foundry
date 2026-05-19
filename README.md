@@ -100,7 +100,7 @@ runs `validate_foundry.py` against it. The new app is its own git repo.
 | `90-eou.md` | EOUs live under `foundry/eous/` or `foundry/meta-eous/`; no root-level `eous/` |
 | `91-foundry-constitution.md` | Read `foundry/constitution.yml`, `governance.yml`, `failure-taxonomy.yml` before changing EOU behavior |
 | `92-ecp.md` | All significant Foundry mutations require an ECP |
-| `93-recursive-governance.md` | Bounded self-improvement (observe → diagnose → propose → simulate → regression → audit → approve → deploy); no observe-then-self-edit |
+| `93-recursive-governance.md` | Bounded self-improvement (observe → diagnose → propose → simulate → regression → audit → approve → implement); no observe-then-self-edit |
 | `94-no-self-approval.md` | No EOU may be the sole approver of changes to itself |
 | `95-generating-eous.md` | Generating EOUs must declare envelope, budget, registry-diff, minimality, operational-value, counter-generation; never generate → activate |
 

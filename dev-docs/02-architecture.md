@@ -14,7 +14,7 @@ The V2 model uses **faceted classification**:
 
 ```yaml
 classification:
-  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose
+  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose | activate | implement | retire
   target_object:    string   # what this EOU acts on
   automation_mode:  deterministic | LLM_assisted | human_executed | hybrid
   authority_level:  suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
@@ -402,7 +402,7 @@ observe failure or audit finding
 → regression test (add regression case)
 → audit (produce audit.yml)
 → human approval (named human sets approval.status: approved)
-→ deploy (move ECP to implemented/)
+→ implement (apply ECP; move to implemented/)
 → registry update
 ```
 
@@ -429,7 +429,7 @@ flowchart TD
 ```text
 observe → edit EOU spec directly
 observe → edit → approve (self)
-audit → deploy (skipping ECP and human approval)
+audit → implement (skipping ECP and human approval)
 ```
 
 No EOU may be the sole judge of changes to itself. The EOU that proposes a change and the EOU that audits it must have different `responsibility.executor` values.
