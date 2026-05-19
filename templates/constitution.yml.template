@@ -14,12 +14,12 @@
 #   - Strengthening (never weakening) any inherited field by redeclaring it
 #     here. Weakening is rejected by the validator.
 
-inherits_from: eou-foundry@>=0.5.0
+inherits_from: "eou-foundry@>=0.5.0"
 
 application:
-  id: {{APP_NAME}}
-  description: {{DESCRIPTION}}
-  owner: TODO set human owner before activating any EOU
+  id: "{{APP_NAME}}"
+  description: "{{DESCRIPTION}}"
+  owner: "TODO set human owner before activating any EOU"
 
 # Append app-specific invariants (engine invariants remain in force).
 invariants_additional: []
