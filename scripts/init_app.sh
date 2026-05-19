@@ -5,6 +5,12 @@
 # Usage:
 #   init_app.sh <app-name> [<description>] [--no-git]
 #   init_app.sh --status <app-name>
+#
+# As of plugin v0.5.0, the scaffolded app does NOT include local copies of
+# engine artifacts (failure-taxonomy, maturity-model, refactoring-patterns,
+# runtime-contract, governance, meta-eous). Those live in the plugin under
+# engine/ and are referenced by the validator. The app declares engine
+# inheritance via `inherits_from: eou-foundry@>=0.5.0` in its constitution.
 
 set -euo pipefail
 
@@ -50,30 +56,26 @@ if [ -e "$APP_NAME" ]; then
 fi
 
 # --- scaffold ---------------------------------------------------------------
-mkdir -p "$APP_NAME"/{foundry/{eous,meta-eous,incidents,audits,runs,engine,templates},.claude/{rules,skills,agents,commands,hooks},foundry/self-evolution/{ecp/{proposed,approved,implemented,rejected},regression/{cases,fixtures},upstream/proposed-to-plugin}}
+# App's foundry/ holds only app-specific state. Engine artifacts (taxonomy,
+# maturity, governance, meta-eous, etc.) live in the plugin and are read
+# from there by the validator.
+mkdir -p "$APP_NAME"/{foundry/{eous,incidents,audits,runs,overrides},.claude/{rules,skills,agents,commands,hooks},foundry/self-evolution/{ecp/{proposed,approved,implemented,rejected},regression/{cases,fixtures},upstream/{proposed-to-plugin,landed}}}
 
-# Copy universals (these are domain-agnostic; the app starts identical to the plugin)
-for f in maturity-model failure-taxonomy refactoring-patterns runtime-contract; do
-  cp "$TEMPLATES/${f}.yml.template" "$APP_NAME/foundry/${f}.yml"
-done
-
-# Copy instance starters with placeholder substitution
-for f in constitution governance registry; do
+# Copy instance starters with placeholder substitution.
+# Only constitution and registry are scaffolded as files; governance is
+# engine-default and inherited, not copied.
+for f in constitution registry; do
   sed -e "s|{{APP_NAME}}|${APP_NAME}|g" \
       -e "s|{{DESCRIPTION}}|${DESCRIPTION}|g" \
       "$TEMPLATES/${f}.yml.template" > "$APP_NAME/foundry/${f}.yml"
 done
-
-# Copy meta-EOUs and templates
-cp -R "$TEMPLATES/meta-eous/." "$APP_NAME/foundry/meta-eous/"
-cp -R "$TEMPLATES/eou-template" "$APP_NAME/foundry/templates/"
-cp "$TEMPLATES/generating-eou-template.yml" "$APP_NAME/foundry/templates/"
 
 # Keep empty dirs alive in git
 touch "$APP_NAME/foundry/eous/.gitkeep"
 touch "$APP_NAME/foundry/incidents/.gitkeep"
 touch "$APP_NAME/foundry/audits/.gitkeep"
 touch "$APP_NAME/foundry/runs/.gitkeep"
+touch "$APP_NAME/foundry/overrides/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/ecp/proposed/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/ecp/approved/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/ecp/implemented/.gitkeep"
@@ -81,6 +83,7 @@ touch "$APP_NAME/foundry/self-evolution/ecp/rejected/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/regression/cases/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/regression/fixtures/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/upstream/proposed-to-plugin/.gitkeep"
+touch "$APP_NAME/foundry/self-evolution/upstream/landed/.gitkeep"
 
 # AGENTS.md
 cat > "$APP_NAME/AGENTS.md" <<EOF
@@ -89,14 +92,26 @@ cat > "$APP_NAME/AGENTS.md" <<EOF
 > ${DESCRIPTION}
 
 This application is governed by the **eou-foundry** plugin. The plugin
-provides EOU schemas, governance rules, audit skills, and validation
+provides EOU schemas, engine artifacts (failure taxonomy, maturity model,
+governance defaults, meta-EOU specs), audit skills, and validation
 infrastructure. This application provides its domain-specific EOUs,
 runtime state, and incidents that may feed back upstream as plugin ECPs.
 
 ## Foundry layer
 
-The live Foundry instance lives at \`foundry/\`. Edit \`foundry/constitution.yml\`
-to tailor invariants to this application's domain.
+The live Foundry instance lives at \`foundry/\`. It contains only
+app-specific state:
+
+- \`foundry/constitution.yml\` — app declaration; inherits engine defaults
+- \`foundry/registry.yml\` — this app's EOU registry
+- \`foundry/eous/\` — this app's work EOUs (you write these)
+- \`foundry/incidents/\`, \`audits/\`, \`runs/\` — runtime state
+- \`foundry/self-evolution/\` — app and upstream ECPs
+- \`foundry/overrides/\` — optional engine overrides (per-file, validator merges)
+
+Engine artifacts (failure taxonomy, maturity model, meta-EOU specs, etc.)
+live in the plugin at \`engine/\` and are read by the validator. They are
+not copied into your app's tree.
 
 ## Shared Memory
 
@@ -152,9 +167,9 @@ cat > "$APP_NAME/README.md" <<EOF
 ${DESCRIPTION}
 
 Governed by the [eou-foundry](https://github.com/xiaolai/eou-foundry) Claude
-Code plugin. EOU schemas, rules, and audit skills come from the installed
-plugin; runtime state (constitution, registry, EOUs, incidents) lives in
-\`foundry/\`.
+Code plugin. EOU schemas, engine artifacts, rules, and audit skills come
+from the installed plugin; this app's tree holds only app-specific state
+(constitution declaration, registry, work EOUs, incidents, runtime).
 
 ## Verify
 

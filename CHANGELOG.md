@@ -1,5 +1,67 @@
 # EOU Foundry Plugin Changelog
 
+## 0.5.0 — Engine as reference, not copy (ECP-0003)
+
+**Breaking change.** Applications consuming this plugin no longer hold
+local copies of engine artifacts; they reference them from the plugin.
+This fixes the layering violation where every scaffolded app's
+`foundry/` tree contained snapshots of plugin engine state at init time.
+
+What moved:
+
+- `templates/{failure-taxonomy,maturity-model,refactoring-patterns,runtime-contract,governance}.yml.template`
+  → `engine/{failure-taxonomy,maturity-model,refactoring-patterns,runtime-contract,governance}.yml`
+  (no `.template` suffix; these are now canonical engine files).
+- `templates/meta-eous/` → `engine/meta-eous/`.
+- New file: `engine/constitution-defaults.yml` extracted from the body
+  of `templates/constitution.yml.template`.
+
+What changed:
+
+- `templates/constitution.yml.template` shrunk to a small preamble that
+  uses `inherits_from: eou-foundry@>=0.5.0` to inherit engine defaults.
+- `scripts/init_app.sh` no longer copies engine artifacts into the new
+  app. It scaffolds only `constitution.yml` and `registry.yml`, plus
+  empty runtime dirs. Adds `foundry/overrides/` for app-specific engine
+  overrides; adds `foundry/self-evolution/upstream/landed/` for merged
+  upstream ECPs.
+- `scripts/validate_foundry.py`:
+  - Reads engine artifacts and meta-EOUs from the plugin's `engine/`
+    directory.
+  - Supports `inherits_from` on `foundry/constitution.yml`; merges
+    engine defaults with the app constitution, refusing any merge that
+    weakens engine invariants.
+  - Emits deprecation warnings (not errors) for legacy local copies in
+    consuming applications. v0.5.x is the migration window; v1.0.0 will
+    reject legacy local copies.
+- `schemas/constitution.schema.yml` bumped to v3; documents
+  `inherits_from`.
+- `rules/91-foundry-constitution.md` documents the inherits_from
+  convention and the engine-vs-app split.
+- `dev-docs/historical/` added; receives pre-split engineering records
+  (12 and 12a) that describe the foundry engine, not workshop content.
+
+What apps need to do:
+
+1. Pull plugin v0.5.0.
+2. Run `python3 $(claude plugin path eou-foundry@xiaolai)/scripts/validate_foundry.py`
+   from the app root. Deprecation warnings list each legacy local copy.
+3. Delete the legacy local copies named in the warnings: `foundry/failure-taxonomy.yml`,
+   `foundry/maturity-model.yml`, `foundry/refactoring-patterns.yml`,
+   `foundry/runtime-contract.yml`, `foundry/governance.yml`, and the
+   contents of `foundry/meta-eous/` if it has no app-specific divergence.
+4. Replace the full-body `foundry/constitution.yml` with an `inherits_from`
+   reference plus app-specific declarations. The new
+   `templates/constitution.yml.template` is the reference shape.
+5. If the app had legitimate engine-artifact customizations, move them to
+   `foundry/overrides/<file>.yml`. The validator merges overrides over
+   engine defaults.
+
+Tracking incidents and ECP:
+
+- `book-workshop/foundry/incidents/inc-0012-foundry-engine-duplicated-in-application.yml`
+- `book-workshop/foundry/self-evolution/upstream/proposed-to-plugin/ecp-0003-engine-as-reference-not-copy.yml`
+
 ## 0.1.0 — Initial plugin release (bootstrap)
 
 > **Bootstrap exception.** This is the first published version of the

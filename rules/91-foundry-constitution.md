@@ -7,9 +7,38 @@ description: Require reading foundry/constitution.yml, governance.yml, and failu
 
 Before changing EOU behavior, validation, authority, or promotion rules, read:
 
-- `foundry/constitution.yml`
-- `foundry/governance.yml`
-- `foundry/failure-taxonomy.yml`
+- `foundry/constitution.yml` (app declaration + any strengthenings)
+- The plugin's `engine/constitution-defaults.yml` (engine defaults the app inherits)
+- The plugin's `engine/governance.yml` (engine separation-of-powers, authority levels)
+- The plugin's `engine/failure-taxonomy.yml` (canonical failure classes)
+
+If the app's constitution declares `inherits_from`, the engine defaults are merged
+into the app's constitution at validation time. An app's constitution may *add* to
+or *strengthen* engine invariants, but it cannot weaken or remove them — the
+validator refuses such merges per rule 91 below.
+
+## inherits_from convention (plugin v0.5.0+)
+
+An app's `foundry/constitution.yml` may declare:
+
+```yaml
+inherits_from: eou-foundry@>=0.5.0
+application:
+  id: <app-id>
+  description: <one-line>
+  owner: <named human>
+invariants_additional: []
+forbidden_additional: []
+generation_invariants_additional: []
+```
+
+Engine-default fields (`purpose`, `optimize_for`, `do_not_optimize_for_alone`,
+`invariants`, `forbidden`, `generation_invariants`, `change_rules`) need not be
+restated. The validator merges engine defaults first, then this file on top.
+
+A pre-v0.5.0-style constitution that lists all 7 engine-default fields locally
+still validates (legacy support); it is the app author's responsibility to keep
+those local entries consistent with engine defaults until migration.
 
 ## What counts as a constitutional change
 
