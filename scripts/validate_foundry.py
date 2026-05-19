@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import argparse
+import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 from _common import find_repo_root, load_yaml
 
@@ -76,8 +80,108 @@ TODO_PATTERNS = re.compile(r"^\s*(todo|tbd|fixme|xxx)\b", re.IGNORECASE)
 
 
 def find_plugin_root() -> Path:
-    """The plugin root is the directory containing this script's parent."""
-    return Path(__file__).resolve().parents[1]
+    """Resolve the installed plugin root, in priority order:
+
+    1. EOU_FOUNDRY_PLUGIN_PATH environment variable (offline testing,
+       development checkouts).
+    2. `claude plugin path eou-foundry@xiaolai` if the claude CLI is on
+       PATH (production install via Claude Code).
+    3. Path(__file__).parents[1] (fallback when this script is invoked
+       directly inside a plugin checkout — e.g., plugin self-test).
+
+    Steps 1 and 2 deliberately precede step 3 so that a workshop running
+    against an installed plugin gets the installed path, not whatever
+    checkout the script happens to live in. Hardcoded user-specific
+    fallback paths are intentionally absent: an unconfigured environment
+    should fail with a setup error, not silently pick up a path that
+    only exists on the maintainer's machine.
+    """
+    env = os.environ.get("EOU_FOUNDRY_PLUGIN_PATH")
+    if env:
+        p = Path(env).expanduser().resolve()
+        if (p / ".claude-plugin" / "plugin.json").exists():
+            return p
+
+    if shutil.which("claude"):
+        try:
+            result = subprocess.run(
+                ["claude", "plugin", "path", "eou-foundry@xiaolai"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode == 0:
+                path_str = result.stdout.strip()
+                if path_str:
+                    p = Path(path_str).expanduser().resolve()
+                    if (p / ".claude-plugin" / "plugin.json").exists():
+                        return p
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+
+    # Last-resort fallback: the directory two levels up from this script.
+    # Only useful when validate_foundry.py is invoked from within a plugin
+    # checkout (plugin self-test, or workshop with the checkout symlinked).
+    fallback = Path(__file__).resolve().parents[1]
+    if (fallback / ".claude-plugin" / "plugin.json").exists():
+        return fallback
+
+    raise RuntimeError(
+        "Plugin root not found. Set EOU_FOUNDRY_PLUGIN_PATH, install via "
+        "`claude plugin install eou-foundry@xiaolai`, or invoke this "
+        "script from inside a plugin checkout."
+    )
+
+
+# Version-spec syntax supported in `inherits_from: "<name>@<spec>"`.
+#   ==X.Y.Z   exact
+#   >=X.Y.Z   minimum
+#   ~=X.Y     compatible release: same major.minor; any patch
+#   X.Y.Z     equivalent to ==X.Y.Z
+INHERITS_FROM_RE = re.compile(
+    r"^\s*(?P<name>[A-Za-z0-9_.-]+)@(?P<op>==|>=|~=)?(?P<version>\d+\.\d+(?:\.\d+)?)\s*$"
+)
+
+
+def _parse_version(s: str) -> tuple[int, int, int]:
+    parts = s.split(".")
+    while len(parts) < 3:
+        parts.append("0")
+    return (int(parts[0]), int(parts[1]), int(parts[2]))
+
+
+def parse_inherits_from(value: str) -> tuple[str, str, tuple[int, int, int]] | None:
+    """Parse `name@op?version`. Returns (name, op, version_tuple) or None
+    if the string doesn't match."""
+    m = INHERITS_FROM_RE.match(value or "")
+    if not m:
+        return None
+    op = m.group("op") or "=="
+    return (m.group("name"), op, _parse_version(m.group("version")))
+
+
+def version_satisfies(installed: tuple[int, int, int],
+                      op: str, declared: tuple[int, int, int]) -> bool:
+    if op == "==":
+        return installed == declared
+    if op == ">=":
+        return installed >= declared
+    if op == "~=":
+        # Compatible release: same major.minor, installed >= declared.
+        return (installed[0] == declared[0]
+                and installed[1] == declared[1]
+                and installed >= declared)
+    return False
+
+
+def read_plugin_version(plugin_root: Path) -> str | None:
+    pj = plugin_root / ".claude-plugin" / "plugin.json"
+    if not pj.exists():
+        return None
+    try:
+        data = json.loads(pj.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    v = data.get("version")
+    return v if isinstance(v, str) else None
 
 
 def empty(v) -> bool:
@@ -318,6 +422,33 @@ def load_constitution(root: Path, plugin_root: Path) -> tuple[Path, dict | None,
 
     if "inherits_from" not in local:
         return path, local, []
+
+    # Enforce the inherits_from version constraint against the installed
+    # plugin's version (per ECP-0005).
+    parsed = parse_inherits_from(str(local["inherits_from"]))
+    if parsed is None:
+        return path, None, [
+            f"{path}: inherits_from `{local['inherits_from']}` does not match "
+            f"`<name>@(==|>=|~=)?<version>` (supported subset)"
+        ]
+    name, op, declared = parsed
+    if name != "eou-foundry":
+        return path, None, [
+            f"{path}: inherits_from name `{name}` is not `eou-foundry`; "
+            f"cross-plugin inheritance is out of scope in 0.5.x"
+        ]
+    installed_str = read_plugin_version(plugin_root)
+    if not installed_str:
+        return path, None, [
+            f"{path}: could not read plugin version from "
+            f"{plugin_root}/.claude-plugin/plugin.json"
+        ]
+    installed = _parse_version(installed_str)
+    if not version_satisfies(installed, op, declared):
+        return path, None, [
+            f"{path}: inherits_from constraint `{local['inherits_from']}` not "
+            f"satisfied by installed plugin {installed_str}"
+        ]
 
     defaults_path = plugin_root / "engine" / "constitution-defaults.yml"
     if not defaults_path.exists():

@@ -124,7 +124,57 @@ EOF
 echo "@AGENTS.md" > "$APP_NAME/CLAUDE.md"
 echo "@AGENTS.md" > "$APP_NAME/GEMINI.md"
 
-# .claude/settings.json (minimal — apps can add hooks as needed)
+# .claude/hooks/foundry_guard.py — validates foundry/ writes against the
+# plugin's validate_foundry.py. Reads $CLAUDE_FILE_PATHS to scope; exits 0
+# fast if no foundry/ file was touched.
+cat > "$APP_NAME/.claude/hooks/foundry_guard.py" <<'PY'
+#!/usr/bin/env python3
+"""Post-write hook: validate foundry/ tree if any modified file is under
+foundry/. Falls through quietly if the plugin can't be found."""
+from __future__ import annotations
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+paths = (os.environ.get("CLAUDE_FILE_PATHS") or "").replace(":", "\n").splitlines()
+if not any("foundry/" in p or p.endswith("foundry") for p in paths):
+    sys.exit(0)
+
+root = Path.cwd().resolve()
+while root != root.parent:
+    if (root / "foundry" / "constitution.yml").exists():
+        break
+    root = root.parent
+else:
+    sys.exit(0)
+
+plugin = os.environ.get("EOU_FOUNDRY_PLUGIN_PATH")
+if not plugin:
+    try:
+        r = subprocess.run(
+            ["claude", "plugin", "path", "eou-foundry@xiaolai"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode == 0:
+            plugin = r.stdout.strip()
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+        pass
+
+if not plugin:
+    print("foundry_guard: plugin not found; skipping validation", file=sys.stderr)
+    sys.exit(0)
+
+validator = Path(plugin) / "scripts" / "validate_foundry.py"
+if not validator.exists():
+    sys.exit(0)
+
+result = subprocess.run([sys.executable, str(validator)], cwd=root)
+sys.exit(result.returncode)
+PY
+chmod +x "$APP_NAME/.claude/hooks/foundry_guard.py"
+
+# .claude/settings.json — minimal permissions + foundry guard hook.
 cat > "$APP_NAME/.claude/settings.json" <<'EOF'
 {
   "permissions": {
@@ -133,6 +183,19 @@ cat > "$APP_NAME/.claude/settings.json" <<'EOF'
       "Read(./.env.*)",
       "Read(./secrets/**)",
       "Read(./private/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/foundry_guard.py"
+          }
+        ]
+      }
     ]
   }
 }

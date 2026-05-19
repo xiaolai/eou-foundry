@@ -34,6 +34,25 @@ A generating EOU (`function: generate`) may create candidates only. It may not:
 
 Violations are `self_approval` findings in EOU audit reports (severity: `critical`). An EOU with a self-approval violation may not be promoted to `lifecycle_stage: active`.
 
+## Audited exceptions
+
+The general rule has one named exception, recorded explicitly here rather than tolerated implicitly.
+
+**CI auto-merge from the named maintainer identity.** The plugin's GitHub Actions workflow auto-merges PRs whose author matches `xiaolai`. This is identity-based self-approval at the CI layer: in single-maintainer plugin development, requiring a second human reviewer would block every change without finding different bugs, and no second reviewer is staffed.
+
+The exception applies only when **all three conditions** hold:
+
+1. CI validation (YAML syntax, Python compileall, schema checks) passes before the merge.
+2. The workflow run id and merged commit SHA are retained in GitHub Actions logs for audit reconstruction.
+3. The exception is revocable: a follow-on ECP may retire the auto-merge without further amendment to this rule.
+
+This exception is recorded in ECP-0011 (filed in book-workshop's upstream channel). Critics may revoke it by opening a new ECP; until they do, the maintainer accepts the single-point-of-failure risk in exchange for development velocity.
+
+The exception does **not** extend to:
+- EOU spec changes (still require separation between executor and approver).
+- ECP approval (still require named human approver, not a workflow identity).
+- Constitutional changes (still require explicit human review per rule 91).
+
 ## Violation indicators
 
 | Signal | Severity | How to detect | Required action |

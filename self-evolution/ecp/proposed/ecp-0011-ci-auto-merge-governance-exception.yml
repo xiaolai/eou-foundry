@@ -1,0 +1,84 @@
+id: ecp-0011-ci-auto-merge-governance-exception
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.5.2
+problem:
+  observed_failure: |
+    Plugin's PR CI workflow auto-merges PRs from `xiaolai`. Rule 94 in
+    the plugin's own rules/ says: "No EOU, skill, script, or agent may
+    be the sole approver of changes to itself." When the plugin
+    maintainer xiaolai authors a PR (as happened with ECPs 0001-0004
+    in this conversation), the merge is approved by an automated
+    workflow whose only criterion is "author matches xiaolai." That
+    is identity-based self-approval at the CI layer, doing exactly
+    what rule 94 forbids for EOUs. The rule applies to "EOU, skill,
+    script, or agent" — CI workflows aren't explicitly named, so the
+    rule is technically true and operationally hollow.
+  failure_class: F10_RESPONSIBILITY_FAILURE
+  evidence:
+  - ".github/workflows/* (plugin) — auto-merge condition: author ==
+    xiaolai. No review gate."
+  - "Workshop session 2026-05-19: PRs #1 through #5 to the plugin
+    were all authored by xiaolai (via Claude Code session) and
+    auto-merged. Zero independent human review."
+  - "Rule 94 line 1: 'No EOU, skill, script, or agent may be the sole
+    approver of changes to itself.'"
+proposed_change:
+  summary: |
+    This ECP records a governance decision, not a code change. The
+    decision: KEEP auto-merge but make it an explicit, audited
+    exception named in rule 94. Three options were considered.
+    Option A (chosen): explicit exception. Rule 94 lists CI auto-merge
+    from a named maintainer identity as an allowed exception, with
+    conditions: (i) CI passes; (ii) audit logs retain the workflow
+    run id and SHA; (iii) the exception is revocable by another
+    explicit ECP. Maintainer accepts the risk of single-point-of-
+    failure in exchange for development velocity.
+    Option B (rejected): retire auto-merge entirely; require human
+    review of every PR. Higher friction; for a single-maintainer
+    plugin, doubles wall-clock for every change without finding
+    different bugs.
+    Option C (rejected): require a second human reviewer. No second
+    reviewer is staffed today; would block all changes.
+  files_changed:
+  - "rules/94-no-self-approval.md — add 'Audited exceptions' section
+    naming CI auto-merge with the three conditions above"
+  - "CHANGELOG.md — 0.5.2 entry; explicit note that this records a
+    governance decision, not a behavioral change"
+expected_benefit:
+- "The contradiction between rule 94 and CI behavior is recorded and
+  resolved explicitly, not pretended away."
+- "Future audits find the exception in the rule text where it belongs,
+  with conditions, instead of discovering CI behavior that contradicts
+  stated rules."
+- "Sets precedent: governance gaps can be closed by either fixing
+  behavior OR amending the rule with an audited exception. Pretending
+  the gap doesn't exist is not an option."
+risks:
+- "Critics will say the exception undermines rule 94. Counterpoint:
+  the exception is named, conditioned, and revocable. The rule's
+  spirit (no silent self-approval) is preserved; the rule's letter
+  is updated to match practice."
+- "A future maintainer-account compromise still bypasses review. This
+  is the cost of the chosen tradeoff. Mitigation noted in the rule
+  text: revocable via ECP if circumstances change."
+tests_required:
+- "Documentation review: rule 94's exception section names the
+  workflow, the three conditions, and the revocation path."
+- "No behavioral test: this ECP is a decision record."
+simulation:
+  status: not_simulated
+  rationale: |
+    Governance decision, not code. No simulation possible or needed.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #8)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Two-step revocation if circumstances change: (1) Revert this ECP's
+    rule 94 amendment. (2) Open a follow-on ECP retiring the
+    auto-merge workflow. Risk: low — change is text in a rule file
+    plus a workflow YAML edit.
+submitted_as: null
