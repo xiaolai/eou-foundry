@@ -1,64 +1,103 @@
-id: candidate-eou-id
-name: Candidate EOU Name
+# Standard EOU template.
+# Replace every value that starts with FILL: with the actual value for this EOU.
+# Remove this comment block before committing.
+# Generating EOUs (function: generate) should use templates/generating-eou-template.yml instead.
+
+id: FILL:eou-{short-name}  # e.g. eou-validate-schema, eou-diagnose-failure
+name: FILL:Human Readable Name
 version: 0.1.0
 classification:
-  function: execute
-  target_object: target artifact
-  automation_mode: hybrid
-  authority_level: write_candidate
-  risk_level: medium
-  lifecycle_stage: candidate
+  function: FILL:specify  # generate | specify | validate | diagnose | promote | refactor | audit | propose
+  target_object: FILL:the specific artifact or decision this EOU acts on
+  automation_mode: FILL:LLM_assisted  # deterministic | LLM_assisted | hybrid | human_executed
+  authority_level: FILL:write_candidate  # suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
+  risk_level: FILL:medium  # low | medium | high | critical
+  lifecycle_stage: candidate  # candidate | draft | simulated | pilot | active | monitored | stable | deprecated | retired — always start at candidate
 purpose:
-  statement: What this EOU is meant to do.
+  statement: FILL:One sentence — what this EOU does and what failure it prevents or decision it improves.
   non_goals:
-  - What this EOU must not do.
+  - FILL:What this EOU must not do (at least one — no empty list)
 operating_hypothesis: >
-  Given explicit inputs, context, procedure, and validation, this EOU can produce
-  its intended output within acceptable risk.
+  Given FILL:specific inputs and context, this EOU can FILL:specific action
+  without FILL:specific boundary violation or authority overstep.
 inputs:
-  required: []
-  optional: []
-  forbidden_assumptions: []
+  required:
+  - FILL:list files or data this EOU cannot run without
+  optional:
+  - FILL:list files that improve output quality if present (or remove this block)
+  forbidden_assumptions:
+  - FILL:list things this EOU must not silently assume (e.g. "Do not assume trace evidence exists")
 context_manifest:
-  source_of_truth: []
-  supporting: []
-  forbidden: []
+  source_of_truth:
+  - FILL:canonical files (e.g. registry.yml, constitution.yml, schemas/eou.schema.yml)
+  supporting:
+  - FILL:reference files (e.g. failure-taxonomy.yml, maturity-model.yml)
+  forbidden:
+  - FILL:files this EOU must not read or mutate (or remove if none)
 execution:
-  steps: []
-  decision_points: []
-  stop_conditions: []
-  allowed_tools: []
-  prohibited_actions: []
+  steps:
+  - FILL:Step 1 — load required inputs
+  - FILL:Step 2 — perform first bounded action (be specific, not "perform bounded operation")
+  - FILL:Step 3 — perform second bounded action
+  - FILL:Step N — write output to the concrete path defined in outputs.primary
+  - FILL:Last step — record trace to runs/{run_id}/trace.yml
+  decision_points:
+  - FILL:Name of branch condition: what triggers it and how it resolves (or remove if none)
+  stop_conditions:
+  - FILL:Observable state that stops this EOU before completion (at least one)
+  - Missing owner.
+  - Would mutate active file without approved ECP.
+  allowed_tools:
+  - Read
+  - Write
+  - FILL:add or remove tools as needed
+  prohibited_actions:
+  - FILL:Explicit prohibitions (at least one — e.g. "Activating generated EOUs")
 outputs:
-  primary: []
+  primary:
+  - FILL:concrete/file/path/{id}.yml  # no placeholder labels; must be a real path pattern
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
-  must_pass: []
-  should_pass: []
+  must_pass:
+  - FILL:Binary, verifiable condition (at least one)
+  - Does not exceed authority_level.
+  should_pass:
+  - FILL:Quality check that is not a hard blocker (or remove if none)
 validation:
-  deterministic: []
-  judgment: []
-  red_team: []
+  deterministic:
+  - FILL:Machine-checkable: field presence, schema conformance, count limits
+  judgment:
+  - FILL:Audit-level check requiring human or LLM review
+  red_team:
+  - FILL:Adversarial scenario to test boundary robustness (or remove if none)
 failure_modes:
-  known: []
-  warning_signs: []
-  repair_actions: []
+  known:
+  - FILL:Named failure pattern (at least one)
+  warning_signs:
+  - FILL:Observable signal that a known failure is occurring (at least one)
+  repair_actions:
+  - FILL:Concrete response to the warning sign above (one per warning sign)
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - FILL:Observable condition that mandates human review (required for risk_level:high or critical)
+  require_approval_for:
+  - FILL:Action that cannot proceed without human approval
 responsibility:
-  executor: Claude / script / human
-  reviewer: human owner or designated auditor
+  executor: FILL:Claude | script | human (pick one primary)
+  reviewer: FILL:who reviews outputs (e.g. "human owner or designated Foundry maintainer")
   approver: human owner
   cannot_delegate:
   - final approval
+  - FILL:any additional non-delegable authority for this EOU
 versioning:
   supersedes: []
   changelog:
-  - 0.1.0: Initial candidate.
+  - '0.1.0: Initial candidate.'
 blast_radius:
-  allowed_scope: []
+  allowed_scope:
+  - FILL:directories or file patterns this EOU may write to
   forbidden_scope:
   - foundry/constitution.yml
+  - FILL:other paths this EOU must never touch

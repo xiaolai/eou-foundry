@@ -1,108 +1,140 @@
 id: generate-eou-refactor-options
 name: Generate EOU Refactor Options
-version: 0.2.0
+version: 0.3.0
 classification:
-  function: generate
+  function: refactor
   target_object: foundry governance object
   automation_mode: LLM_assisted
   authority_level: write_candidate
   risk_level: medium
   lifecycle_stage: draft
 purpose:
-  statement: Generate candidate refactor options from EOU audits or incidents.
+  statement: Generate a ranked set of candidate refactor options for an EOU based on audit findings or incident reports.
   non_goals:
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Generate EOU Refactor Options can
-  perform its bounded role without exceeding its authority.
+  - Do not apply any refactor option — produce candidates only.
+  - Do not generate options without a concrete source audit or incident as input.
+operating_hypothesis: Given an EOU audit report or incident record and the refactoring patterns, this EOU can produce a minimal ranked set of candidate options with arguments against each.
 inputs:
   required:
+  - source_document  # audit report or incident record that motivates refactoring
   - foundry/constitution.yml
+  - foundry/refactoring-patterns.yml
+  optional:
   - foundry/registry.yml
-  optional: []
+  - foundry/eous/{eou_id}.yml  # the EOU spec being refactored
+  - foundry/failure-taxonomy.yml
   forbidden_assumptions:
+  - Do not assume refactoring is necessary without a concrete finding in source_document.
   - Do not assume missing context exists.
 context_manifest:
   source_of_truth:
   - constitution.yml
-  - registry.yml
+  - refactoring-patterns.yml
+  supporting:
   - failure-taxonomy.yml
-  supporting: []
-  forbidden: []
+  - registry.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only; constitutional changes require a separate process
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
-  - Record trace.
-  decision_points: []
+  - Load source_document (audit report or incident record) and identify the structural deficiencies.
+  - Load foundry/refactoring-patterns.yml and map each deficiency to applicable refactor patterns.
+  - For each deficiency, generate one refactor option using the smallest applicable pattern (split, scope-reduction, authority-downgrade, validator-add, etc.).
+  - Include a "no change" baseline option — state its trade-offs explicitly.
+  - For each option, fill in all required fields (see output structure).
+  - Check each option against constitution.yml — flag any that would require a constitutional change.
+  - Mark requires_ecp:true for any option that changes authority_level, weakens a validator, or touches blast_radius.forbidden_scope.
+  - Rank options by ascending blast radius.
+  - Run registry-diff — check if any option would overlap with an existing EOU.
+  - Run minimality check — could each option be achieved by a stop condition, validator, or regression case instead?
+  - Write candidate refactor set.
+  decision_points:
+  - Reject options that require constitutional changes unless they are separately filed as constitutional ECPs.
+  - If source_document contains no structural findings, output an empty candidate set with explanation — do not fabricate options.
   stop_conditions:
-  - Missing owner.
-  - Authority boundary unclear.
-  - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - source_document not found.
+  - foundry/refactoring-patterns.yml not found.
+  - Authority boundary of this EOU would be exceeded by the proposed options.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Applying any refactor option
+  - Setting requires_ecp:false for options that touch authority or forbidden scope
+  - Omitting the no-change baseline
 outputs:
   primary:
-  - generate-eou-refactor-options output
+  - foundry/self-evolution/refactor-options/{eou_id}-refactor-{YYYYMMDD}.yml
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - Candidate set includes a no-change baseline option.
+  - All options have requires_ecp field populated.
+  - Options are ranked by blast_radius.
+  - Each option includes arguments_against.
+  should_pass:
+  - Candidate count is below generation_budget.max_candidates.
+  - Constitutional-change options are marked separately from ECP options.
 validation:
   deterministic:
-  - schema checks
+  - candidate count <= max_candidates.
+  - no candidate has active status.
+  - requires_ecp field present on all options.
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Blast-radius ranking accuracy
+  - Arguments-against completeness
+  red_team:
+  - Source document with only prompt-level findings (should produce minimal options, not structural refactors)
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
+  - Generates options without a source document (fabricated motivation)
+  - All options have authority_level:approve or publish
+  - Omits the no-change baseline
+  - Requires_ecp is false for schema-touching options
   warning_signs:
-  - Refactor options propose schema_field changes without an accompanying ECP draft.
-  - All options proposed have authority_level set to approve or publish.
-  - Refactor set does not include a 'no change' baseline option.
+  - Candidate count equals max_candidates when source document has fewer than max_candidates distinct findings.
+  - All options propose authority_level changes — suggests scope inflation.
+  - No-change baseline is absent from the candidate set.
   repair_actions:
-  - Reject options that imply approve/publish authority; require ECP for any schema-touching option.
-  - Force inclusion of the no-change baseline.
-  - Run audit-candidate-eou-set against the refactor option set.
+  - Require one-to-one mapping between source_document findings and generated options; block options without a cited finding.
+  - Reject options with authority_level:approve or publish — require ECP and human escalation instead.
+  - Hard-require the no-change baseline; fail generation if it is absent.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Any option would change authority_level of the target EOU.
+  - Any option touches blast_radius.forbidden_scope.
+  - Source document indicates a constitutional invariant violation.
+  require_approval_for:
+  - Any option that touches approval or publication authority.
+  - Any option that removes a validator or stop condition.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
+  executor: Claude
+  reviewer: Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Approving ECP required by any option
+  - Applying options to active EOUs
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, source_document as required input, correct output path, decision_points, escalation gates, warning_signs, and repair_actions.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/self-evolution/refactor-options/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs
   - production schemas unless ECP-approved
 generation_envelope:
   allowed_outputs:
-  - candidate_regression_case
   - candidate_refactor_option
-  - candidate_ecp
-  - candidate_eou_spec
+  - candidate_ecp  # for options that require constitutional change
   forbidden_outputs:
   - active_eou
   - approved_eou
@@ -111,29 +143,30 @@ generation_envelope:
   max_candidates: 5
   default_status: candidate
   required_for_each_candidate:
-  - operational_value
-  - risk
-  - authority_level
-  - activation_requirements
+  - target_failure
+  - proposed_change
+  - blast_radius
+  - requires_ecp
   - arguments_against
+  - rollback_plan
 generation_budget:
   max_candidates: 5
-  max_new_schemas: 1
-  max_new_validators: 2
-  max_open_questions: 8
+  max_new_schemas: 0
+  max_new_validators: 1
+  max_open_questions: 5
   must_rank_candidates: true
   must_select_minimal_set: true
 registry_diff:
   required: true
   questions:
-  - Does this duplicate an existing object?
-  - Can this be a test or rule instead?
+  - Does this option overlap with an existing refactor in progress?
+  - Would this option make the target EOU a duplicate of an existing EOU?
 minimality_test:
   questions:
-  - Can this be smaller?
-  - Can this be a validator?
-  - Can this be a regression case?
-  - Can this be a field in an existing object?
+  - Can this deficiency be addressed by a stop condition instead of a structural refactor?
+  - Can this be a validator instead of a scope change?
+  - Can this be a regression case instead of a step modification?
+  - Can this be a field addition instead of an EOU split?
 operational_value_test:
   required_answer:
   - prevents_failure
@@ -141,9 +174,8 @@ operational_value_test:
   - exposes_hidden_judgment
   - improves_traceability
   reject_if:
-  - no concrete failure
-  - no improved decision
-  - duplicates existing object
+  - no concrete finding in source_document
+  - duplicates existing option
 counter_generation:
   required: true
   requires_for_each_candidate:

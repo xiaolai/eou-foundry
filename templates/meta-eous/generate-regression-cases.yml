@@ -1,6 +1,6 @@
 id: generate-regression-cases
 name: Generate Regression Cases
-version: 0.2.0
+version: 0.3.0
 classification:
   function: generate
   target_object: foundry governance object
@@ -9,90 +9,120 @@ classification:
   risk_level: medium
   lifecycle_stage: draft
 purpose:
-  statement: Convert incidents and audit failures into candidate regression cases.
+  statement: Convert incident reports and audit failures into candidate regression cases that prevent re-occurrence.
   non_goals:
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Generate Regression Cases can perform
-  its bounded role without exceeding its authority.
+  - Do not generate regression cases without a concrete incident or audit failure as source.
+  - Do not set activation_status to active — cases are candidates until owner approves.
+operating_hypothesis: Given an incident report or audit failure and the failure taxonomy, this EOU can produce regression cases with concrete fixture paths and explicit failure-shape assertions.
 inputs:
   required:
+  - source_incidents  # incident report(s) or audit failure file(s) to convert
   - foundry/constitution.yml
   - foundry/registry.yml
-  optional: []
+  optional:
+  - foundry/failure-taxonomy.yml  # to classify the failure type
+  - foundry/eous/{eou_id}.yml     # the EOU that failed, if available
   forbidden_assumptions:
-  - Do not assume missing context exists.
+  - Do not generate regression cases without a concrete incident or audit failure.
+  - Do not assume activation_status is anything other than candidate.
 context_manifest:
   source_of_truth:
   - constitution.yml
   - registry.yml
+  supporting:
   - failure-taxonomy.yml
-  supporting: []
   forbidden: []
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
-  - Record trace.
-  decision_points: []
+  - Load source_incidents and extract the observable failure for each incident.
+  - Classify each failure using failure-taxonomy.yml (F1–F12) if available.
+  - For each failure, derive the regression case: the minimal input that triggers the known failure.
+  - Construct a concrete fixture path under foundry/self-evolution/regression/fixtures/{case_id}/.
+  - Write each regression case with the required fields (see output structure).
+  - Include at least one failure-shape assertion per case — what observable output indicates the failure is occurring.
+  - Set activation_status:candidate on all generated cases.
+  - Run deduplication check — if a regression case for this failure already exists in foundry/self-evolution/regression/cases/, record it rather than generating a duplicate.
+  - Write the regression case set.
+  decision_points:
+  - If source incident does not contain observable failure signals, record "insufficient evidence" and do not generate a case for that incident.
+  - If a duplicate case is found, note it in the output and skip generation — do not produce duplicates.
   stop_conditions:
-  - Missing owner.
-  - Authority boundary unclear.
-  - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - source_incidents not found.
+  - No extractable failure signal in source_incidents.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Setting activation_status to active
+  - Generating cases without a concrete source failure
+  - Writing to foundry/eous/ or foundry/meta-eous/ (regression cases go to regression/cases/ only)
 outputs:
   primary:
-  - generate-regression-cases output
+  - foundry/self-evolution/regression/cases/{case_id}.regression.yml
+  - foundry/self-evolution/regression/fixtures/{case_id}/  # fixture directory
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - Each generated case has a concrete fixture_path (not a placeholder).
+  - Each case has at least one failure_shape_assertion.
+  - activation_status is candidate on all cases.
+  - No duplicate cases generated for failures already in regression/cases/.
+  should_pass:
+  - Failure class (F-code) is assigned to each case.
+  - Deduplication check is executed and documented.
 validation:
   deterministic:
-  - schema checks
+  - fixture_path is non-empty and correctly formatted.
+  - activation_status == candidate.
+  - failure_shape_assertion is non-empty.
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Fixture adequacy for reproducing the failure
+  - Coverage of edge cases from the incident
+  red_team:
+  - Incident where the failure is non-deterministic (regression case may not be reproducible)
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
+  - Generates cases without a concrete fixture path
+  - All cases assert pass, none assert a known failure shape
+  - Sets activation_status to active without owner approval
+  - Duplicates existing regression cases
   warning_signs:
-  - Regression cases lack a concrete fixture path under foundry/self-evolution/regression/fixtures/.
-  - All regression cases assert pass; none assert a known failure shape.
-  - Regression case activation_status set to active without owner approval.
+  - Generated cases have fixture_path as a placeholder or empty.
+  - Failure_shape_assertion list is empty on any generated case.
+  - activation_status is set to anything other than candidate.
+  - Case count equals max_candidates when source_incidents has fewer distinct failures.
   repair_actions:
-  - Block regression cases without a fixture from entering the cases/ directory.
-  - Require at least one failure-shape assertion per generated batch.
-  - Reset activation_status to candidate until owner explicitly promotes.
+  - Block cases without a concrete fixture_path from being written to regression/cases/.
+  - Require at least one failure-shape assertion per generated batch; reject the batch if absent.
+  - Enforce activation_status:candidate at write time regardless of source document content.
+  - Run deduplication before writing; if duplicates found, record their IDs rather than generating new files.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Source incident involves a constitutional invariant violation.
+  - Source incident involves a generating EOU that approved its own outputs.
+  require_approval_for:
+  - Advancing any regression case from candidate to active.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
+  executor: Claude
+  reviewer: Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Activating regression cases
+  - Approving regression case coverage as sufficient for EOU promotion
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, source_incidents as required input, correct output paths, failure_shape_assertion requirement, deduplication check, escalation gates, warning_signs, and repair_actions.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/self-evolution/regression/cases/
+  - foundry/self-evolution/regression/fixtures/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs
@@ -100,52 +130,40 @@ blast_radius:
 generation_envelope:
   allowed_outputs:
   - candidate_regression_case
-  - candidate_refactor_option
-  - candidate_ecp
-  - candidate_eou_spec
   forbidden_outputs:
   - active_eou
   - approved_eou
+  - active_regression_case
   - constitution_change
   - validator_weakening_without_ecp
   max_candidates: 5
   default_status: candidate
   required_for_each_candidate:
-  - operational_value
-  - risk
-  - authority_level
-  - activation_requirements
-  - arguments_against
+  - source_incident_id
+  - failure_class
+  - fixture_path
+  - failure_shape_assertion
+  - activation_status  # must be candidate
 generation_budget:
   max_candidates: 5
-  max_new_schemas: 1
-  max_new_validators: 2
-  max_open_questions: 8
-  must_rank_candidates: true
-  must_select_minimal_set: true
+  max_new_schemas: 0
+  max_new_validators: 0
+  max_open_questions: 5
+  must_rank_candidates: false  # regression cases are not ranked; each covers a distinct failure
+  must_select_minimal_set: false
 registry_diff:
   required: true
   questions:
-  - Does this duplicate an existing object?
-  - Can this be a test or rule instead?
+  - Does a regression case for this failure already exist in regression/cases/?
 minimality_test:
   questions:
-  - Can this be smaller?
-  - Can this be a validator?
-  - Can this be a regression case?
-  - Can this be a field in an existing object?
+  - Is this failure adequately covered by an existing regression case?
+  - Can this be expressed as a stop condition on an existing EOU instead?
 operational_value_test:
   required_answer:
   - prevents_failure
-  - improves_decision
-  - exposes_hidden_judgment
-  - improves_traceability
   reject_if:
-  - no concrete failure
-  - no improved decision
-  - duplicates existing object
+  - no concrete incident or audit failure as source
+  - duplicates existing regression case
 counter_generation:
-  required: true
-  requires_for_each_candidate:
-  - arguments_against
-  - minimality_result
+  required: false  # regression cases are not subject to arguments-against — each covers a real failure

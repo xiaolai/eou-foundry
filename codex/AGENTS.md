@@ -7,19 +7,19 @@ Recursive governance for Executable Operating Units. Faceted classification, gen
 | Skill | Purpose |
 |---|---|
 | `$eou-foundry-init` | Scaffold a new EOU-governed application: creates a sibling directory with `foundry/`, instance copies of plugin templates, a starter constitution, and an initial git repo |
-| `$generate-eou-candidates` | Generate a minimal, ranked candidate EOU set from a messy workflow under Foundry V2 constraints. Candidates are proposal-only and cannot self-activate |
+| `$generate-eou-candidates` | Generate a minimal, ranked candidate EOU set from a workflow using Foundry V2 constraints; candidates are proposal-only and cannot self-activate |
 | `$audit-candidate-eou-set` | Audit a candidate EOU set for boundary quality, minimality, overlap, authority, operational value, and governance risk |
 | `$eou-specify` | Convert an approved candidate into a formal EOU spec using V2 faceted classification |
 | `$eou-audit` | Audit an EOU spec for V2 classification, authority limits, schemas, validation, failure modes, trace, blast radius, responsibility ownership |
 | `$eou-diagnose` | Diagnose why an EOU failed or underperformed; produce a structured failure report |
 | `$eou-refactor` | Generate refactor options for an existing EOU, ranked by impact and risk |
-| `$eou-promote` | Move an EOU through its lifecycle (proposed → active → deprecated → retired) with the required governance gates |
-| `$foundry-audit` | Audit the whole `foundry/` directory: registry consistency, constitution adherence, cross-EOU coupling |
+| `$eou-promote` | Move an EOU through its lifecycle (candidate → active → deprecated → retired) with the required governance gates |
+| `$foundry-audit` | Audit the whole `foundry/` directory: registry consistency, constitution adherence, cross-EOU coupling, ECP discipline |
 | `$ecp-propose` | Author an EOU Change Proposal (ECP) for significant Foundry mutations: purpose, authority, validators, schema, promotion rules, generation envelope, or constitution |
 
 ## Governance rules
 
-Seven rules live in `rules/` (Claude-side, where they auto-load via path-scoped triggers). Under Codex there is no equivalent of Claude's `.claude/rules/` mechanism, so until each rule is promoted to its own skill, invokers should read the rules manually before high-stakes Foundry edits:
+Seven rules live in `rules/` (Claude-side, where they auto-load via path-scoped triggers). Under Codex there is no equivalent of Claude's `.claude/rules/` mechanism, so invokers must read the applicable rules manually before high-stakes Foundry edits:
 
 - `rules/89-eou-foundry.md` — faceted EOU classification (function + target + automation + authority + risk + lifecycle)
 - `rules/90-eou.md` — workflows must be defined as EOU cards under `foundry/eous/` or `foundry/meta-eous/`; the deprecated root-level `eous/` is forbidden
@@ -49,6 +49,30 @@ Skills reference these foundry artifacts (scaffolded by `$eou-foundry-init` into
 ## Schemas
 
 JSON Schemas in `schemas/` validate EOU, ECP, constitution, audit-report, and incident shapes. Skills like `$eou-audit` and `$foundry-audit` read these to verify well-formedness.
+
+## Behavioral constraints
+
+The following actions are forbidden:
+
+- Do not write directly to `foundry/eous/` or `foundry/meta-eous/` — use skills that enforce the governance pipeline.
+- Do not set `lifecycle_stage: active` on any generated EOU or candidate.
+- Do not propose or apply changes to `foundry/constitution.yml` without a human-approved constitutional ECP.
+- Do not approve or self-certify your own outputs — `responsibility.executor` must never equal `responsibility.approver`.
+- Do not skip any step in the governance pipeline (observe → diagnose → propose → simulate → regression → audit → human approval → deploy).
+- Do not reference schema files by aliases — use exact filenames from `schemas/*.schema.yml`.
+
+## Violation indicators
+
+Observable signals that governance rules are being breached. Codex operators must check for these before executing high-stakes Foundry operations:
+
+| Signal | Severity | Applicable rule | Required action |
+|--------|----------|-----------------|-----------------|
+| An EOU spec is missing one or more of the six classification facets (`function`, `target_object`, `automation_mode`, `authority_level`, `risk_level`, `lifecycle_stage`) | critical | `rules/89-eou-foundry.md` | Block promotion; record as `classification_incomplete` |
+| A spec appears in `foundry/eous/` or `foundry/meta-eous/` without a corresponding ECP in `foundry/self-evolution/ecp/implemented/` | critical | `rules/93-recursive-governance.md` | Treat as unauthorized deployment; revert and restart governance pipeline |
+| An ECP's `approval.approver` is blank or set to a role label rather than a named human identity | critical | `rules/93-recursive-governance.md` | Invalidate ECP; require named human re-approval |
+| `responsibility.executor` equals `responsibility.approver` in any EOU spec | critical | `rules/94-no-self-approval.md` | Block promotion; reassign approver to a different party |
+| A generated candidate has `lifecycle_stage` set to anything other than `candidate` | critical | `rules/95-generating-eous.md` | Revert file; record as `generation_envelope_breach` |
+| A significant Foundry mutation proceeds without a corresponding ECP | high | `rules/92-ecp.md` | Halt; open an ECP before continuing |
 
 ## Untrusted input
 

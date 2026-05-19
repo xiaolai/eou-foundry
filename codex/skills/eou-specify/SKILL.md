@@ -7,11 +7,22 @@ description: Convert an approved candidate into a formal EOU spec using Foundry 
 
 Convert or repair `$candidate` into a formal EOU spec.
 
+## Inputs
+
+- `$candidate` (required) — path to a candidate YAML file or YAML content describing the EOU to specify. Resolved in this order: direct file path → `foundry/self-evolution/ecp/proposed/{id}*.yml` → `foundry/eous/{id}.yml`.
+
 ## Required reading
 
 1. `schemas/eou.schema.yml` — required fields, types, and allowed values
 2. `foundry/constitution.yml` — governance invariants the spec must satisfy
 3. `foundry/governance.yml` — authority-level definitions and lifecycle rules
+
+## Stop conditions
+
+Halt and request clarification before proceeding if:
+- `$candidate` does not resolve to a readable file or cannot be interpreted as candidate data.
+- The candidate data does not contain enough information to write a concrete `purpose.statement` and `operating_hypothesis` — do not invent these.
+- The `schemas/eou.schema.yml` file does not exist — cannot validate field completeness without it.
 
 ## Procedure
 
@@ -30,12 +41,12 @@ Populate each group in order:
 
 ```
 classification:
-  function:          # execute | generate | audit | validate | govern
+  function:          # generate | specify | validate | diagnose | promote | refactor | audit | propose
   target_object:     # the artifact or decision this EOU acts on
-  automation_mode:   # fully_automated | LLM_assisted | hybrid | human_only
-  authority_level:   # read_only | write_candidate | write_inactive | write_active | approve | publish
+  automation_mode:   # deterministic | LLM_assisted | hybrid | human_executed
+  authority_level:   # suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
   risk_level:        # low | medium | high | critical
-  lifecycle_stage:   # candidate | draft | pilot | active | deprecated | retired
+  lifecycle_stage:   # candidate | draft | simulated | pilot | active | monitored | stable | deprecated | retired
 
 purpose:
   statement:         # one sentence — what this EOU does
@@ -56,7 +67,7 @@ context_manifest:
 execution:
   steps:             # ordered, concrete, bounded steps — no "perform bounded operation"
   decision_points:   # named branch conditions with explicit resolution criteria
-  stop_conditions:   # observable states that halt execution before completion
+  stop_conditions:   # observable states that stop execution before completion
   allowed_tools:     # explicit tool list
   prohibited_actions: # explicit prohibitions
 
@@ -81,7 +92,7 @@ failure_modes:
 
 escalation:
   require_human_when:   # observable conditions that mandate human review
-  require_approval_for: # actions that cannot proceed without human sign-off
+  require_approval_for: # actions that cannot proceed without human approval
 
 responsibility:
   executor:          # Claude | script | human (pick one primary; hybrid: name the split)
@@ -104,11 +115,14 @@ Check every field group is populated. Reject placeholder strings ("target artifa
 
 **Step 5: Set lifecycle and write**
 
-- Set `lifecycle_stage: draft` — never `active`, `approved`, or `pilot` without audit evidence.
+- Set `lifecycle_stage: draft` — never `active`, `simulated`, `pilot`, or higher without audit evidence.
 - Write the spec to `foundry/eous/{eou_id}.yml` (standard EOU) or `foundry/meta-eous/{eou_id}.yml` (meta/generating EOU).
 
 ## Constraints
 
-- Do not set `lifecycle_stage` to `active`, `pilot`, or `approved` without explicit audit and human approval evidence in the file.
+- Do not set `lifecycle_stage` to `simulated`, `pilot`, `active`, or any promoted stage without explicit audit and human approval evidence in the file.
 - In REPAIR mode, do not change fields that are correctly populated — only fill gaps.
-- Generating EOUs (function: generate) require an additional `generation_envelope` section scoped to the specific outputs this EOU produces; do not copy a generic envelope from another EOU.
+- Generating EOUs (`function: generate`) require an additional `generation_envelope` section scoped to the specific outputs this EOU produces; do not copy a generic envelope from another EOU.
+- Do not add fields not present in `schemas/eou.schema.yml`.
+- Do not leave placeholder text in the output: "target artifact", "What this EOU is meant to do", "Perform bounded operation" are failures, not accepted defaults.
+- Stop and ask if the source candidate does not provide enough information to write a concrete `operating_hypothesis` — do not invent it.

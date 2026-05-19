@@ -1,94 +1,129 @@
 id: diagnose-eou-failure
 name: Diagnose EOU Failure
-version: 0.2.0
+version: 0.3.0
 classification:
-  function: audit
+  function: diagnose
   target_object: foundry governance object
   automation_mode: LLM_assisted
   authority_level: write_inactive
   risk_level: medium
   lifecycle_stage: draft
 purpose:
-  statement: Classify an EOU failure using the failure taxonomy and recommend repair
-    direction.
+  statement: Classify an EOU failure using the Foundry failure taxonomy (F1–F12) and recommend the minimum-blast-radius repair path.
   non_goals:
+  - Do not apply any repair — produce the diagnosis only.
+  - Do not treat all failures as prompt problems (F1); require observable evidence.
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Diagnose EOU Failure can perform
-  its bounded role without exceeding its authority.
+operating_hypothesis: Given an incident report or audit finding and the failure taxonomy, this EOU can classify the root cause and rank repair options by blast radius.
 inputs:
   required:
+  - incident_or_audit_report  # path to the incident or audit file describing the failure
+  - foundry/failure-taxonomy.yml
   - foundry/constitution.yml
-  - foundry/registry.yml
-  optional: []
+  optional:
+  - foundry/registry.yml  # to check if the failing EOU is registered
+  - foundry/eous/{eou_id}.yml  # the EOU spec under diagnosis
   forbidden_assumptions:
-  - Do not assume missing context exists.
+  - Do not assume the failure is a prompt problem without observable evidence of prompt ambiguity.
+  - Do not assume missing context exists — if context is absent, flag it as a diagnostic gap.
 context_manifest:
   source_of_truth:
-  - constitution.yml
-  - registry.yml
   - failure-taxonomy.yml
-  supporting: []
-  forbidden: []
+  - constitution.yml
+  supporting:
+  - registry.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only during diagnosis
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
-  - Record trace.
-  decision_points: []
+  - Load foundry/failure-taxonomy.yml and foundry/constitution.yml.
+  - Load the incident_or_audit_report and extract observable failure symptoms.
+  - For each symptom, map it to one or more F-codes (F1–F12) from the taxonomy. Record confidence (high/medium/low) for each classification.
+  - Apply F1 (prompt ambiguity) only when there is direct evidence of ambiguous instructions — not as a default.
+  - For each classified failure class, enumerate applicable repair actions in ascending blast-radius order: schema_field → validator → stop_condition → regression_case → context_manifest → ecp → human_approval_gate → eou_lifecycle.
+  - Identify the minimum repair that addresses the root cause without constitutional violation.
+  - Check for self-approval risk — if the failing EOU could approve its own fix, flag as critical finding.
+  - Write the diagnosis report.
+  decision_points:
+  - If multiple F-codes apply with equal confidence, list all — do not force a single classification.
+  - If the incident report lacks sufficient observable signals to classify, write "insufficient evidence" and list the signals needed.
   stop_conditions:
-  - Missing owner.
-  - Authority boundary unclear.
-  - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - Incident report file not found.
+  - failure-taxonomy.yml not present.
+  - Authority boundary of the diagnosing EOU would be exceeded by the proposed repair (escalate to human).
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Applying any repair action
+  - Modifying the EOU spec under diagnosis
+  - Approving any ECP
 outputs:
   primary:
-  - diagnose-eou-failure output
+  - foundry/audits/incidents/{incident_id}.diagnosis.yml
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - At least one F-code is assigned with documented observable evidence.
+  - At least one repair option is listed with blast_radius and requires_ecp fields.
+  - Does not set any approval or lifecycle field on the diagnosed EOU.
+  should_pass:
+  - Minimum-blast-radius repair is identified.
+  - Self-approval risk check is included.
+  - Confidence levels are recorded for each F-code classification.
 validation:
   deterministic:
-  - schema checks
+  - Diagnosis file written to correct path.
+  - At least one F-code present in output.
+  - Repair options list is non-empty.
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Classification accuracy against taxonomy definitions
+  - Blast-radius ranking correctness
+  red_team:
+  - Incident that could be classified as F1 but is actually F5 (scope creep)
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
-  warning_signs: []
-  repair_actions: []
+  - Classifies all failures as F1 (prompt ambiguity) without evidence
+  - Recommends maximum-blast-radius repair when a validator would suffice
+  - Produces an empty repair_options list for complex failures
+  - Misses self-approval risk on a generating EOU's failure
+  warning_signs:
+  - Every failure in a batch is classified as F1 (systematic over-attribution to prompts).
+  - Recommended repair is always ECP even when schema or stop-condition would suffice.
+  - Diagnosis output omits confidence levels for F-code assignments.
+  repair_actions:
+  - Re-run with explicit F1 evidence threshold — require one observable signal of prompt ambiguity per F1 assignment.
+  - Sort repair options by blast_radius before recommending; downgrade recommendation if lower-radius option is available.
+  - Make confidence field mandatory in the output schema; reject diagnoses with absent confidence levels.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Failure involves a constitutional invariant violation.
+  - Diagnosed EOU has authority_level approve or publish.
+  - Self-approval risk is detected.
+  require_approval_for:
+  - Any ECP proposed as a result of this diagnosis.
+  - EOU lifecycle changes (retire, merge, split).
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
+  executor: Claude
+  reviewer: human owner or designated Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Approving repair actions that touch constitutional invariants
+  - Authorizing EOU retirement
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, F-code procedure, decision_points, escalation gates, warning_signs, and repair_actions. Added incident_or_audit_report as required input.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/audits/incidents/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
+  - foundry/eous/  # read-only during diagnosis
   - approved ECPs
   - production schemas unless ECP-approved

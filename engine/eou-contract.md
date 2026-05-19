@@ -1,6 +1,6 @@
 # EOU Contract
 
-Every EOU card must conform to **`schemas/eou.schema.yml`** (v2). This document
+Every EOU spec must conform to **`schemas/eou.schema.yml`** (v2). This document
 is the prose explanation of that schema. The schema file is authoritative; if
 the two ever drift, the schema wins.
 
@@ -11,7 +11,7 @@ facets, each drawn from a fixed vocabulary:
 
 ```yaml
 classification:
-  function:         execute | audit | generate | decide | govern | validate | refactor
+  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose
   target_object:    string   # what this EOU operates on, e.g. "chapter card"
   automation_mode:  deterministic | LLM_assisted | human_executed | hybrid
   authority_level:  suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
@@ -104,12 +104,12 @@ Generating EOUs MUST have `authority_level` in
 `{suggest_only, draft_only, write_candidate, write_inactive}`. They MAY NOT
 hold `approve`, `publish`, or `mutate_active`.
 
-## Path conventions inside an EOU card
+## Path conventions inside an EOU spec
 
 Book-relative paths use the placeholder `{BOOK_PATH}` =
 `applications/book-workshop/books/{book_id}/`. Repo-relative paths (those
 under `applications/`, `foundry/`, or `schemas/`) are written out fully. A
-card may optionally declare:
+spec may optionally declare:
 
 ```yaml
 path_root:
@@ -143,5 +143,5 @@ Earlier drafts used a single `type` field (`deterministic | judgment |
 owner_decision | hybrid`) and a different lifecycle vocabulary (`idea |
 architecture | scaffold | draft | audit | revision | production |
 maintenance`). Both have been replaced by the faceted classification above.
-Any card still using the old shape is invalid and must be migrated before it
+Any spec still using the old shape is invalid and must be migrated before it
 can be promoted past `candidate`.

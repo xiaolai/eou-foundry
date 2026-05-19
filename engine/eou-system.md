@@ -1,5 +1,7 @@
 # Executable Operating Unit System
 
+> **Superseded.** This document describes the pre-Foundry-V2 EOU type model (`deterministic | judgment | owner_decision | hybrid`) and contains domain-specific content (A2B Engine V2.2, book workshop) from the plugin's origin project. It is retained as historical context only. For the current model, see `engine/eou-foundry-v2.md` and `schemas/eou.schema.yml`.
+
 A2B Engine V2.2 treats the workshop itself as a set of **Executable Operating Units** (EOUs).
 
 An EOU is a bounded work unit that can be understood, executed, delegated, audited, improved, versioned, and partially automated.

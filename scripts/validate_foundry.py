@@ -5,7 +5,7 @@ from pathlib import Path
 import argparse
 from _common import find_repo_root, load_yaml
 
-VALID_FUNCTIONS = {"execute", "audit", "generate", "decide", "govern", "validate", "refactor"}
+VALID_FUNCTIONS = {"generate", "specify", "validate", "diagnose", "promote", "refactor", "audit", "propose"}
 VALID_AUTOMATION = {"deterministic", "LLM_assisted", "human_executed", "hybrid"}
 VALID_AUTHORITY = {"suggest_only", "draft_only", "write_candidate", "write_inactive", "mutate_active", "approve", "publish"}
 VALID_RISK = {"low", "medium", "high", "critical"}
@@ -14,7 +14,7 @@ SAFE_GENERATING_AUTHORITY = {"suggest_only", "draft_only", "write_candidate", "w
 REQUIRED_TOP = [
     "id", "name", "version", "classification", "purpose", "operating_hypothesis",
     "inputs", "context_manifest", "execution", "outputs", "success_criteria",
-    "validation", "failure_modes", "escalation", "responsibility", "versioning",
+    "validation", "failure_modes", "escalation", "responsibility", "blast_radius", "versioning",
 ]
 REQUIRED_NESTED = {
     "classification": ["function", "target_object", "automation_mode", "authority_level", "risk_level", "lifecycle_stage"],
@@ -74,7 +74,7 @@ def validate_eou_card(path: Path, root: Path) -> list[str]:
     problems: list[str] = []
     data = load_yaml(path)
     if not isinstance(data, dict):
-        return [f"{path}: EOU card must be a mapping"]
+        return [f"{path}: EOU spec must be a mapping"]
     problems.extend(validate_required(path, data, REQUIRED_TOP))
     if data.get("id") and data.get("id") != path.stem:
         problems.append(f"{path}: id `{data.get('id')}` does not match filename `{path.stem}`")
@@ -117,6 +117,10 @@ def validate_eou_card(path: Path, root: Path) -> list[str]:
                 continue
             if gate in {"registry_diff", "counter_generation"} and value.get("required") is not True:
                 problems.append(f"{path}: `{gate}.required` must be true")
+        cc = data.get("counter_generation") if isinstance(data.get("counter_generation"), dict) else {}
+        rfc = cc.get("requires_for_each_candidate") or []
+        if isinstance(rfc, list) and "arguments_against" not in rfc:
+            problems.append(f"{path}: counter_generation.requires_for_each_candidate must include `arguments_against`")
 
     if c.get("authority_level") in {"approve", "publish"}:
         resp = data.get("responsibility") or {}
@@ -175,12 +179,12 @@ def validate_registry(root: Path, eou_paths: dict[str, Path]) -> list[str]:
         if rel and not (root / rel).exists():
             problems.append(f"{path}: registry path does not exist: {rel}")
         if eou_id and eou_id not in eou_paths:
-            problems.append(f"{path}: registry entry `{eou_id}` has no matching EOU card")
+            problems.append(f"{path}: registry entry `{eou_id}` has no matching EOU spec")
         c = entry.get("classification") or {}
         if c.get("authority_level") in {"approve", "publish"}:
             problems.append(f"{path}: registry entry `{eou_id}` has unsafe approve/publish authority")
     for eou_id in sorted(set(eou_paths) - seen):
-        problems.append(f"{path}: EOU card `{eou_id}` missing from registry")
+        problems.append(f"{path}: EOU spec `{eou_id}` missing from registry")
     return problems
 
 
@@ -230,7 +234,7 @@ def validate_foundry(root: Path) -> list[str]:
                 eou_paths[str(data["id"])] = path
             problems.extend(validate_eou_card(path, root))
     if not eou_paths:
-        problems.append("foundry: no EOU cards found")
+        problems.append("foundry: no EOU specs found")
     problems.extend(validate_registry(root, eou_paths))
     problems.extend(validate_ecps(root))
     problems.extend(validate_regression_cases(root))

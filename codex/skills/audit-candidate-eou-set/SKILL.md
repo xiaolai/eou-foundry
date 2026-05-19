@@ -14,6 +14,13 @@ Audit `$path` (a `candidate_eou_set.yml` file).
 3. `foundry/governance.yml`
 4. `foundry/meta-eous/audit-candidate-eou-set.yml`
 
+## Stop conditions
+
+Halt and report before running tests if:
+- `$path` does not resolve to a readable YAML file.
+- The file does not contain a `candidates` array, or `candidates` is empty.
+- `foundry/constitution.yml` or `foundry/registry.yml` does not exist — required for Authority and Non-Overlap tests.
+
 ## Tests
 
 Run each test against every candidate in the set.
@@ -33,7 +40,7 @@ Each candidate must fail the following substitution checks — if it passes any,
 - Can this be a **checklist item** inside an existing EOU's steps?
 
 ### Authority Test
-Generating EOUs in the candidate set must not have `authority_level` set to `approve`, `publish`, or `write_active`. Flag candidates claiming more authority than `write_candidate` or `write_inactive` without constitutional justification.
+Generating EOUs in the candidate set must not have `authority_level` set to `approve`, `publish`, or `mutate_active`. Flag candidates claiming more authority than `write_candidate` or `write_inactive` without constitutional justification.
 
 ### Operational Value Test
 Each candidate must satisfy at least one of:
@@ -84,3 +91,10 @@ findings:
 required_revisions_before_specification:
   - # list of changes needed before any candidate can proceed to eou-specify
 ```
+
+## Constraints
+
+- Do not modify the candidate set file — produce the audit report only.
+- Treat `arguments_against` as required, not optional — candidates missing this field fail the Counter-Generation Test.
+- Do not pass a candidate if it fails the Authority Test, even if all other tests pass.
+- A PASS verdict does not authorize specification — candidates still require human review before proceeding to `$eou-specify`.

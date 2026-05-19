@@ -12,19 +12,65 @@ allowed-tools:
 
 # Refactor EOU
 
-Generate candidate refactor options for `$target`.
+Generate candidate refactor options for `$target`. Do not apply any change.
 
-Use `foundry/refactoring-patterns.yml` and `foundry/constitution.yml`.
+## Inputs
+
+- `$target` (required) — either an EOU ID (resolved to `foundry/eous/{id}.yml` or `foundry/meta-eous/{id}.yml`) or a path to an audit report or diagnosis file. When an audit path is given, the EOU ID is extracted from the report.
+
+## Required reading
+
+1. `foundry/refactoring-patterns.yml` — canonical refactor types (split, merge, scope-reduction, authority-downgrade, step-extraction, validator-addition, stop-condition-injection, responsibility-separation)
+2. `foundry/constitution.yml` — invariants that constrain any proposed change
+3. The source EOU spec (infer path from `$target` if an audit path is given)
+
+## Stop conditions
+
+Halt and report before generating options if:
+- `$target` does not identify an EOU ID and one cannot be inferred.
+- No audit report or incident exists to identify a structural problem — do not generate options from speculation.
+- The EOU spec does not exist in `foundry/eous/` or `foundry/meta-eous/`.
+
+## Procedure
+
+1. Read `$target` (EOU ID or audit report). If it is an audit report, extract the EOU ID and load the corresponding spec.
+2. Identify the structural problems: scope creep, authority inflation, weak validation, missing stop conditions, unbounded steps, ambiguous responsibility, missing trace preservation, blast-radius overreach, and circular EOU dependencies.
+3. For each structural problem, generate one or more refactor options using the patterns in `foundry/refactoring-patterns.yml`.
+4. Include a "no change" baseline option with its trade-offs stated.
+5. Rank options by: smallest blast radius, then lowest authority required, then easiest rollback.
+6. For each option that touches authority, approval, or constitutional invariants: mark `requires_ecp: true`.
+7. Write the candidate refactor set.
+
+## Output
+
+Write to `foundry/self-evolution/refactor-options/{eou_id}-refactor-{YYYYMMDD}.yml`.
 
 Each option must include:
 
-- target failure
-- proposed change
-- expected benefit
-- risk
-- affected files
-- tests required
-- rollback plan
-- arguments against the refactor
+```yaml
+option_id:
+target_failure:       # the structural problem this addresses
+proposed_change:      # one specific modification (not a vague direction)
+expected_benefit:     # observable improvement
+risk:                 # what can degrade
+affected_files:       # list of files that would change
+tests_required:       # regression cases to add or update
+rollback_plan:        # how to revert
+arguments_against:    # strongest case for not doing this
+requires_ecp:         # true | false
+```
 
-Do not apply changes. Produce an ECP if the option is worth pursuing.
+## ECP trigger criteria
+
+Mark `requires_ecp: true` when the option does any of the following:
+- changes `authority_level`
+- modifies `blast_radius.forbidden_scope`
+- weakens or removes a validator or stop condition
+- changes responsibility or approval authority
+- modifies any constitutional invariant
+
+## Constraints
+
+- Do not apply any refactor option. Write candidate set only.
+- Always include the "no change" baseline as an option.
+- The recommended minimal set must exclude options with unresolved open risks.

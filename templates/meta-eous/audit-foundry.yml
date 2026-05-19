@@ -1,0 +1,141 @@
+id: audit-foundry
+name: Audit Foundry
+version: 0.1.0
+classification:
+  function: audit
+  target_object: foundry governance object
+  automation_mode: LLM_assisted
+  authority_level: write_inactive
+  risk_level: medium
+  lifecycle_stage: draft
+purpose:
+  statement: Audit the whole Foundry for schema drift, self-approval risk, generation overreach, weak validators, and missing governance evidence.
+  non_goals:
+  - Do not modify any EOU spec, schema, registry, or governance file — produce the audit report only.
+  - Do not apply repairs — record findings and required fixes.
+  - Do not bypass ECP or human approval.
+operating_hypothesis: Given all Foundry governance files, schemas, and EOU specs, this EOU can detect cross-cutting violations (schema drift, self-approval risk, generation overreach, registry inconsistency, missing regression coverage) that would prevent safe operation or governance integrity.
+inputs:
+  required:
+  - foundry/constitution.yml
+  - foundry/registry.yml
+  - foundry/governance.yml
+  - schemas/eou.schema.yml
+  optional:
+  - foundry/eous/                              # all EOU specs
+  - foundry/meta-eous/                         # all meta-EOU specs
+  - foundry/self-evolution/ecp/implemented/    # for ECP discipline check
+  - foundry/self-evolution/regression/cases/   # for regression coverage check
+  - foundry/audits/eou-audits/                 # most recent per-EOU audits
+  forbidden_assumptions:
+  - Do not assume a spec is valid because it exists — check every file.
+  - Do not assume an audit finding is absent because no prior audit is on file.
+  - Do not assume constitution.yml is current — verify its declared version against registry.yml.
+context_manifest:
+  source_of_truth:
+  - constitution.yml
+  - registry.yml
+  - schemas/eou.schema.yml
+  supporting:
+  - governance.yml
+  - failure-taxonomy.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only during audit
+execution:
+  steps:
+  - Load foundry/constitution.yml, foundry/registry.yml, foundry/governance.yml, and all schemas from schemas/*.schema.yml.
+  - Load all EOU specs from foundry/eous/ and foundry/meta-eous/.
+  - Run check 1 (faceted classification completeness) — every spec must declare all six classification facets with schema-allowed values. Flag missing or placeholder values.
+  - Run check 2 (generating EOU envelope safety) — for each spec with function:generate, verify generation_envelope.forbidden_outputs contains active_eou, approved_eou, and constitution_change.
+  - Run check 3 (self-approval risk) — for each spec, verify responsibility.executor ≠ responsibility.approver. Normalize both fields before comparison; reject role labels as valid human approvers.
+  - Run check 4 (registry/spec consistency) — verify every active/pilot spec is registered in registry.yml and every registry entry resolves to a spec file.
+  - Run check 5 (schema drift) — validate each active/pilot spec against schemas/eou.schema.yml for required fields and allowed enum values.
+  - Run check 6 (ECP discipline) — for each spec whose versioning.changelog records an authority_level or blast_radius change, verify a corresponding approved ECP exists in foundry/self-evolution/ecp/implemented/.
+  - Run check 7 (regression memory) — for each active spec, verify at least one regression fixture exists in foundry/self-evolution/regression/cases/.
+  - Run check 8 (authority and blast radius) — for each spec, verify authority_level is consistent with blast_radius.allowed_scope. An EOU with authority_level write_candidate or lower must not list constitution.yml, governance.yml, registry.yml, or ecp/implemented/ in allowed_scope.
+  - Run check 9 (high-risk escalation) — for each spec with risk_level high or critical, verify escalation.require_human_when is non-empty and responsibility.approver is a named human role.
+  - Run check 10 (operational value) — for each spec, verify purpose.statement names a failure prevented or decision improved, not a process description.
+  - Write the audit report to foundry/audits/foundry-audits/{YYYYMMDD}.foundry-audit.yml.
+  - Record trace.
+  decision_points:
+  - If a check cannot be executed (e.g., no EOU specs exist yet), record it as skipped with a reason — not as pass.
+  - If zero findings are reported for a Foundry with more than 5 specs, record a low-severity warning — statistically improbable.
+  stop_conditions:
+  - foundry/constitution.yml does not exist — the Foundry is unconfigured.
+  - schemas/eou.schema.yml does not exist — schema drift cannot be checked.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Modifying any EOU spec, schema, registry, or governance file
+  - Approving any ECP
+  - Advancing lifecycle_stage on any EOU
+outputs:
+  primary:
+  - foundry/audits/foundry-audits/{YYYYMMDD}.foundry-audit.yml
+  secondary: []
+  trace:
+  - runs/{run_id}/trace.yml
+success_criteria:
+  must_pass:
+  - All 10 check categories are executed or recorded as skipped with reason.
+  - Does not modify any EOU spec, schema, registry, or governance file.
+  - Report includes at least one finding or a documented rationale for zero findings.
+  should_pass:
+  - Checks 1–5 run on every spec in both foundry/eous/ and foundry/meta-eous/.
+  - ECP discipline check (check 6) is executed for all specs with versioning.changelog entries.
+validation:
+  deterministic:
+  - All 10 checks are present in audit report (executed or skipped with reason).
+  - Report written to correct path.
+  - No spec, schema, or registry file is modified.
+  judgment:
+  - Operational value of purpose statements
+  - Authority/blast-radius alignment
+  red_team:
+  - Foundry with fabricated audit evidence that passes all gates
+failure_modes:
+  known:
+  - Reports zero findings for a non-trivial Foundry (under-checking)
+  - Skips generating-EOU envelope check for EOUs with function:generate
+  - Treats a comment in approval.approver as a named human approver
+  - Conflates role labels with named human approvers in escalation check
+  warning_signs:
+  - Zero findings for a Foundry with more than 5 specs.
+  - Check 6 (ECP discipline) is absent from the report.
+  - Any spec with risk_level:high passes check 9 without escalation.require_human_when populated.
+  repair_actions:
+  - Add a zero-findings warning as a low-severity finding when no violations are found in a non-trivial Foundry.
+  - Enumerate all generating EOUs explicitly before running check 2 — do not rely on in-memory tracking.
+  - Normalize approval.approver values before comparison — reject role labels (e.g., "Claude", "script") as valid named human approvers.
+escalation:
+  require_human_when:
+  - Any finding has severity critical.
+  - Self-approval risk (check 3) is detected on any EOU.
+  - Schema drift (check 5) is detected on an active or pilot EOU.
+  require_approval_for:
+  - Any repair to a finding in this audit report.
+  - Advancing any EOU lifecycle stage based on this report.
+responsibility:
+  executor: Claude
+  reviewer: Foundry maintainer
+  approver: human owner
+  cannot_delegate:
+  - Final determination of self-approval risk findings
+  - Approving any repair action identified in this report
+versioning:
+  supersedes: []
+  changelog:
+  - '0.1.0: Initial draft — 10-check audit covering classification, envelope safety, self-approval, registry, schema drift, ECP discipline, regression, authority, escalation, and operational value.'
+blast_radius:
+  allowed_scope:
+  - foundry/audits/foundry-audits/
+  - runs/
+  forbidden_scope:
+  - foundry/constitution.yml
+  - foundry/eous/
+  - foundry/meta-eous/
+  - foundry/registry.yml
+  - approved ECPs
+  - production schemas unless ECP-approved

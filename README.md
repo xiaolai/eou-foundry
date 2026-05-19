@@ -30,7 +30,7 @@ function + target_object + automation_mode + authority_level + risk_level + life
 | Engine theory | `engine/{eou-contract, eou-foundry-v2, eou-system}.md` |
 | Governance rules | 7 rules covering schema, constitution, ECP requirement, recursive governance, no-self-approval, generating-EOU constraints |
 | Skills | 9 Foundry skills (specify, audit, diagnose, refactor, promote, foundry-audit, ECP propose, generate candidates, audit-candidate-set) |
-| Templates | Constitution, governance, registry starters; maturity model, failure taxonomy, refactoring patterns, runtime contract; 10 meta-EOU specs; EOU and generating-EOU card templates |
+| Templates | Constitution, governance, registry starters; maturity model, failure taxonomy, refactoring patterns, runtime contract; 11 meta-EOU specs; EOU and generating-EOU spec templates |
 | Scaffolding | `/eou-foundry:init` creates a new application dir with a fresh `foundry/` |
 | Validators | `scripts/validate_foundry.py`, `validate_recursive_case.py` |
 | Architecture history | 5 dev-docs documenting the design evolution |
@@ -83,7 +83,7 @@ runs `validate_foundry.py` against it. The new app is its own git repo.
 | Skill | Purpose |
 |---|---|
 | `/eou-foundry:eou-specify` | Convert an approved candidate into a formal EOU spec |
-| `/eou-foundry:eou-audit` | Audit an EOU card against the schema |
+| `/eou-foundry:eou-audit` | Audit an EOU spec against the schema |
 | `/eou-foundry:eou-diagnose` | Diagnose an EOU failure using the failure taxonomy |
 | `/eou-foundry:eou-refactor` | Generate candidate refactor options (proposal-only) |
 | `/eou-foundry:eou-promote` | Evaluate whether an EOU can be promoted to the next maturity level |

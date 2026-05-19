@@ -1,40 +1,60 @@
 maturity_levels:
   L0_TACIT:
     definition: Human knows how to do it, but nothing is formalized.
+    lifecycle_stage: pre-candidate (not yet in Foundry)
     promotion_requires:
     - workflow narrative
   L1_NARRATIVE:
-    definition: Workflow is described in plain language.
+    definition: Workflow is described in plain language with known failure modes.
+    lifecycle_stage: candidate
     promotion_requires:
     - artifact inventory
     - known failure modes
   L2_STRUCTURED:
-    definition: Inputs, outputs, steps, and success criteria exist.
+    definition: Inputs, outputs, steps, and success criteria exist as a complete EOU spec.
+    lifecycle_stage: draft
     promotion_requires:
-    - EOU spec
+    - EOU spec (all required_top_level fields)
     - input schema
     - output schema
+    - at least one stop_condition
   L3_EXECUTABLE:
-    definition: A human, AI agent, or script can run it.
+    definition: A human, AI agent, or script can run it and produce a trace.
+    lifecycle_stage: pilot
     promotion_requires:
     - successful pilot run
     - run trace
+    - human reviewer acknowledgment
   L4_AUDITABLE:
-    definition: Runs produce trace and validation evidence.
+    definition: Runs produce trace and validation evidence; failures are classified.
+    lifecycle_stage: active
     promotion_requires:
-    - output audit
-    - run audit
-    - known failure taxonomy
-  L5_GOVERNED:
-    definition: Versioning, regression tests, and approval gates exist.
-    promotion_requires:
-    - registry entry
-    - regression cases
+    - EOU audit passed (verdict PASS)
+    - regression suite exists
     - owner approval
-  L6_SELF_IMPROVING:
-    definition: Failures generate ECPs and controlled refactors.
+    - known failure taxonomy entries for this EOU
+  L5_GOVERNED:
+    definition: Versioning, regression tests, and approval gates exist; incidents generate records.
+    lifecycle_stage: monitored
     promotion_requires:
-    - ECP history
-    - successful regression suite
+    - registry entry with version history
+    - regression cases covering known failure modes
+    - incident history clean or all incidents have diagnosis and repair records
+  L6_SELF_IMPROVING:
+    definition: Failures generate ECPs and controlled refactors; the EOU learns from its own incidents.
+    lifecycle_stage: stable
+    promotion_requires:
+    - ECP history demonstrating improvement cycles
+    - successful regression suite with no new failures
     - monitored improvement record
+lifecycle_stage_to_maturity_mapping:
+  candidate: L1_NARRATIVE
+  draft: L2_STRUCTURED
+  simulated: L2_STRUCTURED (simulation evidence adds confidence but does not advance maturity level)
+  pilot: L3_EXECUTABLE
+  active: L4_AUDITABLE
+  monitored: L5_GOVERNED
+  stable: L6_SELF_IMPROVING
+  deprecated: any (deprecation is a governance decision, not a maturity regression)
+  retired: any
 rule: Do not allow an EOU to self-declare maturity; promotion requires evidence.

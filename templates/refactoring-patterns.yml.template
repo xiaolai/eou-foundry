@@ -1,12 +1,53 @@
 patterns:
-  split_eou: Use when one EOU has multiple primary success criteria.
-  merge_eou: Use when two EOUs always run together and share the same success criterion.
-  promote_check_to_script: Use when a judgment has become deterministic.
-  demote_to_human_judgment: Use when automation pretends to decide a responsibility-heavy
-    matter.
-  add_stop_condition: Use when an EOU continues in invalid states.
-  add_context_manifest: Use when performance depends on hidden context.
-  add_regression_case: Use after every serious failure that could recur.
-  retire_eou: Use when a unit is obsolete, duplicate, or net-negative.
+  # Canonical refactor types — match the names used by $eou-refactor
+  split:
+    use_when: One EOU has multiple primary success criteria, or two distinct responsibilities
+      are bundled into a single unit.
+    output: Two or more narrower EOUs each with a single success criterion.
+  merge:
+    use_when: Two EOUs always run together, share the same success criterion, and have
+      no useful independent existence.
+    output: One combined EOU with a unified success criterion.
+  scope-reduction:
+    use_when: An EOU's authority_level, blast_radius, or target_object is broader than
+      its actual function requires; or the EOU reads or writes files outside its stated purpose.
+    output: Tightened authority_level, narrowed allowed_scope, or reduced target_object.
+  authority-downgrade:
+    use_when: Automation_mode is LLM_assisted or deterministic for a step that carries
+      responsibility-heavy judgment that should remain human_executed; or an EOU's
+      authority_level exceeds what its function requires.
+    output: Lower automation_mode or authority_level; explicit require_human_when condition.
+  step-extraction:
+    use_when: A step inside an EOU can be made deterministic (promote to a script or
+      validator) or isolated as a sub-EOU with its own blast radius and governance.
+    output: A script, validator, or child EOU handling the extracted step; parent EOU
+      references the extracted unit.
+  validator-addition:
+    use_when: A known failure mode has no validation gate; output quality depends on
+      unverified assumptions; or a past incident has no regression case preventing recurrence.
+    output: A new deterministic validator, schema constraint, or regression case file.
+  stop-condition-injection:
+    use_when: An EOU continues executing in invalid, ambiguous, or unauthorized states
+      rather than halting and reporting.
+    output: One or more new stop conditions in execution.stop_conditions with observable
+      trigger criteria.
+  responsibility-separation:
+    use_when: The same party both executes and approves an EOU's output; or two distinct
+      approval authorities are handled by one EOU.
+    output: Separate executor and approver roles; distinct EOU or human gate for each
+      approval authority.
+
+  # Supplementary patterns
+  add_context_manifest:
+    use_when: EOU performance depends on context (registry state, constitution, schema
+      versions) that is loaded implicitly or inconsistently across runs.
+    output: A populated context_manifest declaring source_of_truth, supporting, and
+      forbidden files explicitly.
+  retire_eou:
+    use_when: A unit is obsolete (superseded by a better EOU), duplicate (covered by
+      an existing EOU), or net-negative (costs exceed its operational value).
+    output: Lifecycle transitioned to deprecated then retired; registry entry updated;
+      migration path documented for any consumers.
+
 minimality_rule: Before creating a new EOU, ask whether a rule, schema field, validator,
   regression case, stop condition, or human checklist would be enough.

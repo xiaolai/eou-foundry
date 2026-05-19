@@ -13,6 +13,57 @@ authority_levels:
   mutate_active: Can modify active operational files; requires strict approval.
   approve: Can approve a change or artifact; not allowed for AI-only execution.
   publish: Can release final output; not allowed for AI-only execution.
+lifecycle_promotion_gates:
+  # Evidence required to advance an EOU from one stage to the next.
+  # $eou-promote reads this section to determine what must be present before approving a transition.
+  candidate_to_draft:
+    required:
+    - EOU spec exists in foundry/eous/ or foundry/meta-eous/ with all required_top_level fields populated
+    - purpose.statement is concrete (names a failure prevented or decision improved, not a process description)
+    - operating_hypothesis is stated (Given / can / without structure)
+    - at least one stop_condition declared
+    - blast_radius.allowed_scope and blast_radius.forbidden_scope declared
+    - responsibility.executor, reviewer, approver all named
+  draft_to_simulated:
+    required:
+    - All required schema fields populated (no TBD placeholders except open_questions)
+    - At least one regression case exists in foundry/self-evolution/regression/cases/ covering a known failure mode
+    - validation.deterministic section non-empty
+    - schemas/eou.schema.yml validation passes (scripts/validate_foundry.py clean)
+    - Human reviewer has read and acknowledged the spec
+  simulated_to_pilot:
+    required:
+    - Simulation run recorded (ECP simulation field populated or separate simulation artifact)
+    - No critical findings from simulation
+    - Human reviewer sign-off on simulation results
+    - All open_questions resolved or explicitly deferred with rationale
+  pilot_to_active:
+    required:
+    - At least one successful pilot run with trace evidence in runs/
+    - EOU audit passed (foundry/audits/eou-audits/{eou_id}.audit.yml with verdict PASS)
+    - Regression suite passing
+    - Named human owner approval (approval.approver is a named person, not a role label)
+  active_to_monitored:
+    required:
+    - EOU has been active for at least one incident-free cycle (define cycle in constitution)
+    - Incident history is clean or all incidents have diagnosis and repair records
+    - Regression suite passing with no new failures
+  monitored_to_stable:
+    required:
+    - No structural changes needed for at least one governance cycle
+    - Full regression suite passing
+    - Maturity evidence at L5 or L6 (see maturity-model.yml)
+  any_to_deprecated:
+    required:
+    - Documented reason for deprecation (superseded / obsolete / net-negative)
+    - Migration path documented for any consumers of this EOU
+    - Successor EOU named if applicable
+    - Human owner approval
+  deprecated_to_retired:
+    required:
+    - All known consumers have migrated
+    - Final trace archived
+    - Registry entry updated with retirement date and reason
 risk_escalation:
   domains:
   - finance
@@ -29,3 +80,18 @@ risk_escalation:
   - decision record
   - cannot_delegate final decision
   - trace required
+decision_records:
+  # Not every diagnosed failure becomes an ECP. When diagnosis concludes "acceptable —
+  # no change needed", record that decision explicitly so the Foundry's audit trail
+  # remains complete. A missing record looks identical to an uninvestigated incident.
+  no_change_record:
+    path: foundry/audits/incidents/{incident_id}.no-change.yml
+    required_fields:
+    - incident_id
+    - eou_id
+    - diagnosis_summary      # brief description of the diagnosed failure class
+    - decision: no_change    # explicit marker — not a missing ECP
+    - rationale              # why the cost of change exceeds the benefit
+    - reviewed_by            # named human who made the decision
+    - reviewed_at            # ISO date
+    - reopen_condition       # observable signal that would warrant reconsidering

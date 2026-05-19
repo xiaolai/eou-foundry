@@ -34,7 +34,7 @@ What ships:
 - `templates/` — universals (maturity-model, failure-taxonomy,
   refactoring-patterns, runtime-contract), instance starters
   (constitution, governance, registry), 10 meta-EOU specs, EOU and
-  generating-EOU card templates.
+  generating-EOU spec templates.
 - `scripts/` — `validate_foundry.py`, `validate_recursive_case.py`,
   `_common.py` helpers, `clean_generated.py`.
 - `dev-docs/` — 5 architecture history docs (11, 13, 14, 15, 16).

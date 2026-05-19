@@ -1,145 +1,138 @@
 id: specify-eou
 name: Specify EOU
-version: 0.2.0
+version: 0.3.0
 classification:
-  function: generate
+  function: specify
   target_object: foundry governance object
   automation_mode: LLM_assisted
   authority_level: write_candidate
   risk_level: medium
   lifecycle_stage: draft
 purpose:
-  statement: Turn an approved candidate into a formal EOU spec using canonical schema.
+  statement: Turn an approved candidate into a complete, schema-conformant EOU spec at lifecycle_stage:draft.
   non_goals:
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Specify EOU can perform its bounded
-  role without exceeding its authority.
+  - Do not set lifecycle_stage to active, pilot, or approved.
+  - Do not reuse a generation_envelope from another EOU — scope it to this EOU's actual outputs.
+operating_hypothesis: Given an approved candidate and the Foundry schema, this EOU can produce a complete EOU spec with all fields populated and no placeholder strings.
 inputs:
   required:
+  - approved_candidate  # path to the approved candidate file (candidate_eou_set entry, or standalone candidate file)
+  - schemas/eou.schema.yml
   - foundry/constitution.yml
-  - foundry/registry.yml
-  optional: []
+  optional:
+  - foundry/governance.yml
+  - foundry/failure-taxonomy.yml  # to populate failure_modes
+  - foundry/registry.yml          # to run registry-diff
   forbidden_assumptions:
-  - Do not assume missing context exists.
+  - Do not assume the candidate has all required fields — check and fill gaps.
+  - Do not assume the candidate's authority_level is correct — validate against constitution.yml.
 context_manifest:
   source_of_truth:
+  - schemas/eou.schema.yml
   - constitution.yml
-  - registry.yml
+  supporting:
   - failure-taxonomy.yml
-  supporting: []
-  forbidden: []
+  - foundry/governance.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only; spec must not modify it
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
+  - Determine mode: CREATE (no spec file exists for this candidate) or REPAIR (spec exists but is incomplete or at draft stage).
+  - Load the approved_candidate and extract all available fields.
+  - Load schemas/eou.schema.yml to identify required fields and allowed values.
+  - Map candidate data to the full EOU spec structure — classification, purpose, operating_hypothesis, inputs, context_manifest, execution, outputs, success_criteria, validation, failure_modes, escalation, responsibility, blast_radius, versioning.
+  - For each field that the candidate does not provide, derive it from context or mark as TBD with a specific question.
+  - Validate all enum fields against schema allowed values (function, automation_mode, authority_level, risk_level, lifecycle_stage).
+  - Check blast_radius.allowed_scope is consistent with authority_level — write_candidate may not include active governance files.
+  - If the EOU has function:generate, write a generation_envelope scoped to the specific outputs this EOU produces (do not copy from another EOU).
+  - Set lifecycle_stage:draft — never active, pilot, or approved.
+  - Write spec to output path.
   - Record trace.
-  decision_points: []
+  decision_points:
+  - In REPAIR mode, do not overwrite fields that are correctly populated — only fill gaps and fix errors.
+  - If TBD fields exceed 3, flag the candidate as insufficiently specified and stop — do not write a spec with more than 3 open questions.
   stop_conditions:
-  - Missing owner.
-  - Authority boundary unclear.
-  - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - approved_candidate file not found.
+  - schemas/eou.schema.yml not found.
+  - Candidate authority_level would exceed what constitution.yml permits at write_candidate stage.
+  - More than 3 required fields cannot be derived from candidate data.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Setting lifecycle_stage to active, pilot, or approved
+  - Copying a generation_envelope from another EOU without scoping it
+  - Activating or publishing the generated spec
 outputs:
   primary:
-  - specify-eou output
-  secondary: []
+  - foundry/eous/{eou_id}.yml        # standard EOU
+  - foundry/meta-eous/{eou_id}.yml   # if function is generate, audit, validate, or govern
+  secondary:
+  - open_questions.md  # only if TBD fields are present
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - All required schema fields are present and non-placeholder.
+  - lifecycle_stage is draft.
+  - blast_radius.allowed_scope does not include constitution.yml or active registry entries.
+  - No placeholder strings remain (e.g., "target artifact", "What this EOU is meant to do").
+  should_pass:
+  - generation_envelope is present and scoped for function:generate EOUs.
+  - failure_modes.warning_signs and repair_actions are non-empty.
+  - open_questions.md is absent (all fields resolved).
 validation:
   deterministic:
-  - schema checks
+  - Schema field presence (all required fields populated).
+  - lifecycle_stage == draft.
+  - No placeholder strings in purpose.statement or execution.steps.
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Execution steps specificity
+  - Blast radius consistency with authority level
+  red_team:
+  - Candidate with authority_level:approve that this EOU should reject
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
-  warning_signs: []
-  repair_actions: []
+  - Copies a generation_envelope from another EOU verbatim (mismatched scope)
+  - Leaves placeholder strings in purpose or steps because candidate was underspecified
+  - Sets lifecycle_stage to active or approved in violation of constraints
+  - Produces a spec with more than 3 TBD fields and writes it anyway
+  warning_signs:
+  - Output spec contains the strings "Perform bounded operation" or "target artifact".
+  - generation_envelope.max_candidates is 5 or 7 without a specific reason (copied from template).
+  - lifecycle_stage is not draft in the written file.
+  repair_actions:
+  - Scan output for placeholder strings before writing; reject and report if found.
+  - Derive max_candidates from the specific generation task, not from the template default.
+  - Enforce lifecycle_stage:draft as the only permitted value at write time.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Candidate proposes authority_level:approve or publish.
+  - Candidate is a meta-EOU that generates other EOUs.
+  - More than 3 required fields cannot be derived from candidate data.
+  require_approval_for:
+  - Advancing the produced spec beyond draft stage.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
+  executor: Claude
+  reviewer: Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Final approval to advance spec to pilot
+  - Weakening the generation_envelope forbidden_outputs list
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, CREATE/REPAIR mode distinction, approved_candidate as required input, correct output paths, generation_envelope guidance, warning_signs, and repair_actions.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/eous/
+  - foundry/meta-eous/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
+  - foundry/registry.yml  # registry updates require a separate ECP
   - approved ECPs
   - production schemas unless ECP-approved
-generation_envelope:
-  allowed_outputs:
-  - candidate_regression_case
-  - candidate_refactor_option
-  - candidate_ecp
-  - candidate_eou_spec
-  forbidden_outputs:
-  - active_eou
-  - approved_eou
-  - constitution_change
-  - validator_weakening_without_ecp
-  max_candidates: 5
-  default_status: candidate
-  required_for_each_candidate:
-  - operational_value
-  - risk
-  - authority_level
-  - activation_requirements
-  - arguments_against
-generation_budget:
-  max_candidates: 5
-  max_new_schemas: 1
-  max_new_validators: 2
-  max_open_questions: 8
-  must_rank_candidates: true
-  must_select_minimal_set: true
-registry_diff:
-  required: true
-  questions:
-  - Does this duplicate an existing object?
-  - Can this be a test or rule instead?
-minimality_test:
-  questions:
-  - Can this be smaller?
-  - Can this be a validator?
-  - Can this be a regression case?
-  - Can this be a field in an existing object?
-operational_value_test:
-  required_answer:
-  - prevents_failure
-  - improves_decision
-  - exposes_hidden_judgment
-  - improves_traceability
-  reject_if:
-  - no concrete failure
-  - no improved decision
-  - duplicates existing object
-counter_generation:
-  required: true
-  requires_for_each_candidate:
-  - arguments_against
-  - minimality_result

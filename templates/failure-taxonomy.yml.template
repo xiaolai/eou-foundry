@@ -15,23 +15,55 @@ failure_taxonomy:
     definition: Steps are unclear, contradictory, or non-executable.
     repair: Rewrite execution procedure.
   F6_JUDGMENT_FAILURE:
-    definition: EOU lacks tests needed to distinguish good from bad.
-    repair: Add judgment predicates or human review.
+    definition: EOU fails to reliably distinguish acceptable from unacceptable output.
+      This covers two distinct subtypes that require different repairs.
+    subtypes:
+      F6a_STRUCTURAL: The EOU conflates two or more distinct judgments that have different
+        success criteria or different responsible parties. The EOU is architecturally
+        wrong, not just missing tests.
+        repair: Responsibility-separation or split refactor. Assign each judgment to
+          a distinct EOU or human gate.
+      F6b_COVERAGE: The EOU has the right judgment but no validation criteria to confirm
+        it. The architecture is correct but the boundary is unverifiable.
+        repair: Add judgment predicates, explicit success criteria, or a human review
+          gate. Add regression cases covering the known good/bad boundary.
   F7_VALIDATION_FAILURE:
     definition: Validator passes invalid output or rejects valid output.
-    repair: Improve validation and add regression case.
+    repair: Improve validation logic and add regression case covering the boundary.
   F8_TOOL_FAILURE:
-    definition: Script, model, API, plugin, or external tool fails.
-    repair: Isolate dependency or add fallback.
+    definition: Script, model, API, plugin, or external tool fails hard (error, timeout,
+      or unavailable).
+    repair: Isolate dependency, add fallback, or add stop condition when the tool is
+      unavailable.
   F9_TRACE_FAILURE:
-    definition: Run cannot be reconstructed.
-    repair: Improve trace capture.
+    definition: Run cannot be reconstructed; trace is missing, incomplete, or contradicts
+      the declared execution steps.
+    repair: Improve trace capture; ensure every step writes to runs/{run_id}/trace.yml.
   F10_RESPONSIBILITY_FAILURE:
-    definition: No clear owner, approval gate, or escalation path.
-    repair: Add responsibility mapping.
+    definition: No clear owner, approval gate, or escalation path; or the same party
+      both executes and approves.
+    repair: Add responsibility mapping; separate executor and approver; define escalation
+      conditions.
   F11_LIFECYCLE_FAILURE:
-    definition: EOU is judged by the wrong maturity standard.
-    repair: Declare lifecycle stage and validation level.
+    definition: EOU is judged by the wrong maturity standard (e.g., a candidate EOU
+      held to active-EOU validation requirements, or an active EOU with no regression suite).
+    repair: Declare lifecycle stage explicitly and apply the matching validation level
+      from maturity-model.yml.
   F12_DRIFT_FAILURE:
-    definition: Specs, scripts, docs, and validators diverge.
-    repair: Reconcile against canonical schema.
+    definition: Specs, scripts, docs, and validators have diverged; a change in one
+      layer was not propagated to the others.
+    repair: Identify the canonical layer (schemas/), reconcile all dependent layers
+      against it, and add a vocabulary-sync check to CI or the audit procedure.
+  F13_PERFORMANCE_FAILURE:
+    definition: EOU executes correctly but degrades at scale — too slow, too expensive,
+      or too unreliable to sustain its operational value under production load.
+    repair: Profile and bound the bottleneck. Repair paths in order of blast radius:
+      add budget constraints to generation_budget; add a stop condition on cost or
+      latency; tier-down automation_mode from LLM_assisted to deterministic for the
+      expensive step; split the EOU to isolate the scaling problem; or promote the
+      check to a faster tool.
+diagnosis_outcome:
+  # Not every diagnosed failure becomes an ECP. Record the decision explicitly.
+  change:   An ECP was opened. See foundry/self-evolution/ecp/proposed/.
+  no_change: Decision made to accept the current behavior. Record in
+    foundry/audits/incidents/{incident_id}.no-change.yml (see governance.yml decision_records).

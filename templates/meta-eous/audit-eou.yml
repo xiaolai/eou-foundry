@@ -1,6 +1,6 @@
 id: audit-eou
 name: Audit EOU
-version: 0.2.0
+version: 0.3.0
 classification:
   function: audit
   target_object: foundry governance object
@@ -9,92 +9,124 @@ classification:
   risk_level: medium
   lifecycle_stage: draft
 purpose:
-  statement: Audit an EOU spec for schema completeness, authority, validation strength,
-    failure modes, and governance fit.
+  statement: Audit an EOU spec for schema completeness, authority correctness, validation strength, failure mode coverage, and governance fit.
   non_goals:
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Audit EOU can perform its bounded
-  role without exceeding its authority.
+  - Do not rewrite the audited EOU — produce findings only.
+  - Do not advance the EOU's lifecycle_stage; that requires eou-promote.
+operating_hypothesis: Given an EOU spec and the Foundry governance files, this EOU can identify structural deficiencies that prevent safe promotion.
 inputs:
   required:
+  - target_eou_spec  # path to the EOU spec file being audited
   - foundry/constitution.yml
+  - foundry/failure-taxonomy.yml
   - foundry/registry.yml
-  optional: []
+  optional:
+  - foundry/self-evolution/regression/cases/  # to check regression coverage
+  - runs/*/trace.yml                           # to check execution evidence
   forbidden_assumptions:
-  - Do not assume missing context exists.
+  - Do not assume the EOU's steps are correct because they are present.
+  - Do not assume classification facets are correct because they are populated.
 context_manifest:
   source_of_truth:
   - constitution.yml
   - registry.yml
   - failure-taxonomy.yml
-  supporting: []
-  forbidden: []
+  supporting:
+  - schemas/eou.schema.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only in this context
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
-  - Record trace.
-  decision_points: []
+  - Load foundry/constitution.yml, foundry/failure-taxonomy.yml, foundry/registry.yml, and schemas/eou.schema.yml.
+  - Load the target EOU spec.
+  - Check schema completeness — every required field must be present and non-placeholder.
+  - Check classification authority_level against blast_radius.allowed_scope — flag mismatches (write_candidate scoped to active files, etc.).
+  - Check execution.steps — reject generic "Perform bounded operation" entries; each step must name a specific, bounded action.
+  - Check stop_conditions is non-empty; check warning_signs and repair_actions are both non-empty.
+  - Check escalation.require_human_when against risk_level — high or critical risk must have at least one human gate.
+  - Check self-approval risk — responsibility.executor must not equal responsibility.approver.
+  - Check registry.yml for lifecycle_stage consistency with the spec.
+  - Check regression coverage — at least one fixture in foundry/self-evolution/regression/cases/ for each pilot or active EOU.
+  - Write audit findings.
+  decision_points:
+  - If zero findings after all checks, force-add a "vacuous audit" finding — no nontrivial EOU has zero structural gaps.
+  - If lifecycle_stage is candidate or draft, PASS verdict requires only schema completeness; full operational readiness checks apply to pilot and above.
   stop_conditions:
   - Missing owner.
   - Authority boundary unclear.
   - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - Target EOU spec file not found.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Modifying the target EOU spec
+  - Setting approval_status to approved
+  - Advancing lifecycle_stage
 outputs:
   primary:
-  - audit-eou output
+  - foundry/audits/eou-audits/{eou_id}.audit.yml
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - Audit identifies at least one finding (even a strength) — zero findings is suspicious.
+  - Does not set lifecycle_stage or approval_status on the audited EOU.
+  - Authority-level check is included in all audits.
+  should_pass:
+  - Regression coverage checked for pilot and active EOUs.
+  - Escalation gates checked for high-risk EOUs.
 validation:
   deterministic:
-  - schema checks
+  - Schema field presence check (machine-verifiable against schemas/eou.schema.yml)
+  - executor != approver check
+  - stop_conditions non-empty check
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Step specificity assessment
+  - Operational value quality
+  red_team:
+  - Audit that passes a clearly broken EOU
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
+  - Audits individual fields but misses structural weakness in composition
+  - Produces zero findings on an underspecified EOU
+  - Declares PASS for a candidate-stage EOU without sufficient evidence
   warning_signs:
-  - Audit passes without checking the EOU's classification authority_level against generation-safety rules.
-  - Findings list is empty (zero findings is suspicious for any nontrivial EOU).
-  - Audit declares PASS but the EOU it audited has lifecycle_stage candidate or draft.
+  - Audit produces zero findings for any EOU with more than 5 execution steps.
+  - Audit verdict is PASS and the EOU lifecycle_stage is candidate or draft.
+  - Authority-level mismatch finding is absent despite blast_radius containing active governance paths.
   repair_actions:
-  - Re-run audit-eou with explicit authority-level check enabled.
-  - Force at least one finding (even a strength) so reviewers can spot vacuous reports.
-  - Reject PASS for EOUs not yet in pilot or higher.
+  - Re-run with explicit authority-level check; force at least one finding to be recorded.
+  - Downgrade PASS to CONDITIONAL_PASS for candidate/draft-stage EOUs.
+  - Add authority-level mismatch finding manually if blast_radius contains constitution.yml or registry.yml.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Audit finds authority_level set to approve or publish on a non-governance EOU.
+  - Audit finds self-approval risk (executor == approver).
+  - Audit target is a meta-EOU that generates other EOUs.
+  require_approval_for:
+  - Advancing any EOU from pilot to active based on audit results.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
+  executor: Claude
+  reviewer: human owner or designated Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Final verdict on activation readiness
+  - Approving constitutional invariant changes
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, decision_points, escalation gates, and should_pass criteria. Replaced placeholder output path with concrete path.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/audits/eou-audits/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
+  - foundry/eous/  # read-only during audit
   - approved ECPs
   - production schemas unless ECP-approved

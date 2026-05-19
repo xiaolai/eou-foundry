@@ -1,6 +1,6 @@
 id: audit-candidate-eou-set
 name: Audit Candidate EOU Set
-version: 0.2.0
+version: 0.3.0
 classification:
   function: audit
   target_object: candidate EOU set
@@ -9,85 +9,123 @@ classification:
   risk_level: medium
   lifecycle_stage: draft
 purpose:
-  statement: Audit a generated candidate EOU set for boundary quality, minimality,
-    authority, operational value, and governance risk.
+  statement: Audit a generated candidate EOU set for boundary quality, minimality, authority correctness, operational value, and governance risk before any candidate advances to specification.
   non_goals:
   - Do not activate candidates.
-  - Do not rewrite candidates inside the audit unless requested as a separate refactor.
-operating_hypothesis: Given a candidate EOU set, this EOU can identify whether the
-  set is useful, minimal, non-overlapping, and safe to advance to specification.
+  - Do not rewrite candidates inside the audit — produce recommendations only.
+  - Do not advance any candidate's lifecycle_stage directly.
+operating_hypothesis: Given a candidate EOU set, the Foundry registry, and constitution, this EOU can identify whether the set is useful, minimal, non-overlapping, and safe to advance to specification.
 inputs:
   required:
   - candidate_eou_set.yml
   - foundry/registry.yml
   - foundry/constitution.yml
-  optional: []
+  optional:
+  - foundry/failure-taxonomy.yml
+  - foundry/maturity-model.yml
   forbidden_assumptions:
   - Do not assume missing context exists.
+  - Do not assume a candidate is valid because it is present in the set.
 context_manifest:
-  source_of_truth: []
-  supporting: []
-  forbidden: []
+  source_of_truth:
+  - candidate_eou_set.yml
+  - registry.yml
+  - constitution.yml
+  supporting:
+  - failure-taxonomy.yml
+  - maturity-model.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only; no mutations
 execution:
   steps:
-  - Check each candidate for distinct success criterion.
-  - Check set-level coverage and overlap.
-  - Check authority and risk classification.
-  - Check operational value and anti-case.
-  - Check registry duplicates.
-  - Recommend keep, merge, defer, reject, or convert-to-rule/validator/regression-case.
-  decision_points: []
-  stop_conditions: []
-  allowed_tools: []
-  prohibited_actions: []
+  - Load candidate_eou_set.yml, foundry/registry.yml, and foundry/constitution.yml.
+  - For each candidate, run the Boundary Test — verify exactly one distinct success criterion; flag candidates whose criterion subsumes another candidate's.
+  - Run the Non-Overlap Test — compare each candidate's purpose and target_object against all other candidates and against registered EOUs; flag overlapping pairs.
+  - Run the Minimality Test — for each candidate, check whether it could be replaced by a rule, validator, stop condition, regression case, or checklist item; flag substitutable candidates.
+  - Run the Authority Test — verify no candidate has authority_level:approve, publish, or mutate_active without constitutional justification; flag violations.
+  - Run the Operational Value Test — verify each candidate satisfies at least one of: prevents_failure, improves_decision, exposes_hidden_judgment, improves_traceability; reject candidates that fail all four.
+  - Run the Counter-Generation Test — verify each kept candidate has arguments_against; flag candidates missing this field.
+  - Run the Set Composition Test — if the set includes generating EOUs, verify a corresponding audit or approval EOU exists (or is referenced); flag generation-only sets.
+  - Run the High-Stakes Test — for candidates in finance, health, legal, safety, children, public claims, or active governance domains: verify responsibility.approver is a named human role and escalation.require_human_when is non-empty; flag violations.
+  - Apply verdict thresholds (see success_criteria) and write audit report.
+  decision_points:
+  - If any Authority or High-Stakes test fails, verdict is FAIL regardless of other results.
+  - If Boundary or Non-Overlap failures are present but fixable without rejection, verdict is REVISE.
+  - Escalate to human if any candidate proposes authority_level:approve or publish.
+  stop_conditions:
+  - candidate_eou_set.yml not found.
+  - foundry/registry.yml not found.
+  - foundry/constitution.yml not found.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Activating or approving any candidate
+  - Modifying the candidate set file
+  - Advancing lifecycle_stage on any candidate
 outputs:
   primary:
-  - audits/candidate-set-audits/{set_id}.audit.yml
+  - foundry/audits/candidate-set-audits/{set_id}.audit.yml
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Audit includes keep/reject/defer recommendations.
-  - Audit identifies duplicates and overproduction.
-  - High-risk candidates have human approval requirements.
-  should_pass: []
+  - Audit includes keep/reject/defer/merge/convert recommendations (all four buckets populated or explicitly noted as empty with reason).
+  - High-risk candidates have human approval requirements documented.
+  - Authority Test and High-Stakes Test results are included for every candidate.
+  - Does not activate or approve any candidate.
+  should_pass:
+  - Minimality and Non-Overlap tests run for all candidates.
+  - Set Composition Test run when generating EOUs are present.
 validation:
-  deterministic: []
+  deterministic:
+  - All eight test results present in the audit output.
+  - candidate_recommendations has keep, merge, defer, and reject buckets.
   judgment:
-  - candidate set audit tests
-  red_team: []
+  - Boundary quality assessment across the full set
+  - Operational value calibration
+  red_team:
+  - Candidate set where every candidate passes individual tests but the set as a whole has weak composition (no audit path)
 failure_modes:
   known:
   - Audits individual candidates but misses weak system composition
-  - Fails to punish process inflation
+  - Fails to flag process inflation (too many candidates for the stated workflow)
+  - Produces PASS verdict without populating all four recommendation buckets
   warning_signs:
-  - Audit verdict is approved without populating candidate_recommendations.{keep,merge,defer,reject}.
-  - rejected_candidates list omits the dangerous IDs (auto-approve-*, recursive-proof-generator, ...) defined in process-evidence-distillation-rules.yml.
-  - approval_status.approved_for_active_use is set to true at version v0.X.
+  - Audit verdict is PASS and any of the four recommendation buckets (keep/merge/defer/reject) is empty without explanation.
+  - Rejected candidates list omits candidates with authority_level:approve or publish.
+  - approval_status.approved_for_active_use is set to true in the audit output.
   repair_actions:
-  - Force-fail the audit if any of the four recommendation buckets is empty.
-  - Re-add the canonical dangerous-ID set to rejected_candidates and re-run the audit.
-  - Reset approved_for_active_use to false until human owner explicitly approves.
+  - Force-fail the audit if any recommendation bucket is absent or empty without an explicit "none found" note.
+  - Scan all candidates for authority_level:approve or publish before writing verdict; auto-reject these unless constitution justifies them.
+  - Remove approved_for_active_use from audit output entirely — that field belongs in the EOU spec after human review.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Any candidate proposes authority_level:approve or publish.
+  - Any candidate touches finance, health, legal, safety, children, public claims, or active governance.
+  - Candidate set includes a generating EOU without a corresponding audit or approval EOU.
+  require_approval_for:
+  - Advancing any candidate from this set to the specify-eou step.
+  - Accepting the audit verdict as sufficient evidence for promotion.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
+  executor: Claude
+  reviewer: Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Final approval of candidates for specification
+  - Weakening any audit test requirement
+  - Advancing candidates in high-stakes domains
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Rewrote execution steps with eight named tests, added decision_points, stop_conditions, allowed_tools, prohibited_actions, should_pass criteria, and red_team scenario. Clarified responsibility.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/audits/
-  - audits/eou-audits/
+  - foundry/audits/candidate-set-audits/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs

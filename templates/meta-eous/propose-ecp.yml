@@ -1,150 +1,180 @@
 id: propose-ecp
 name: Propose ECP
-version: 0.2.0
+version: 0.3.0
 classification:
-  function: generate
+  function: propose
   target_object: foundry governance object
   automation_mode: LLM_assisted
   authority_level: write_candidate
   risk_level: high
   lifecycle_stage: draft
 purpose:
-  statement: Create a candidate EOU Change Proposal from a diagnosed failure or refactor
-    option.
+  statement: Create a candidate EOU Change Proposal from a diagnosed failure or selected refactor option.
   non_goals:
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Propose ECP can perform its bounded
-  role without exceeding its authority.
+  - Do not set approval.status to anything other than "proposed".
+  - Do not apply the ECP — write the proposal only.
+operating_hypothesis: Given a diagnosed failure or refactor option and the ECP schema, this EOU can produce a complete, schema-conformant ECP candidate with all required fields, correct approval status, and a rollback plan for high-risk changes.
 inputs:
   required:
+  - source_document  # the diagnosed failure (*.diagnosis.yml) or selected refactor option
+  - schemas/ecp.schema.yml
   - foundry/constitution.yml
-  - foundry/registry.yml
-  optional: []
+  optional:
+  - foundry/failure-taxonomy.yml  # to assign failure class
+  - foundry/registry.yml          # to identify affected EOU
   forbidden_assumptions:
-  - Do not assume missing context exists.
+  - Do not generate an ECP without a concrete source diagnosis or refactor option.
+  - Do not set approval.status to anything other than "proposed".
 context_manifest:
   source_of_truth:
+  - schemas/ecp.schema.yml
   - constitution.yml
-  - registry.yml
+  supporting:
   - failure-taxonomy.yml
-  supporting: []
-  forbidden: []
+  - registry.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only; constitutional ECPs require a separate process
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
+  - Load source_document and identify the root cause (diagnosis) or chosen option (refactor).
+  - Load schemas/ecp.schema.yml and foundry/constitution.yml.
+  - Extract the EOU ID and failure class from source_document.
+  - Determine the smallest proposed change that addresses the root cause without constitutional violation.
+  - If the proposed change touches authority_level, blast_radius.forbidden_scope, or removes a validator, mark risk_level:high or critical.
+  - Fill all required ECP fields (see output structure below).
+  - Set approval.status:proposed and leave approval.approver blank.
+  - For risk_level:high or critical, rollback_considerations must be non-empty.
+  - Write the ECP to the proposed/ directory.
   - Record trace.
-  decision_points: []
+  decision_points:
+  - If source_document motivates a constitutional change, write a separate constitutional ECP with a note that it requires a separate process.
+  - If the proposed change is too broad to fit in one ECP, split into multiple narrower proposals.
   stop_conditions:
-  - Missing owner.
-  - Authority boundary unclear.
-  - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - source_document not found.
+  - schemas/ecp.schema.yml not found.
+  - Proposed change is a constitutional change and no constitutional ECP process is in scope.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Setting approval.status to approved or any value other than proposed
+  - Applying the proposed change to any EOU spec
+  - Proposing constitutional changes through ordinary ECP flow
 outputs:
   primary:
-  - propose-ecp output
+  - foundry/self-evolution/ecp/proposed/{eou_id}-ecp-{YYYYMMDD}.yml
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - approval.status is "proposed" in the written ECP.
+  - rollback_considerations is non-empty when risk_level is high or critical.
+  - tests_required references at least one regression case ID or fixture path.
+  - ECP does not modify any existing EOU spec or governance file.
+  should_pass:
+  - Proposed change addresses the root cause identified in source_document.
+  - risk_level correctly reflects the blast radius of the proposed change.
 validation:
   deterministic:
-  - schema checks
+  - approval.status == proposed.
+  - rollback_considerations non-empty for high/critical risk.
+  - tests_required non-empty.
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Root cause coverage of proposed change
+  - Risk level calibration
+  red_team:
+  - Source document with approval.status already set — EOU must reset it to proposed
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
+  - Sets approval.status to approved (violates non-goal)
+  - Omits rollback_considerations for high-risk changes
+  - References a non-existent regression case ID in tests_required
+  - Generates an ECP without a concrete source document (fabricated motivation)
   warning_signs:
-  - Proposed ECP omits rollback_path on a high-risk change.
+  - approval.status is anything other than "proposed" in the output file.
   - tests_required list is empty.
-  - approval.status set to anything other than 'proposed' by the generating EOU.
+  - rollback_considerations is empty on a change that touches authority_level.
   repair_actions:
-  - Reject ECPs missing rollback_path when risk_level is high or critical.
-  - Force tests_required to reference at least one regression case ID.
-  - Override approval.status back to 'proposed'; only the human owner may advance it.
+  - Override approval.status to "proposed" unconditionally at write time.
+  - Reject ECPs with empty tests_required — require at least one regression case ID or fixture reference.
+  - Reject ECPs with empty rollback_considerations when risk_level is high or critical.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Proposed change affects authority_level of the target EOU.
+  - Proposed change removes or weakens a validator.
+  - Source document indicates a constitutional invariant violation.
+  require_approval_for:
+  - Advancing approval.status from proposed to any higher value.
+  - Applying the ECP to any active or pilot EOU.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
-  approver: human owner
+  executor: Claude
+  reviewer: Foundry maintainer
+  approver: human owner (named, not a role label)
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Advancing approval.status beyond "proposed"
+  - Applying ECP changes to active EOUs
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, source_document as required input, correct output path, approval.status enforcement, decision_points, escalation gates, warning_signs, and repair_actions.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/self-evolution/ecp/proposed/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
+  - foundry/eous/  # ECP proposes changes; it does not apply them
   - approved ECPs
   - production schemas unless ECP-approved
 generation_envelope:
   allowed_outputs:
-  - candidate_regression_case
-  - candidate_refactor_option
   - candidate_ecp
-  - candidate_eou_spec
   forbidden_outputs:
   - active_eou
   - approved_eou
+  - approved_ecp
   - constitution_change
   - validator_weakening_without_ecp
-  max_candidates: 5
-  default_status: candidate
+  max_candidates: 1  # propose one ECP per invocation; split broad changes into multiple calls
+  default_status: proposed
   required_for_each_candidate:
-  - operational_value
-  - risk
-  - authority_level
-  - activation_requirements
-  - arguments_against
+  - target_eou          # schema field (not eou_id)
+  - target_version_from # schema field
+  - target_version_to   # schema field
+  - failure_class       # supplementary (not schema-required)
+  - problem             # schema field (not observed_problem)
+  - proposed_change
+  - expected_benefit
+  - risks
+  - tests_required      # schema field (not required_tests)
+  - simulation          # schema field (not simulation_status)
+  - rollback_considerations  # supplementary
+  - approval.status     # must be "proposed"
 generation_budget:
-  max_candidates: 5
-  max_new_schemas: 1
-  max_new_validators: 2
-  max_open_questions: 8
-  must_rank_candidates: true
-  must_select_minimal_set: true
+  max_candidates: 1
+  max_new_schemas: 0
+  max_new_validators: 0
+  max_open_questions: 3
+  must_rank_candidates: false
+  must_select_minimal_set: false
 registry_diff:
   required: true
   questions:
-  - Does this duplicate an existing object?
-  - Can this be a test or rule instead?
+  - Is there already an open ECP for this EOU that covers the same change?
 minimality_test:
   questions:
-  - Can this be smaller?
-  - Can this be a validator?
-  - Can this be a regression case?
-  - Can this be a field in an existing object?
+  - Can this change be achieved with a smaller blast radius (stop condition, validator, regression case)?
+  - Is this the narrowest change that addresses the root cause?
 operational_value_test:
   required_answer:
   - prevents_failure
   - improves_decision
-  - exposes_hidden_judgment
-  - improves_traceability
   reject_if:
-  - no concrete failure
-  - no improved decision
-  - duplicates existing object
+  - no concrete source document
 counter_generation:
   required: true
   requires_for_each_candidate:

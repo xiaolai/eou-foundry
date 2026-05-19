@@ -17,6 +17,7 @@ required_top_level:
 - failure_modes
 - escalation
 - responsibility
+- blast_radius
 - versioning
 classification:
   required:
@@ -27,13 +28,14 @@ classification:
   - risk_level
   - lifecycle_stage
   valid_function:
-  - execute
-  - audit
   - generate
-  - decide
-  - govern
+  - specify
   - validate
+  - diagnose
+  - promote
   - refactor
+  - audit
+  - propose
   valid_automation_mode:
   - deterministic
   - LLM_assisted
@@ -62,6 +64,57 @@ classification:
   - stable
   - deprecated
   - retired
+nested_required:
+  classification:
+  - function
+  - target_object
+  - automation_mode
+  - authority_level
+  - risk_level
+  - lifecycle_stage
+  purpose:
+  - statement
+  - non_goals
+  inputs:
+  - required
+  - optional
+  - forbidden_assumptions
+  context_manifest:
+  - source_of_truth
+  - supporting
+  - forbidden
+  execution:
+  - steps
+  - decision_points
+  - stop_conditions
+  - allowed_tools
+  - prohibited_actions
+  outputs:
+  - primary
+  - secondary
+  - trace
+  success_criteria:
+  - must_pass
+  - should_pass
+  validation:
+  - deterministic
+  - judgment
+  - red_team
+  failure_modes:
+  - known
+  - warning_signs
+  - repair_actions
+  escalation:
+  - require_human_when
+  - require_approval_for
+  responsibility:
+  - executor
+  - reviewer
+  - approver
+  - cannot_delegate
+  versioning:
+  - supersedes
+  - changelog
 generating_eou_required:
 - generation_envelope
 - generation_budget
@@ -69,6 +122,16 @@ generating_eou_required:
 - minimality_test
 - operational_value_test
 - counter_generation
+generating_eou_candidate_required:
+- lifecycle_stage
+- distinct_success_criterion
+- classification.authority_level
+- classification.risk_level
+- owner_required
+- activation_requirements
+- operational_value
+- arguments_against
+- minimality_result
 invariants:
 - Generated operating units default to candidate status.
 - Generating EOUs may not activate, approve, publish, or weaken validators.

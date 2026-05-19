@@ -1,111 +1,178 @@
-id: candidate-generating-eou-id
-name: Candidate Generating EOU Name
+# Generating EOU template (function: generate).
+# Use when the EOU's primary role is producing candidate artifacts (EOUs, ECPs, regression cases, refactor options).
+# Replace every value that starts with FILL: with the actual value for this EOU.
+# Remove this comment block before committing.
+
+id: FILL:eou-generate-{short-name}  # e.g. eou-generate-candidates, eou-generate-regression-cases
+name: FILL:Human Readable Name
 version: 0.1.0
 classification:
   function: generate
-  target_object: candidate objects
+  target_object: FILL:what this EOU generates (e.g. "candidate EOU set", "regression cases")
   automation_mode: LLM_assisted
-  authority_level: write_candidate
-  risk_level: medium
+  authority_level: write_candidate  # generating EOUs must not exceed write_candidate
+  risk_level: FILL:medium  # low | medium | high | critical
   lifecycle_stage: candidate
 purpose:
-  statement: What this generating EOU proposes.
+  statement: FILL:One sentence — what this EOU generates and what failure or gap it addresses.
   non_goals:
   - Do not activate generated outputs.
   - Do not approve generated outputs.
   - Do not mutate active governance.
+  - FILL:add domain-specific non-goals
 operating_hypothesis: >
-  Given explicit workflow context and failure modes, this EOU can propose useful
-  candidates while exposing arguments against creation and minimality checks.
+  Given FILL:specific inputs (e.g. workflow narrative, incident report, audit findings),
+  this EOU can generate FILL:specific outputs while exposing arguments against creation
+  and minimality checks, without granting them authority.
 inputs:
-  required: []
-  optional: []
-  forbidden_assumptions: []
+  required:
+  - FILL:primary source document this EOU acts on (e.g. workflow_narrative, incident_report)
+  - foundry/constitution.yml
+  - FILL:other required files (e.g. foundry/refactoring-patterns.yml, schemas/eou.schema.yml)
+  optional:
+  - FILL:files that improve generation quality (e.g. failure-taxonomy.yml, registry.yml)
+  forbidden_assumptions:
+  - Do not assume every item in the source warrants a generated artifact.
+  - Do not assume generated artifacts are valid without audit.
+  - FILL:add domain-specific forbidden assumptions
 context_manifest:
   source_of_truth:
-  - foundry/constitution.yml
+  - FILL:canonical source documents (e.g. workflow_narrative, constitution.yml)
   supporting:
-  - foundry/failure-taxonomy.yml
+  - FILL:reference files (e.g. failure-taxonomy.yml, maturity-model.yml)
   forbidden:
   - active registry mutation
+  - constitution changes
 execution:
-  steps: []
-  decision_points: []
-  stop_conditions: []
-  allowed_tools: []
+  steps:
+  - Load required inputs and validate they are present.
+  - FILL:Step 2 — analyze the source document (e.g. "Identify desired artifacts and hidden judgments")
+  - FILL:Step 3 — generate candidates (be specific about what is generated and how)
+  - Run registry-diff and minimality checks against each candidate.
+  - Add operational value and arguments_against for each candidate.
+  - Rank candidates and select the minimal subset.
+  - Write candidate output to the path defined in outputs.primary.
+  - Record trace to runs/{run_id}/trace.yml.
+  decision_points:
+  - Reject candidates that are better expressed as a rule, validator, schema field, stop condition, regression case, or checklist.
+  - FILL:additional branch conditions specific to this generating EOU
+  stop_conditions:
+  - Source document goal unclear.
+  - Source document not found.
+  - No FILL:failure modes / input material provided or inferable.
+  - High-stakes domain (finance, health, legal, safety, children, governance) without a named owner.
+  allowed_tools:
+  - Read
+  - Write
+  - Grep
   prohibited_actions:
-  - activate generated outputs
-  - approve generated outputs
+  - Activating generated outputs
+  - Approving generated outputs
+  - Mutating active registry
+  - Weakening validators
 outputs:
-  primary: []
-  secondary: []
+  primary:
+  - FILL:concrete/output/path/{id}.yml  # where generated artifacts are written
+  secondary:
+  - FILL:supplementary artifacts (e.g. open_questions.md, decomposition_rationale.md)
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Generated outputs are candidate-only.
-  should_pass: []
+  - No generated artifact has active or approved status.
+  - Each kept candidate has operational_value and arguments_against fields.
+  - FILL:additional must-pass conditions
+  should_pass:
+  - Candidate count is below generation_budget.max_candidates.
+  - FILL:additional quality checks
 validation:
-  deterministic: []
+  deterministic:
+  - candidate count <= generation_budget.max_candidates
+  - no candidate has active or approved status
+  - required candidate fields present
   judgment:
-  - candidate set audit
-  red_team: []
+  - FILL:audit-level checks (e.g. "boundary quality audit", "minimality audit")
+  red_team:
+  - FILL:adversarial scenario (e.g. "source document that motivates process inflation")
 failure_modes:
   known:
-  - process inflation
-  - duplicate candidates
-  - fake operational value
-  warning_signs: []
-  repair_actions: []
+  - FILL:named failure patterns (at least 2 — e.g. "Generates too many artifacts", "Duplicates existing artifacts")
+  warning_signs:
+  - FILL:observable signal that a known failure is occurring
+  - Candidate count equals generation_budget.max_candidates (rounding suggests filler).
+  - Candidates omit arguments_against or minimality_test fields.
+  repair_actions:
+  - FILL:concrete response to each warning sign
+  - Block candidates lacking arguments_against from the output set.
 escalation:
   require_human_when:
-  - high-risk domain
+  - Generated artifact affects publication, finance, health, legal, safety, children, governance, or public claims.
+  - Candidate proposes weakening validation.
+  - Candidate proposes self-approval.
   require_approval_for:
-  - activation
+  - Activating any generated artifact.
+  - FILL:additional approval gates
 responsibility:
-  executor: Claude / human analyst
+  executor: Claude
   reviewer: Foundry maintainer
   approver: human owner
   cannot_delegate:
-  - activation of generated outputs
-  - final candidate approval
+  - Final approval of any generated artifact
+  - Activating generated outputs
 versioning:
   supersedes: []
   changelog:
-  - 0.1.0: Initial candidate.
+  - '0.1.0: Initial candidate.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/ecp/proposed/
-  - foundry/self-evolution/regression/cases/
+  - FILL:output directories only (e.g. foundry/self-evolution/ecp/proposed/)
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
-  - active registry entries
+  - approved ECPs
+  - production schemas unless ECP-approved
 generation_envelope:
-  allowed_outputs: []
+  allowed_outputs:
+  - FILL:specific output types this EOU produces (e.g. candidate_eou_spec, candidate_ecp)
   forbidden_outputs:
   - active_eou
   - approved_eou
   - constitution_change
   - validator_weakening
-  max_candidates: 7
+  - human_approval_record
+  # max_candidates here is the constitution-authorized ceiling — the absolute maximum
+  # this EOU may ever produce in any single run. Changing it requires an ECP.
+  max_candidates: FILL:7
   default_status: candidate
   required_for_each_candidate:
   - purpose
   - non_goal
   - operational_value
   - arguments_against
+  - FILL:add fields specific to the output type
 generation_budget:
-  max_candidates: 7
-  max_new_schemas: 2
-  max_new_validators: 3
-  max_open_questions: 10
+  # max_candidates here is the per-run planned upper bound. It may be lower than
+  # the envelope ceiling (e.g. the envelope allows 7 but this run targets at most 5).
+  # It must not exceed generation_envelope.max_candidates.
+  max_candidates: FILL:7
+  max_new_schemas: FILL:2
+  max_new_validators: FILL:3
+  max_open_questions: FILL:10
   must_rank_candidates: true
   must_select_minimal_set: true
 registry_diff:
   required: true
-  questions: []
+  questions:
+  - Does this candidate duplicate an existing artifact?
+  - Should this be a rule, validator, or stop condition instead?
+  - FILL:add domain-specific registry-diff questions
 minimality_test:
-  questions: []
+  questions:
+  - Can this be a rule instead?
+  - Can this be a validator instead?
+  - Can this be a regression case instead?
+  - Can this be a field in an existing artifact instead?
+  - FILL:add domain-specific minimality questions
 operational_value_test:
   required_answer:
   - prevents_failure
@@ -114,7 +181,8 @@ operational_value_test:
   - improves_traceability
   reject_if:
   - exists only for completeness
-  - duplicates existing EOU
+  - duplicates existing artifact
+  - has no distinct success criterion
 counter_generation:
   required: true
   requires_for_each_candidate:

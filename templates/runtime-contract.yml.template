@@ -1,3 +1,19 @@
+# runtime-contract.yml
+#
+# This file declares the expected execution sequence and required run-report fields
+# for any EOU run in this application. It is informational scaffolding, not a live
+# operational file. Its role:
+#
+#   - Audit: $eou-audit reads this to verify execution.steps are concrete enough to
+#     satisfy each phase below.
+#   - Promotion: $eou-promote uses phase 7 (run deterministic validation) to confirm
+#     trace evidence exists before advancing lifecycle_stage.
+#   - EOU authoring: include this in context_manifest.supporting when writing EOUs
+#     whose execution.steps must align with the runtime contract.
+#
+# Reference it in your EOU's context_manifest.supporting list as:
+#   - foundry/runtime-contract.yml
+
 runtime_sequence:
 - resolve EOU ID
 - load EOU spec

@@ -11,6 +11,14 @@ Diagnose the failure described in `$target` and recommend the minimum repair pat
 
 1. `foundry/failure-taxonomy.yml` — F1–F12 class definitions and repair heuristics
 2. `foundry/constitution.yml` — invariants that constrain repair options
+3. `schemas/incident.schema.yml` — validate the input incident report against this schema if it is a structured YAML file
+
+## Stop conditions
+
+Halt and request clarification if:
+- `$target` does not identify an EOU ID and one cannot be inferred from the content.
+- The incident report contains no observable failure symptom — only a conclusion or label.
+- `foundry/failure-taxonomy.yml` does not exist — failure classification cannot proceed without it.
 
 ## Procedure
 
@@ -51,3 +59,5 @@ rationale:        # why that fix and not the next one up
 - Do not treat every failure as a prompt problem (F1). Require observable evidence for F1 classification.
 - Do not recommend retirement without evidence that the EOU's operational value is gone.
 - Do not recommend ECP when a stop condition or validator would suffice.
+- Do not invent an `incident_id` — use the one from `$target` or generate from `{eou_id}-{YYYYMMDD}` if absent.
+- Confidence ratings (`high/medium/low`) for failure class matches must be grounded in observable signals, not subjective judgment.

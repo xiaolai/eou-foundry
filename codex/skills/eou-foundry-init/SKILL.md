@@ -15,11 +15,13 @@ If the user supplied an app name in their request, use it. Otherwise ask: "What 
 
 Optional inputs:
 - A one-line description of what the application does (defaults to the slug)
-- Whether to skip `git init` in the new directory (default: initialize git)
+- `NO_GIT=1` — set this environment variable before the command to skip `git init` in the new directory (default: initialize git)
 
 Validate the slug. Reject names containing `/`, `\`, `..`, a leading `.`, or any character outside `[a-z0-9-]`. Refuse to overwrite an existing directory.
 
-## 2. Refuse if target exists
+## 2. Run init script
+
+> `${PLUGIN_ROOT}` is the Codex runtime env var for the plugin root. The Claude Code equivalent is `${CLAUDE_PLUGIN_ROOT}`. Both resolve to the same directory — the name differs by runtime.
 
 Run `bash "${PLUGIN_ROOT}/scripts/init_app.sh" "$APP_NAME" "$DESCRIPTION" $([ "$NO_GIT" = "1" ] && echo "--no-git")` and let the script handle the existence check and scaffolding atomically. Report what it produced.
 
@@ -46,14 +48,14 @@ Run `bash "${PLUGIN_ROOT}/scripts/init_app.sh" "$APP_NAME" "$DESCRIPTION" $([ "$
 
 ## 4. Report
 
-After the script returns, run `bash "${PLUGIN_ROOT}/scripts/init_app.sh" --status "$APP_NAME"` and surface a summary:
+If the script returns exit code 0, surface a summary of what was created:
 
 ```
 App initialized:
   ✓ <app-name>/                created with foundry/, .claude/, AGENTS.md, README.md
   ✓ foundry/constitution.yml   from template, customized for <app-name>
   ✓ foundry/registry.yml       empty (entries: [])
-  ✓ git repo initialized       (or "skipped: --no-git")
+  ✓ git repo initialized       (or "skipped: NO_GIT=1")
   ✓ validate_foundry.py        OK
 
 Next steps:
@@ -63,7 +65,15 @@ Next steps:
   $generate-eou-candidates       # produce candidate EOUs for the workflow
 ```
 
-## 5. Errors
+## 5. Constraints
+
+- Do not create an app directory interactively — require the slug as input before proceeding.
+- Do not overwrite an existing directory — delegate the check to `init_app.sh` and report the exit code 2 error.
+- Do not run `git init` or `validate_foundry.py` manually — the script handles both atomically.
+- Do not modify template files or the plugin's own foundry during initialization.
+- Do not proceed past Step 2 if the slug fails validation — report the error immediately.
+
+## 6. Errors
 
 If `init_app.sh` fails:
 - Exit code 2 (existing directory): report "Directory `<app-name>/` already exists; refusing to overwrite. Pick a different name or move it aside."

@@ -9,13 +9,19 @@ Audit the whole Foundry. Read all governance files first, then execute each chec
 
 ## Required reading
 
-- `foundry/constitution.yml`
-- `foundry/registry.yml`
-- `foundry/governance.yml`
-- `schemas/*.schema.yml`
-- `foundry/eous/*.yml`
-- `foundry/meta-eous/*.yml`
-- `foundry/self-evolution/`
+1. `foundry/constitution.yml` — top-level invariants
+2. `foundry/registry.yml` — current EOU registration and lifecycle stages
+3. `foundry/governance.yml` — approval authority and promotion rules
+4. `schemas/*.schema.yml` — all schema files (authority for valid field names and values)
+5. `foundry/eous/*.yml` — all standard EOU specs
+6. `foundry/meta-eous/*.yml` — all meta/generating EOU specs
+7. `foundry/self-evolution/ecp/implemented/` — approved and implemented ECPs (for check 6)
+
+## Stop conditions
+
+Halt and record a `critical` finding before checks if:
+- `foundry/constitution.yml` does not exist — the Foundry is unconfigured.
+- `schemas/eou.schema.yml` does not exist — schema drift cannot be checked.
 
 ## Check categories
 
@@ -35,13 +41,13 @@ Every EOU in `registry.yml` with `lifecycle_stage: active` or `pilot` must have 
 Load each schema from `schemas/*.schema.yml`. For each active or pilot EOU spec, validate it against the schema. Flag missing required fields and type mismatches.
 
 ### 6. ECP discipline
-Any EOU spec that changed `authority_level`, `blast_radius.forbidden_scope`, or removed a validator since its last version must have a corresponding approved ECP. Check `foundry/self-evolution/ecp/` for evidence. Flag spec changes without an approved ECP.
+Any EOU spec that changed `authority_level`, `blast_radius.forbidden_scope`, or removed a validator must have a corresponding approved ECP. Determine prior state from `versioning.changelog` entries in the spec. Check `foundry/self-evolution/ecp/implemented/` for the approved ECP. Flag spec changes with no matching implemented ECP.
 
 ### 7. Regression memory
 For each active EOU: at least one regression fixture must exist in `foundry/self-evolution/regression/cases/`. Flag EOUs with zero regression coverage.
 
 ### 8. Authority and blast radius
-For each EOU: `authority_level` must match `blast_radius.allowed_scope`. An EOU with `authority_level: write_candidate` must not have `allowed_scope` containing active governance files. Flag mismatches.
+For each EOU: `authority_level` must match `blast_radius.allowed_scope`. An EOU with `authority_level: write_candidate` or lower must not have `allowed_scope` containing any of: `foundry/constitution.yml`, `foundry/governance.yml`, `foundry/registry.yml`, `foundry/self-evolution/ecp/implemented/`, `schemas/`. Flag any mismatch between authority level and the governance files in the allowed scope.
 
 ### 9. High-risk escalation
 For each EOU with `risk_level: high` or `critical`: `escalation.require_human_when` must be non-empty and `responsibility.approver` must be a named human role (not "Claude" or "script"). Flag violations.
@@ -71,3 +77,10 @@ summary:
   pass_rate:       # checks passed / total checks
   verdict:         # PASS | FAIL | CONDITIONAL_PASS
 ```
+
+## Constraints
+
+- Do not modify any EOU spec, schema, registry, or governance file — produce the audit report only.
+- Treat missing required fields as failures, not warnings.
+- If a check cannot be executed (e.g., no EOU specs exist yet), record it as `skipped` with a reason, not as `pass`.
+- Zero findings for a Foundry with more than 5 specs is suspicious — record it as a `low`-severity warning finding.

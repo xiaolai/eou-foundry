@@ -1,94 +1,138 @@
 id: promote-or-retire-eou
 name: Promote or Retire EOU
-version: 0.2.0
+version: 0.3.0
 classification:
-  function: govern
+  function: promote
   target_object: foundry governance object
   automation_mode: hybrid
   authority_level: write_inactive
   risk_level: high
   lifecycle_stage: draft
 purpose:
-  statement: Recommend promotion, deprecation, or retirement based on evidence, maturity,
-    audits, and owner approval.
+  statement: Evaluate promotion, deprecation, or retirement of an EOU based on maturity gates, audit evidence, regression coverage, and recorded owner approval.
   non_goals:
   - Do not bypass ECP or human approval.
-operating_hypothesis: Given valid Foundry context, Promote or Retire EOU can perform
-  its bounded role without exceeding its authority.
+  - Do not modify the EOU spec or registry directly — produce a recommendation only.
+  - Do not promote if any required gate is missing.
+operating_hypothesis: Given an EOU spec, maturity model, audit records, and execution traces, this EOU can determine whether the required promotion prerequisites are satisfied and recommend the appropriate lifecycle transition.
 inputs:
   required:
-  - foundry/constitution.yml
+  - eou_id  # the EOU to evaluate
+  - foundry/maturity-model.yml
   - foundry/registry.yml
-  optional: []
+  - foundry/constitution.yml
+  optional:
+  - foundry/audits/eou-audits/{eou_id}.audit.yml  # most recent audit
+  - foundry/self-evolution/regression/cases/        # regression coverage
+  - runs/*/trace.yml                                # execution evidence
+  - foundry/governance.yml
   forbidden_assumptions:
-  - Do not assume missing context exists.
+  - Do not assume audit evidence exists if the file is absent.
+  - Do not assume execution traces are sufficient without checking their content.
+  - Do not assume owner approval is recorded without a named human approver in the evidence.
 context_manifest:
   source_of_truth:
-  - constitution.yml
+  - maturity-model.yml
   - registry.yml
+  - constitution.yml
+  supporting:
   - failure-taxonomy.yml
-  supporting: []
-  forbidden: []
+  - foundry/governance.yml
+  forbidden:
+  - foundry/constitution.yml  # read-only; constitutional changes require a separate process
 execution:
   steps:
-  - Load source-of-truth files.
-  - Validate required inputs.
-  - Perform bounded operation.
-  - Write candidate/report only.
-  - Record trace.
-  decision_points: []
+  - Load foundry/maturity-model.yml, foundry/registry.yml, and the EOU spec at foundry/eous/{eou_id}.yml (or foundry/meta-eous/{eou_id}.yml).
+  - Identify the current lifecycle_stage from the spec.
+  - Load maturity gate requirements for the target transition from maturity-model.yml.
+  - Evaluate each gate in order — check for: complete spec, non-empty regression coverage, passing audit on file, named human owner, ECP approval for any open findings.
+  - For any missing gate, record the gap with the specific evidence file expected and not found.
+  - Check for retirement criteria independently: deprecated status, successor EOU documented, zero active traces in the last 90 days, or explicit owner retirement decision.
+  - If target transition is promote_to:active or retire, mark requires_human_approval:true unconditionally.
+  - Write the lifecycle recommendation.
+  decision_points:
+  - If any gate is unsatisfied, the recommendation must be "hold" — not conditional promote.
+  - If both promotion and retirement criteria are partially met, list both options with their gap lists and let the human owner decide.
   stop_conditions:
-  - Missing owner.
-  - Authority boundary unclear.
-  - Would mutate active file without approved ECP.
-  allowed_tools: []
-  prohibited_actions: []
+  - Missing owner — promotion cannot proceed without a named human owner on record.
+  - Authority boundary unclear — if the EOU's authority_level is not defined, stop.
+  - Would mutate active file without approved ECP — recommendation output only, no mutations.
+  - maturity-model.yml not present.
+  allowed_tools:
+  - Read
+  - Grep
+  - Write
+  prohibited_actions:
+  - Modifying the EOU spec
+  - Updating registry.yml directly
+  - Setting lifecycle_stage on any file
+  - Approving an ECP
 outputs:
   primary:
-  - promote-or-retire-eou output
+  - foundry/governance/lifecycle/{eou_id}.recommendation.yml
   secondary: []
   trace:
   - runs/{run_id}/trace.yml
 success_criteria:
   must_pass:
-  - Does not exceed authority level.
-  - Uses failure taxonomy when diagnosing or justifying changes.
-  should_pass: []
+  - Recommendation file is written with gate_results for every required gate.
+  - requires_human_approval is true for any promote_to:active or retire recommendation.
+  - Does not modify any EOU spec, registry, or governance file.
+  should_pass:
+  - Every gate_results entry includes an evidence field (file path or "absent").
+  - Retirement criteria are checked independently of promotion criteria.
 validation:
   deterministic:
-  - schema checks
+  - Recommendation file written to correct path.
+  - requires_human_approval present and set correctly.
+  - gate_results non-empty.
   judgment:
-  - independent audit required before activation/promotion
-  red_team: []
+  - Adequacy of trace evidence for operational readiness
+  - Retirement criteria completeness
+  red_team:
+  - EOU with fabricated audit evidence that passes all gates
 failure_modes:
   known:
-  - Over-broad proposal
-  - Self-approval risk
-  - Weak operational value
-  - No rollback path
-  warning_signs: []
-  repair_actions: []
+  - Promotes without checking regression coverage
+  - Treats a comment as human approval evidence
+  - Fails to block promotion when audit file is absent
+  - Does not distinguish promote_to:pilot from promote_to:active (different human approval requirements)
+  warning_signs:
+  - Gate results show all gates as satisfied but no audit file path is present in evidence.
+  - requires_human_approval is false for a promote_to:active recommendation.
+  - Retirement recommendation is produced without a documented successor or owner decision.
+  repair_actions:
+  - Require explicit file path in every gate's evidence field; "assumed present" is not valid evidence.
+  - Hard-code requires_human_approval:true for promote_to:active and retire regardless of gate results.
+  - Block retirement recommendation unless successor_eou or owner_retirement_decision is present.
 escalation:
-  require_human_when: []
-  require_approval_for: []
+  require_human_when:
+  - Recommended transition is promote_to:active.
+  - Recommended transition is retire.
+  - EOU has authority_level approve or publish.
+  - Any gate result shows a constitutional invariant would be affected.
+  require_approval_for:
+  - Any lifecycle transition of an active or pilot EOU.
+  - Retirement of any EOU with registered dependents in registry.yml.
 responsibility:
-  executor: Claude / script / human depending on run mode
-  reviewer: human owner or designated auditor
-  approver: human owner
+  executor: Claude
+  reviewer: Foundry maintainer
+  approver: human owner (named, not a role label)
   cannot_delegate:
-  - final approval
-  - weakening validation
-  - publication or high-stakes decisions
+  - Final approval of any promote_to:active or retire decision
+  - Weakening a maturity gate requirement
 versioning:
   supersedes: []
   changelog:
-  - '0.2.0: converted to faceted EOU Foundry V2 schema.'
+  - '0.3.0: Added concrete steps, maturity gate procedure, decision_points, escalation gates, warning_signs, repair_actions, and correct required inputs.'
+  - '0.2.0: Converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/
-  - foundry/audits/
-  - foundry/incidents/
+  - foundry/governance/lifecycle/
+  - runs/
   forbidden_scope:
   - foundry/constitution.yml
+  - foundry/eous/  # read-only; spec changes require ECP
+  - foundry/registry.yml  # registry updates require human-approved ECP
   - approved ECPs
   - production schemas unless ECP-approved

@@ -7,16 +7,27 @@ description: Generate candidate EOU refactor options from an audit or incident. 
 
 Generate candidate refactor options for `$target`. Do not apply any change.
 
+## Inputs
+
+- `$target` (required) — either an EOU ID (resolved to `foundry/eous/{id}.yml` or `foundry/meta-eous/{id}.yml`) or a path to an audit report or diagnosis file. When an audit path is given, the EOU ID is extracted from the report.
+
 ## Required reading
 
-1. `foundry/refactoring-patterns.yml` — canonical refactor types (split, merge, scope-reduction, authority-downgrade, etc.)
+1. `foundry/refactoring-patterns.yml` — canonical refactor types (split, merge, scope-reduction, authority-downgrade, step-extraction, validator-addition, stop-condition-injection, responsibility-separation)
 2. `foundry/constitution.yml` — invariants that constrain any proposed change
 3. The source EOU spec (infer path from `$target` if an audit path is given)
+
+## Stop conditions
+
+Halt and report before generating options if:
+- `$target` does not identify an EOU ID and one cannot be inferred.
+- No audit report or incident exists to identify a structural problem — do not generate options from speculation.
+- The EOU spec does not exist in `foundry/eous/` or `foundry/meta-eous/`.
 
 ## Procedure
 
 1. Read `$target` (EOU ID or audit report). If it is an audit report, extract the EOU ID and load the corresponding spec.
-2. Identify the structural problems: scope creep, authority inflation, weak validation, missing stop conditions, steps that are not bounded operations, etc.
+2. Identify the structural problems: scope creep, authority inflation, weak validation, missing stop conditions, unbounded steps, ambiguous responsibility, missing trace preservation, blast-radius overreach, and circular EOU dependencies.
 3. For each structural problem, generate one or more refactor options using the patterns in `foundry/refactoring-patterns.yml`.
 4. Include a "no change" baseline option with its trade-offs stated.
 5. Rank options by: smallest blast radius, then lowest authority required, then easiest rollback.
