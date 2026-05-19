@@ -115,12 +115,16 @@ def validate_eou_card(path: Path, root: Path) -> list[str]:
             if not isinstance(value, dict):
                 problems.append(f"{path}: `{gate}` must be a mapping")
                 continue
-            if gate in {"registry_diff", "counter_generation"} and value.get("required") is not True:
-                problems.append(f"{path}: `{gate}.required` must be true")
+            if gate == "registry_diff" and value.get("required") is not True:
+                problems.append(f"{path}: `registry_diff.required` must be true")
         cc = data.get("counter_generation") if isinstance(data.get("counter_generation"), dict) else {}
-        rfc = cc.get("requires_for_each_candidate") or []
-        if isinstance(rfc, list) and "arguments_against" not in rfc:
-            problems.append(f"{path}: counter_generation.requires_for_each_candidate must include `arguments_against`")
+        # counter_generation.required: false is a valid opt-out for EOUs that generate artifacts
+        # where "arguments against" is semantically inapplicable (e.g., regression cases that
+        # document observed failures — arguing against a real failure is meaningless).
+        if cc.get("required") is not False:
+            rfc = cc.get("requires_for_each_candidate") or []
+            if isinstance(rfc, list) and "arguments_against" not in rfc:
+                problems.append(f"{path}: counter_generation.requires_for_each_candidate must include `arguments_against`")
 
     if c.get("authority_level") in {"approve", "publish"}:
         resp = data.get("responsibility") or {}

@@ -8,7 +8,7 @@
       "name": "eou-foundry",
       "source": "./",
       "description": "Recursive governance for Executable Operating Units. Faceted classification, generating-EOU constraints, ECP-governed change, no-self-approval.",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "category": "governance"
     }
   ]

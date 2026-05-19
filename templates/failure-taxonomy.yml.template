@@ -18,15 +18,12 @@ failure_taxonomy:
     definition: EOU fails to reliably distinguish acceptable from unacceptable output.
       This covers two distinct subtypes that require different repairs.
     subtypes:
-      F6a_STRUCTURAL: The EOU conflates two or more distinct judgments that have different
-        success criteria or different responsible parties. The EOU is architecturally
-        wrong, not just missing tests.
-        repair: Responsibility-separation or split refactor. Assign each judgment to
-          a distinct EOU or human gate.
-      F6b_COVERAGE: The EOU has the right judgment but no validation criteria to confirm
-        it. The architecture is correct but the boundary is unverifiable.
-        repair: Add judgment predicates, explicit success criteria, or a human review
-          gate. Add regression cases covering the known good/bad boundary.
+      F6a_STRUCTURAL:
+        definition: The EOU conflates two or more distinct judgments that have different success criteria or different responsible parties. The EOU is architecturally wrong, not just missing tests.
+        repair: Responsibility-separation or split refactor. Assign each judgment to a distinct EOU or human gate.
+      F6b_COVERAGE:
+        definition: The EOU has the right judgment but no validation criteria to confirm it. The architecture is correct but the boundary is unverifiable.
+        repair: Add judgment predicates, explicit success criteria, or a human review gate. Add regression cases covering the known good/bad boundary.
   F7_VALIDATION_FAILURE:
     definition: Validator passes invalid output or rejects valid output.
     repair: Improve validation logic and add regression case covering the boundary.
@@ -57,7 +54,7 @@ failure_taxonomy:
   F13_PERFORMANCE_FAILURE:
     definition: EOU executes correctly but degrades at scale — too slow, too expensive,
       or too unreliable to sustain its operational value under production load.
-    repair: Profile and bound the bottleneck. Repair paths in order of blast radius:
+    repair: Profile and bound the bottleneck. Repair paths in order of blast radius —
       add budget constraints to generation_budget; add a stop condition on cost or
       latency; tier-down automation_mode from LLM_assisted to deterministic for the
       expensive step; split the EOU to isolate the scaling problem; or promote the
