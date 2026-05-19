@@ -1,0 +1,146 @@
+id: ecp-0003-engine-as-reference-not-copy
+target_eou: eou-foundry-plugin
+target_version_from: 0.4.1
+target_version_to: 0.5.0
+problem:
+  observed_failure: scripts/init_app.sh scaffolds new applications by copying
+    five engine YAMLs (failure-taxonomy, maturity-model, refactoring-patterns,
+    runtime-contract, governance) plus all eleven meta-eous from templates/
+    into the new app's foundry/. Every application's foundry/ thereby holds
+    byte-identical snapshots of plugin engine state at init time. Plugin
+    updates to those artifacts do not propagate; validators check the local
+    copies rather than reading from the plugin's canonical location. The
+    application's foundry/ tree therefore conflates application state
+    (constitution declaration, registry, work EOUs, runtime) with plugin
+    engine state (taxonomy, contracts, meta-EOU specs). A consuming
+    application is supposed to be a product of the foundry, not a snapshot
+    of it.
+  failure_class: F12_DRIFT_FAILURE
+  evidence:
+  - Reproduced on book-workshop. All five engine YAMLs and all eleven
+    meta-eous/*.yml in book-workshop/foundry/ are byte-identical to the
+    plugin templates (verified via diff -q against
+    ~/github/xiaolai/myprojects/claude-plugins/eou-foundry/templates/).
+  - book-workshop/foundry/incidents/inc-0012-foundry-engine-duplicated-in-application.yml
+    documents the workshop-side finding.
+  - A future sister application scaffolded via the same init flow would
+    inherit the same violation, so this is a plugin-pattern issue, not a
+    workshop-only fix.
+proposed_change:
+  summary: Reorganize the plugin so engine artifacts have a single canonical
+    location (engine/), distinct from the application-scoped starters
+    (templates/). Update init_app.sh to stop copying engine artifacts into
+    apps; introduce inherits_from on constitution.yml so apps declare engine
+    inheritance instead of embedding a copy. Update validate_foundry.py to
+    read engine pieces from the plugin path, support override-merge from
+    optional app-side files, and emit a deprecation warning when a legacy
+    local copy is detected.
+  files_changed:
+  - engine/                                  (newly canonical for engine YAMLs and meta-eous)
+  - engine/failure-taxonomy.yml              (moved from templates/failure-taxonomy.yml.template)
+  - engine/maturity-model.yml                (moved from templates/maturity-model.yml.template)
+  - engine/refactoring-patterns.yml          (moved from templates/refactoring-patterns.yml.template)
+  - engine/runtime-contract.yml              (moved from templates/runtime-contract.yml.template)
+  - engine/governance.yml                    (moved from templates/governance.yml.template)
+  - engine/constitution-defaults.yml         (new — extracted engine-default body of templates/constitution.yml.template)
+  - engine/meta-eous/                        (moved from templates/meta-eous/)
+  - templates/constitution.yml.template      (shrunk — only the app-declarable preamble; references engine/constitution-defaults.yml via inherits_from)
+  - templates/registry.yml.template          (unchanged — app-specific)
+  - templates/eou-template/                  (unchanged — app-specific scaffolds)
+  - templates/generating-eou-template.yml    (unchanged)
+  - scripts/init_app.sh                      (stops copying engine artifacts; only scaffolds constitution+registry with placeholder substitution and empty runtime dirs)
+  - scripts/validate_foundry.py              (reads engine artifacts from plugin path; supports inherits_from on constitution; supports optional foundry/overrides/<file>.yml; warns on legacy local copies)
+  - schemas/constitution.schema.yml          (adds optional inherits_from field)
+  - rules/91-foundry-constitution.md         (documents inherits_from convention)
+  - dev-docs/historical/                     (new dir to hold pre-split engineering records)
+  - dev-docs/historical/12-independent-framework-audit-and-fixes.md
+                                             (moved from book-workshop/dev-docs/)
+  - dev-docs/historical/12a-v2.1-source-audit.md
+                                             (moved from book-workshop/dev-docs/)
+  - dev-docs/README.md                       (documents the historical/ subdir)
+  - CHANGELOG.md                             (records 0.5.0 breaking change with migration guide)
+  - .claude-plugin/plugin.json               (version bump to 0.5.0)
+  app_side_after_migration:
+  - Delete app's foundry/failure-taxonomy.yml, maturity-model.yml,
+    refactoring-patterns.yml, runtime-contract.yml, governance.yml.
+  - Delete app's foundry/meta-eous/ directory (engine-provided now).
+  - "Reduce app's foundry/constitution.yml to app-specific declarations plus an
+    `inherits_from` reference to eou-foundry version >=0.5.0. Engine defaults
+    are then inherited automatically."
+  - Optional foundry/overrides/<engine-file>.yml for app-specific overrides
+    (validator merges).
+inherits_from_mechanism:
+  syntax: |
+    # in app's foundry/constitution.yml
+    inherits_from: eou-foundry@>=0.5.0
+    application:
+      id: book-workshop
+      owner: <human owner>
+      description: ...
+    # then any app-specific additions or overrides:
+    invariants_additional:
+    - <app-specific invariant>
+    forbidden_additional:
+    - <app-specific>
+  semantics: validator loads engine/constitution-defaults.yml from plugin
+    first, then applies app's constitution.yml on top using rules — invariants
+    and forbidden are union (cannot weaken), purpose/optimize_for can be
+    refined but not weakened, change_rules can be strengthened but not relaxed.
+  weakening_check: validator must refuse merges that remove or weaken engine
+    invariants. This makes the "do not weaken universal items without ECP"
+    rule machine-enforceable instead of comment-enforceable.
+expected_benefit:
+- Plugin updates to engine artifacts propagate to every application without
+  per-app sync work; no silent drift.
+- Application's foundry/ tree becomes app-specific by construction; engine
+  state is visibly external.
+- Validator can mechanically enforce "do not weaken engine defaults" instead
+  of relying on a comment in the template.
+- The "book-workshop is a product of eou-foundry" framing becomes architecturally
+  visible — the workshop tree no longer contains the foundry engine.
+- Migration deprecation warnings give existing apps a graceful transition
+  window through 0.5.x; hard-error in 1.0.0.
+risks:
+- Breaking change for any application already scaffolded with 0.4.x init. Mitigation.
+  The 0.5.0 validator detects legacy local copies and emits a warning with a
+  one-line migration command (delete the byte-identical copies, add inherits_from
+  to constitution). Hard-error promised for 1.0.0.
+- An application that legitimately customized one of the engine artifacts
+  (e.g. domain-specific maturity-model) loses that customization on naive
+  delete. Mitigation. foundry/overrides/<file>.yml is the supported path for
+  custom engine artifacts; migration documentation walks users through detecting
+  whether their local copy diverges from engine canonical and, if so, moving
+  the diff to overrides/.
+- inherits_from is a schema extension. Mitigation. Make it optional in 0.5.0;
+  default behavior (no inherits_from declared) is to assume engine defaults at
+  the plugin's installed version. App constitutions can still be full local
+  copies in 0.5.x.
+tests_required:
+- regression case. /eou-foundry:init produces a fresh app whose foundry/
+  contains only constitution.yml, registry.yml, empty eous/, incidents/,
+  audits/, runs/, self-evolution/. No failure-taxonomy.yml, maturity-model.yml,
+  refactoring-patterns.yml, runtime-contract.yml, governance.yml, or meta-eous/
+  in the new app.
+- regression case. validate_foundry.py against the fresh app passes by reading
+  engine artifacts from the plugin path.
+- regression case. An app with legacy local engine copies validates with a
+  deprecation warning naming each copy and pointing at the migration command.
+- regression case. An app whose constitution.yml tries to weaken an engine
+  invariant (e.g. drops "No EOU may approve its own change alone.") fails
+  validation with a "constitution may not weaken engine invariant <X>" error.
+- regression case. An app with foundry/overrides/maturity-model.yml that adds
+  a domain-specific maturity level merges correctly under validate_foundry.
+- regression case. book-workshop migrated to 0.5.0 (constitution reduced,
+  engine YAMLs and meta-eous deleted) passes validate_workshop.py green.
+simulation:
+  status: not_simulated
+  rationale: The change is structural — file moves, validator reorganization,
+    init_app.sh rewrite. The proof is in the regression cases above. No
+    EOU-runtime simulation needed.
+approval:
+  proposed_by: book-workshop self-evolution (caught during post-hygiene audit)
+  audited_by: null
+  approved_by: plugin maintainer (xiaolai)
+  status: proposed
+  implemented_in: null
+submitted_as: null
