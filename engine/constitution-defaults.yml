@@ -1,0 +1,73 @@
+# Engine-default constitution body.
+#
+# This file is the canonical source of the Foundry constitution body.
+# Consuming applications inherit it via `inherits_from: eou-foundry@>=0.5.0`
+# in their own foundry/constitution.yml. An application's constitution.yml
+# declares the app preamble (id, owner, description) plus any *additions or
+# strengthenings*. The validator forbids weakening or removal of engine
+# invariants without an approved ECP per rule 92-ecp.
+#
+# Apps may declare:
+#   - invariants_additional:  appended to engine invariants
+#   - forbidden_additional:   appended to engine forbidden
+#   - generation_invariants_additional: appended to engine generation_invariants
+#   - any of the 7 engine keys (purpose, optimize_for, do_not_optimize_for_alone,
+#     invariants, forbidden, generation_invariants, change_rules) — but only
+#     to *strengthen* them. The validator refuses merges that drop or weaken
+#     engine values.
+
+purpose: Make valuable human workflows executable, inspectable, improvable, and responsibly
+  governed.
+optimize_for:
+- reduced hidden failure
+- inspectability
+- truthfulness
+- appropriate automation
+- human responsibility
+- schema coherence
+- traceability
+- learning from incidents
+do_not_optimize_for_alone:
+- speed
+- fluency
+- automation rate
+- fewer warnings
+- higher apparent pass rate
+- number of EOUs created
+invariants:
+- No EOU may approve its own change alone.
+- No active EOU may lack an owner.
+- Every active EOU must produce trace or declare why trace is impossible.
+- Every promoted change must pass relevant regression tests.
+- Validation cannot be weakened without explicit ECP approval.
+- Failure history cannot be deleted.
+- Warnings cannot be suppressed to improve apparent performance.
+- Human owner retains final authority over high-impact changes.
+- Uncertainty must be exposed, not hidden.
+- EOU classification must use facets, not a single vague type.
+forbidden:
+- self-approval
+- silent schema changes
+- deleting incident history
+- weakening validators without ECP
+- promoting an EOU without trace evidence
+- using pass rate as the primary improvement metric
+- AI approval of publish or high-stakes decisions
+generation_invariants:
+- Generated operating units default to candidate status.
+- Generating EOUs cannot activate, approve, publish, or mutate active governance files.
+- Every generated candidate must include operational value and arguments against creation.
+- Every generated candidate set must include rejected candidates and a minimal recommended
+  subset.
+- No candidate can be promoted without owner, schema, validation, and audit.
+- High-risk domains require human decision ownership.
+- A new EOU must justify why it cannot be a rule, validator, schema field, or regression
+  case.
+- Generating EOUs must run registry-diff, minimality, operational-value, and counter-generation
+  checks.
+change_rules:
+  ordinary_eou_patch: requires ECP if active behavior, validation, authority, or schema
+    changes
+  foundry_eou_patch: requires ECP, simulation, regression, and human approval
+  constitution_change: requires explicit human review, changelog entry, rollback plan,
+    and cannot be performed by a normal EOU

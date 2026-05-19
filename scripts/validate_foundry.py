@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import argparse
+import sys
 from _common import find_repo_root, load_yaml
 
 VALID_FUNCTIONS = {"generate", "specify", "validate", "diagnose", "promote", "refactor", "audit", "propose", "activate", "implement", "retire"}
@@ -41,12 +42,26 @@ CONSTITUTION_REQUIRED = ["purpose", "optimize_for", "do_not_optimize_for_alone",
 REGISTRY_REQUIRED = ["registry_version", "entries"]
 REG_ENTRY_REQUIRED = ["eou_id", "current_version", "path", "status", "maturity", "owner", "classification", "dependencies", "last_audit", "known_issues"]
 
+# Engine artifacts that historically were copied into each app's foundry/ but
+# as of plugin v0.5.0 live canonically at plugin/engine/. Apps may keep a
+# byte-identical local copy during migration (deprecation warning emitted);
+# may delete it (engine artifact is read from plugin); or may place a
+# divergent copy at foundry/overrides/<file>.yml (validator merges).
+ENGINE_FILES = [
+    "failure-taxonomy.yml",
+    "maturity-model.yml",
+    "refactoring-patterns.yml",
+    "runtime-contract.yml",
+    "governance.yml",
+]
+
+
+def find_plugin_root() -> Path:
+    """The plugin root is the directory containing this script's parent."""
+    return Path(__file__).resolve().parents[1]
+
 
 def empty(v) -> bool:
-    # Intentionally treats [] as non-empty: required list fields like
-    # `versioning.supersedes` are legitimately empty for EOUs with no
-    # predecessor. List-typed required fields where emptiness IS an error
-    # (must_pass, known_issues, etc.) are checked by purpose-specific code.
     return v in (None, "", {})
 
 
@@ -139,12 +154,89 @@ def validate_eou_card(path: Path, root: Path) -> list[str]:
     return problems
 
 
-def validate_constitution(root: Path) -> list[str]:
+def _merge_constitution(engine_defaults: dict, app_local: dict) -> tuple[dict, list[str]]:
+    """Merge engine-default constitution with app local; refuse weakening.
+
+    Rules:
+      - Lists in invariants / forbidden / generation_invariants are union of
+        engine + local + *_additional. The merged list cannot be smaller
+        than the engine list.
+      - Scalars (purpose) may be replaced by the local file. (Apps can refine.)
+      - change_rules and similar mappings: app may strengthen specific entries.
+
+    Returns (merged_constitution, weakening_problems).
+    """
+    problems: list[str] = []
+    merged: dict = dict(engine_defaults)
+
+    list_fields = ("invariants", "forbidden", "generation_invariants")
+
+    for field in list_fields:
+        engine_list = list(engine_defaults.get(field) or [])
+        local_list = list(app_local.get(field) or [])
+        additional = list(app_local.get(f"{field}_additional") or [])
+
+        # If local re-declares the field, it must contain all engine entries.
+        if local_list:
+            missing = [item for item in engine_list if item not in local_list]
+            if missing:
+                problems.append(
+                    f"constitution: cannot weaken engine `{field}` — missing engine "
+                    f"entries: {missing}"
+                )
+        # Union for the merged result.
+        seen = set()
+        union: list = []
+        for src in (engine_list, local_list, additional):
+            for item in src:
+                if item not in seen:
+                    union.append(item)
+                    seen.add(item)
+        merged[field] = union
+
+    # Scalar / non-list fields: prefer local if declared.
+    for field in ("purpose", "optimize_for", "do_not_optimize_for_alone", "change_rules"):
+        if field in app_local and app_local.get(field) not in (None, "", [], {}):
+            merged[field] = app_local[field]
+
+    return merged, problems
+
+
+def load_constitution(root: Path, plugin_root: Path) -> tuple[Path, dict | None, list[str]]:
+    """Load an app's constitution.yml; merge engine defaults if it uses inherits_from.
+
+    Returns (path, merged_data_or_None, problems_list).
+    """
     path = root / "foundry" / "constitution.yml"
     if not path.exists():
-        return ["foundry/constitution.yml missing"]
-    data = load_yaml(path)
-    problems = validate_required(path, data, CONSTITUTION_REQUIRED)
+        return path, None, ["foundry/constitution.yml missing"]
+    local = load_yaml(path)
+    if not isinstance(local, dict):
+        return path, None, [f"{path}: top-level YAML must be a mapping"]
+
+    if "inherits_from" not in local:
+        # Legacy full-body constitution. Validate as-is.
+        return path, local, []
+
+    # New-style constitution: merge engine defaults.
+    defaults_path = plugin_root / "engine" / "constitution-defaults.yml"
+    if not defaults_path.exists():
+        return path, None, [
+            f"{path}: inherits_from declared but engine defaults not found at "
+            f"{defaults_path}"
+        ]
+    defaults = load_yaml(defaults_path)
+    if not isinstance(defaults, dict):
+        return path, None, [f"{defaults_path}: must be a mapping"]
+    merged, problems = _merge_constitution(defaults, local)
+    return path, merged, problems
+
+
+def validate_constitution(root: Path, plugin_root: Path) -> list[str]:
+    path, data, problems = load_constitution(root, plugin_root)
+    if data is None:
+        return problems
+    problems.extend(validate_required(path, data, CONSTITUTION_REQUIRED))
     inv = "\n".join(data.get("invariants") or [])
     gen = "\n".join(data.get("generation_invariants") or [])
     for phrase in ["No EOU may approve its own change alone", "Failure history cannot be deleted", "Validation cannot be weakened"]:
@@ -221,28 +313,138 @@ def validate_regression_cases(root: Path) -> list[str]:
     return problems
 
 
-def validate_foundry(root: Path) -> list[str]:
+def check_legacy_engine_copies(root: Path, plugin_root: Path) -> list[str]:
+    """Return deprecation messages for byte-identical legacy local copies.
+
+    Apps that were scaffolded under plugin <0.5 may have local copies of
+    engine artifacts. v0.5.x tolerates them with a deprecation warning;
+    v1.0.0 will reject them.
+    """
+    warnings: list[str] = []
+    for fname in ENGINE_FILES:
+        local = root / "foundry" / fname
+        canonical = plugin_root / "engine" / fname
+        if local.exists() and canonical.exists():
+            try:
+                if local.read_bytes() == canonical.read_bytes():
+                    warnings.append(
+                        f"deprecation: foundry/{fname} is a byte-identical "
+                        f"copy of plugin engine/{fname}; delete the local "
+                        f"copy (engine is read from plugin)."
+                    )
+                else:
+                    # Divergent local copy. If the app intentionally overrides,
+                    # the override belongs at foundry/overrides/<fname>.
+                    warnings.append(
+                        f"deprecation: foundry/{fname} differs from plugin "
+                        f"engine/{fname}; if this is intentional, move the "
+                        f"override to foundry/overrides/{fname} and delete "
+                        f"foundry/{fname}."
+                    )
+            except OSError:
+                pass
+
+    local_meta = root / "foundry" / "meta-eous"
+    canonical_meta = plugin_root / "engine" / "meta-eous"
+    if local_meta.exists() and canonical_meta.exists():
+        identical = 0
+        divergent: list[str] = []
+        for p in sorted(local_meta.glob("*.yml")):
+            cp = canonical_meta / p.name
+            if cp.exists():
+                try:
+                    if p.read_bytes() == cp.read_bytes():
+                        identical += 1
+                    else:
+                        divergent.append(p.name)
+                except OSError:
+                    pass
+        if identical:
+            warnings.append(
+                f"deprecation: foundry/meta-eous/ has {identical} byte-identical "
+                f"copies of plugin engine/meta-eous/; delete foundry/meta-eous/ "
+                f"if it has no app-specific divergence."
+            )
+        if divergent:
+            warnings.append(
+                f"deprecation: foundry/meta-eous/ has {len(divergent)} divergent "
+                f"file(s) ({', '.join(divergent[:3])}{'...' if len(divergent) > 3 else ''}); "
+                f"move app-specific divergence to foundry/overrides/meta-eous/."
+            )
+    return warnings
+
+
+def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str]]:
+    """Validate an application's foundry/ tree against the plugin engine.
+
+    Returns (problems, warnings). Problems fail validation; warnings are
+    informational (printed to stderr by the caller).
+    """
     problems: list[str] = []
+    warnings: list[str] = []
+
     foundry = root / "foundry"
     if not foundry.exists():
-        return ["missing foundry/ directory"]
-    problems.extend(validate_constitution(root))
+        problems.append("missing foundry/ directory")
+        return problems, warnings
+
+    problems.extend(validate_constitution(root, plugin_root))
+
+    # Validate engine canonicals (defensive — should be enforced upstream).
+    engine_dir = plugin_root / "engine"
+    canonical_meta = engine_dir / "meta-eous"
+    if not canonical_meta.exists():
+        problems.append(f"plugin engine/meta-eous/ not found at {canonical_meta}")
+    else:
+        # Validate canonical meta-EOUs (they must pass the same EOU schema).
+        for path in sorted(canonical_meta.glob("*.yml")):
+            problems.extend(validate_eou_card(path, plugin_root))
+
     eou_paths: dict[str, Path] = {}
-    for base in [foundry / "eous", foundry / "meta-eous"]:
-        if not base.exists():
-            problems.append(f"missing {base.relative_to(root)}/ directory")
-            continue
-        for path in sorted(base.glob("*.yml")):
+
+    # Collect canonical meta-EOU ids (these are not in the app registry).
+    for path in sorted(canonical_meta.glob("*.yml")) if canonical_meta.exists() else []:
+        data = load_yaml(path)
+        if isinstance(data, dict) and data.get("id"):
+            eou_paths[str(data["id"])] = path
+
+    # App's work EOUs.
+    app_eous = foundry / "eous"
+    if not app_eous.exists():
+        problems.append("missing foundry/eous/ directory")
+    else:
+        for path in sorted(app_eous.glob("*.yml")):
             data = load_yaml(path)
             if isinstance(data, dict) and data.get("id"):
                 eou_paths[str(data["id"])] = path
             problems.extend(validate_eou_card(path, root))
+
+    # Optional legacy app-side meta-eous/ — validate any divergent files.
+    app_meta = foundry / "meta-eous"
+    if app_meta.exists():
+        for path in sorted(app_meta.glob("*.yml")):
+            canonical_path = canonical_meta / path.name
+            if canonical_path.exists():
+                try:
+                    if path.read_bytes() == canonical_path.read_bytes():
+                        continue  # byte-identical legacy copy; deprecation warned elsewhere
+                except OSError:
+                    pass
+            data = load_yaml(path)
+            if isinstance(data, dict) and data.get("id"):
+                eou_paths[str(data["id"])] = path
+            problems.extend(validate_eou_card(path, root))
+
     if not eou_paths:
         problems.append("foundry: no EOU specs found")
+
     problems.extend(validate_registry(root, eou_paths))
     problems.extend(validate_ecps(root))
     problems.extend(validate_regression_cases(root))
-    return problems
+
+    warnings.extend(check_legacy_engine_copies(root, plugin_root))
+
+    return problems, warnings
 
 
 def main() -> int:
@@ -250,13 +452,28 @@ def main() -> int:
     try:
         ap = argparse.ArgumentParser()
         ap.add_argument("path", nargs="?", default=None, help="Optional repository root")
+        ap.add_argument("--strict-no-legacy", action="store_true",
+                        help="Treat legacy local engine copies as errors, not warnings.")
         args = ap.parse_args()
         from _common import cli_error
         try:
             root = Path(args.path).resolve() if args.path else find_repo_root()
         except RuntimeError as e:
             cli_error(str(e))
-        problems = validate_foundry(root)
+
+        plugin_root = find_plugin_root()
+
+        problems, warnings = validate_foundry(root, plugin_root)
+
+        if args.strict_no_legacy:
+            problems.extend(warnings)
+            warnings = []
+
+        if warnings:
+            print("Foundry warnings:", file=sys.stderr)
+            for w in warnings:
+                print(f"- {w}", file=sys.stderr)
+
         if problems:
             print("Foundry validation failed:")
             for p in problems:
@@ -265,9 +482,9 @@ def main() -> int:
         print("OK: foundry")
         return 0
 
-
     except (FileNotFoundError, ValueError, RuntimeError) as _e:
         _cli_error(str(_e))
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -1,4 +1,4 @@
-schema_id: constitution.schema.v2
+schema_id: constitution.schema.v3
 required:
 - purpose
 - optimize_for
@@ -7,4 +7,20 @@ required:
 - forbidden
 - generation_invariants
 - change_rules
+optional:
+- inherits_from
+- application
+- invariants_additional
+- forbidden_additional
+- generation_invariants_additional
+inherits_from:
+  format: 'eou-foundry@<version-spec>'
+  effect: |
+    When `inherits_from` is present, the engine constitution defaults
+    (engine/constitution-defaults.yml in the plugin) are merged with this
+    file at validation time. The `required` fields above can therefore be
+    absent from this file — they are inherited. The merge cannot weaken
+    engine invariants; any attempt to drop or narrow an engine entry
+    fails validation per rule 91-foundry-constitution.
+  introduced_in: plugin v0.5.0
 purpose: Constitution bounds recursive Foundry self-evolution and prevents self-approval.
