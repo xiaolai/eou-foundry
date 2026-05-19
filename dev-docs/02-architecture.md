@@ -71,6 +71,21 @@ The Foundry manages those hypotheses.
 | `audit` | Inspects and evaluates an EOU spec, candidate set, or the whole Foundry for quality and compliance. |
 | `propose` | Creates a formal EOU Change Proposal from a diagnosed failure or refactor option. |
 
+```mermaid
+flowchart TD
+    WF["messy workflow"] -->|generate| CAND["candidate set"]
+    CAND -->|audit| SEL["selected candidates"]
+    SEL -->|specify| SPEC["EOU spec"]
+    SPEC -->|audit| AR["audit findings"]
+    SPEC -->|validate| VR["validation report"]
+    SPEC -->|promote| LS["lifecycle stage"]
+    AR -->|diagnose| DIAG["diagnosis + F-code"]
+    DIAG -->|propose| ECP["ECP"]
+    DIAG -->|refactor| RO["refactor options"]
+    ECP -->|implement| SPEC
+    RO -->|specify| SPEC
+```
+
 ### Authority level vocabulary
 
 | Level | What it permits |
@@ -84,6 +99,22 @@ The Foundry manages those hypotheses.
 | `publish` | Publish or deploy — requires named human approver |
 
 Generating EOUs must not hold `mutate_active`, `approve`, or `publish`.
+
+```mermaid
+graph LR
+    subgraph gen_safe["Safe for generating EOUs"]
+        A["suggest_only"] --> B["draft_only"]
+        B --> C["write_candidate"]
+        C --> D["write_inactive"]
+    end
+    D --> E["mutate_active"]
+    subgraph human_req["Requires named human approver"]
+        F["approve"]
+        G["publish"]
+    end
+    E --> F
+    F --> G
+```
 
 ### Canonical file structure
 
@@ -122,6 +153,15 @@ foundry/
     validation/
 
 runs/                            # execution traces
+```
+
+```mermaid
+graph LR
+    SCH["schemas/ — ground truth"] --> VAL["validate_foundry.py"]
+    SCH --> RUL["rules/"]
+    SCH --> TMP["templates/meta-eous/"]
+    VAL --> SKI["skills/ — Claude"]
+    SKI --> COD["codex/skills/ — Codex mirror"]
 ```
 
 ### Canonical anti-patterns
@@ -197,6 +237,21 @@ generate candidates
 ```
 
 Never: `generate → activate`
+
+```mermaid
+flowchart LR
+    GEN["generate candidates"] --> ARG["argue against\ncounter_generation"]
+    ARG --> RANK["rank by blast radius"]
+    RANK --> MIN["select minimal set"]
+    MIN --> ACAS["audit-candidate-eou-set"]
+    ACAS --> CHK{set passes?}
+    CHK -->|yes| SPE["eou-specify\ncandidate → draft"]
+    CHK -->|revise| GEN
+    SPE --> SIMS[simulate]
+    SIMS --> APP[human approval]
+    APP --> ACT(["activate\nlifecycle_stage: active"])
+    GEN -. FORBIDDEN .-> ACT
+```
 
 ### Generation envelope
 
@@ -347,6 +402,22 @@ observe failure or audit finding
 ```
 
 No step may be skipped. Each step produces a traceable artifact.
+
+```mermaid
+flowchart TD
+    OBS["observe — failure or audit finding"] --> DIA["diagnose — F-code + ranked repairs"]
+    DIA --> OUT{outcome}
+    OUT -->|change warranted| PRO[propose ECP]
+    OUT -->|no change| NOC["write no-change record\n.no-change.yml"]
+    PRO --> SIM["simulate — populate ECP simulation field"]
+    SIM --> REG["regression test — add regression case"]
+    REG --> AUD["audit — produce audit.yml"]
+    AUD --> APP["human approval\napproval.status: approved"]
+    APP --> DEP["deploy — move ECP to implemented/"]
+    DEP --> UPD[registry update]
+    UPD --> DONE([done])
+    NOC --> DONE
+```
 
 ### Forbidden shortcuts
 

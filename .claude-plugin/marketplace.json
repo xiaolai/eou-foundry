@@ -1,0 +1,15 @@
+{
+  "name": "eou-foundry-local",
+  "owner": {
+    "name": "xiaolai"
+  },
+  "plugins": [
+    {
+      "name": "eou-foundry",
+      "source": "./",
+      "description": "Recursive governance for Executable Operating Units. Faceted classification, generating-EOU constraints, ECP-governed change, no-self-approval.",
+      "version": "0.2.0",
+      "category": "governance"
+    }
+  ]
+}

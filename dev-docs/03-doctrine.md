@@ -343,6 +343,22 @@ any → deprecated:     successor EOU documented or owner retirement decision re
 
 An EOU should never self-declare maturity.
 
+```mermaid
+stateDiagram-v2
+    [*] --> candidate
+    candidate --> draft : complete spec
+    draft --> simulated : simulation populated
+    simulated --> pilot : regression case exists
+    pilot --> active : audit pass + named owner
+    active --> monitored : ECP history + trace evidence
+    monitored --> stable : governed self-improvement
+    stable --> deprecated : successor documented
+    active --> deprecated : owner decision
+    pilot --> deprecated : owner decision
+    deprecated --> retired
+    retired --> [*]
+```
+
 ## 9. Trace is mandatory
 
 Every meaningful EOU run must produce a trace:
@@ -384,6 +400,26 @@ Question: Was the EOU executed correctly?
 Question: Is the EOU itself well designed?
 
 Most systems only audit outputs. That is insufficient.
+
+```mermaid
+flowchart TD
+    subgraph L1["Output Audit — Is the artifact valid?"]
+        OA["schema conformance\nrequired fields, no placeholders"]
+    end
+    subgraph L2["Run Audit — Was execution correct?"]
+        RA["trace completeness\nsteps followed, stop conditions honored"]
+    end
+    subgraph L3["EOU Audit — Is the EOU well designed?"]
+        EA["classification, blast radius\nresponsibility, failure modes"]
+    end
+    L1 --> F1{findings?}
+    L2 --> F2{findings?}
+    L3 --> F3{findings?}
+    F1 -->|yes| INC[incident]
+    F2 -->|yes| INC
+    F3 -->|yes| INC
+    INC --> GOV[governance pipeline]
+```
 
 ## 11. Failure taxonomy
 
@@ -645,3 +681,25 @@ optimizes for reduced hidden failure
 The deepest principle:
 
 > EOUs should not help the system appear more competent. EOUs should help the system become harder to fool.
+
+## 20. Skill selection
+
+```mermaid
+flowchart TD
+    Q["What is my goal?"] --> C1["Create new EOUs"]
+    Q --> C2["Audit or validate"]
+    Q --> C3["Fix or change"]
+    Q --> C4["Manage lifecycle"]
+    C1 --> S1["$generate-eou-candidates"]
+    C1 --> S2["$eou-specify"]
+    C1 --> S3["$eou-foundry-init"]
+    C2 --> S4["$audit-candidate-eou-set"]
+    C2 --> S5["$eou-audit"]
+    C2 --> S6["$foundry-audit"]
+    C2 --> S7["$eou-validate"]
+    C3 --> S8["$eou-diagnose"]
+    C3 --> S9["$eou-refactor"]
+    C3 --> S10["$ecp-propose"]
+    C4 --> S11["$eou-promote"]
+    C4 --> S12["$generate-regression-cases"]
+```
