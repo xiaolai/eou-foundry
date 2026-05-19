@@ -1,0 +1,68 @@
+name: PR CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install pyyaml
+
+      - name: YAML syntax check
+        run: |
+          python3 - <<'PYEOF'
+          import sys, glob, yaml, pathlib
+
+          errors = []
+          patterns = [
+              "templates/**/*.yml",
+              "templates/**/*.template",
+              "schemas/**/*.yml",
+          ]
+          checked = 0
+          for pat in patterns:
+              for f in glob.glob(pat, recursive=True):
+                  try:
+                      yaml.safe_load(pathlib.Path(f).read_text())
+                      checked += 1
+                  except yaml.YAMLError as e:
+                      errors.append(f"{f}: {e}")
+
+          if errors:
+              for e in errors:
+                  print(e)
+              sys.exit(1)
+          print(f"OK: {checked} YAML files valid")
+          PYEOF
+
+      - name: Python syntax check
+        run: |
+          python3 -m py_compile scripts/validate_foundry.py scripts/_common.py
+          echo "OK: Python syntax valid"
+
+  auto-merge:
+    name: Auto-merge (xiaolai)
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.pull_request.user.login == 'xiaolai'
+    steps:
+      - name: Merge PR
+        run: |
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --merge \
+            --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
