@@ -1,0 +1,55 @@
+id: ecp-0002-counter-generation-validator-mismatch
+target_eou: eou-foundry-plugin
+target_version_from: 0.3.0
+target_version_to: 0.3.1
+
+problem:
+  observed_failure: >-
+    The plugin's scripts/validate_foundry.py enforces that every generating
+    EOU's counter_generation field include a non-empty
+    requires_for_each_candidate list containing arguments_against. But the
+    plugin's own templates/meta-eous/generate-regression-cases.yml declares
+    only counter_generation required false with no requires_for_each_candidate
+    field at all. Adopting the template produces a card that the same
+    plugin's validator rejects.
+  failure_class: F2_VALIDATOR_OVERREACH
+  evidence:
+    - Reproduced on book-workshop during v0.1.0 to v0.3.0 catch-up. After copying templates/meta-eous/generate-regression-cases.yml into the application's foundry/meta-eous/, validate_foundry reports "counter_generation.requires_for_each_candidate must include arguments_against".
+    - The template's own comment says counter_generation is required false because regression cases are not subject to arguments-against (each covers a real failure). The validator does not honor this opt-out.
+
+proposed_change:
+  summary: >-
+    Reconcile validator and template. Two equally good options. Pick one.
+    Option a. Make the validator honor counter_generation required false as
+    a valid opt-out and skip the requires_for_each_candidate check for that
+    EOU. Option b. Drop the opt-out and require regression-case generation
+    to still argue against each candidate. Update the template accordingly.
+    Recommend option a. Regression cases describe known failures.
+    Arguing against the regression case is semantically weak because the
+    failure has already happened.
+  files_changed_option_a:
+    - scripts/validate_foundry.py (early-return when counter_generation.required is False)
+  files_changed_option_b:
+    - templates/meta-eous/generate-regression-cases.yml (set counter_generation required true and add requires_for_each_candidate)
+
+expected_benefit:
+  - Plugin's own template passes plugin's own validator.
+  - Removes the workshop-side workaround (book-workshop currently keeps its pre-v0.3 copy of generate-regression-cases.yml).
+
+risks:
+  - Option a. A future generating EOU might legitimately want arguments-against gating but set required false by mistake. Mitigation. Still validate the field's structure when required is true. Only skip when required is false.
+  - Option b. Forces regression-case generation to invent arguments-against per case which dilutes the meaning. This is why option b is not preferred.
+
+tests_required:
+  - regression case. templates/meta-eous/generate-regression-cases.yml must pass validate_foundry.py from a freshly-init'd application.
+  - regression case. A generating EOU with counter_generation required true but missing requires_for_each_candidate.arguments_against MUST still fail validation. Option a's escape hatch must be narrow.
+
+simulation:
+  status: not_simulated
+  rationale: Self-test inside the plugin repo. Copy templates/meta-eous/generate-regression-cases.yml to a temp foundry/meta-eous/ and run validate_foundry. With the fix applied the file should validate clean.
+
+approval:
+  proposed_by: book-workshop self-evolution (caught during plugin catch-up)
+  audited_by: null
+  approved_by: null
+  status: proposed
