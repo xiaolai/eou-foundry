@@ -106,16 +106,24 @@ hold `approve`, `publish`, or `mutate_active`.
 
 ## Path conventions inside an EOU spec
 
-Book-relative paths use the placeholder `{BOOK_PATH}` =
-`applications/book-workshop/books/{book_id}/`. Repo-relative paths (those
-under `applications/`, `foundry/`, or `schemas/`) are written out fully. A
-spec may optionally declare:
+Paths inside an EOU spec are **app-root-relative** by default. The consuming
+application's tree is the root: `foundry/`, `scripts/`, and any
+application-specific top-level directories.
+
+Where an application has a per-instance object scope (e.g., a workshop's
+books), the spec may declare a placeholder. For book-workshop:
 
 ```yaml
 path_root:
-  description: "Book-relative paths are rooted at {BOOK_PATH}; fully qualified
-    paths are repo-relative."
+  app: "<app-root>"          # repo-relative inside the consuming app
+  BOOK_PATH: "books/{book_id}/"   # workshop-specific instance scope
+  description: "BOOK_PATH is workshop-specific; other apps may declare
+    different placeholders. Fully qualified paths inside app scope are
+    app-root-relative."
 ```
+
+Plugin-relative paths (`engine/`, `schemas/`, `rules/`) are read from the
+installed plugin, never duplicated into the app tree.
 
 ## Invariants (from the schema)
 

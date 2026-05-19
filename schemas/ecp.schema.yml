@@ -1,4 +1,4 @@
-schema_id: ecp.schema.v2
+schema_id: ecp.schema.v3
 required:
 - id
 - target_eou
@@ -11,4 +11,16 @@ required:
 - tests_required
 - simulation
 - approval
+required_in_approval:
+- status                   # proposed | approved | rejected | implemented
+- approver                 # named human identity — populated when approved/implemented
+- rollback_considerations  # how to revert if the change fails
+optional_in_approval:
+- audited_by
+- approved_at
+- implemented_in
+deprecated_aliases:
+  approval.approved_by: approval.approver
 purpose: EOU Change Proposals are the only path for significant Foundry mutation.
+  Approval-block fields are the governance evidence; missing rollback_considerations
+  on an approved or implemented ECP is grounds for refusing validation.

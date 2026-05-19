@@ -1,5 +1,76 @@
 # EOU Foundry Plugin Changelog
 
+## 0.5.1 — Validator catches up to rules (ECP-0004)
+
+Bug-fix release. An external two-pass architecture audit found that the
+plugin's rules declared hard constraints that the validator never
+enforced, that the v0.5.0 release shipped documented features no code
+read, and that the ECP schema/rule/validator disagreed on approval
+field names. This release makes the validator enforce what the rules
+say is enforced.
+
+What changed:
+
+- `scripts/validate_foundry.py`:
+  - Rule 94 enforcement: `responsibility.executor` cannot equal
+    `responsibility.approver`. This was declared as a "hard schema
+    constraint" in rule 94 line 12 but never checked.
+  - Rule 91 enforcement: `responsibility.approver` cannot be a role
+    label (e.g. "human owner") for EOUs at active/monitored/stable
+    lifecycle stages or with approve/publish authority.
+  - Constitutional owner: `application.owner` cannot be empty, missing,
+    a TODO marker, or a role label when any EOU is registered as active.
+  - Constitution merge weakening protection extended from list fields
+    (invariants/forbidden/generation_invariants) to `change_rules`
+    (dict; engine keys cannot be dropped or weakened) and `purpose`
+    (cannot be emptied) and `optimize_for`/`do_not_optimize_for_alone`.
+  - Registry classification fields are now enum-checked against the
+    same `VALID_*` sets used for EOU specs, and the registry's
+    classification must match the loaded spec exactly.
+  - New `validate_incidents()`: walks `foundry/incidents/*.yml` and
+    checks them against `incident.schema.yml` required fields.
+  - New `validate_engine_artifacts()`: defensive check that the plugin's
+    own `engine/*.yml` artifacts are well-formed and contain expected
+    top-level keys. Catches an ecp-0001-class failure upstream.
+  - New `validate_overrides()`: implements the `foundry/overrides/`
+    feature documented in v0.5.0. Per-file engine overrides may add or
+    refine values but cannot null out engine keys.
+  - `validate_ecps()` now walks both `foundry/self-evolution/ecp/` and
+    `foundry/self-evolution/upstream/`. ECPs in approved/implemented
+    status require `approval.rollback_considerations` per rule 92.
+    Accepts both `approval.approver` and legacy `approval.approved_by`
+    (deprecation warning on legacy).
+  - Candidate-set artifacts (rule 95) under `ecp/proposed/` matching
+    `*-candidates-*.yml` are now skipped by ECP validation; they have
+    their own schema and were silently failing.
+
+- `schemas/ecp.schema.yml`: bumped to `ecp.schema.v3`. Documents
+  `approval.approver` and `approval.rollback_considerations` as
+  required; documents `approval.approved_by` as a deprecated alias.
+
+- `engine/eou-contract.md`: dropped the pre-split
+  `applications/book-workshop/...` path prefix from the path
+  conventions section. Apps declare their own placeholder roots.
+
+Migration notes:
+
+- Apps with EOUs at active lifecycle and a role-label approver
+  (`"human owner"`, etc.) will fail validation. Replace with a named
+  human identity in `responsibility.approver`.
+- Apps whose `application.owner` is still `"TODO ..."` will fail
+  validation once any EOU is registered active. Set the owner first.
+- Implemented or approved ECPs filed before this release need
+  `approval.rollback_considerations` added. Brief revert plan suffices.
+- Registries with `function: execute` (or other invalid enum values)
+  will fail; replace with a valid `VALID_FUNCTIONS` entry that matches
+  the spec.
+- The previously documented `foundry/overrides/` directory now works.
+
+Tracking:
+
+- ECP: `book-workshop/foundry/self-evolution/upstream/landed/ecp-0004-validator-and-schema-alignment-from-audit-roundtable.yml`
+- Audit source: post-v0.5.0 architecture audit roundtable (Claude Opus + Codex GPT-5.5, adversarial composition)
+
 ## 0.5.0 — Engine as reference, not copy (ECP-0003)
 
 **Breaking change.** Applications consuming this plugin no longer hold

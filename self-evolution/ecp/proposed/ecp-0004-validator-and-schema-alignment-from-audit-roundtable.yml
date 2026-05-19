@@ -1,0 +1,176 @@
+id: ecp-0004-validator-and-schema-alignment-from-audit-roundtable
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.0
+target_version_to: 0.5.1
+problem:
+  observed_failure: A two-pass external architecture audit (auditor A then
+    auditor B reviewing auditor A's findings) surfaced multiple cases where
+    the plugin's rules and schemas declare hard constraints that the
+    validator never enforces, where validator behavior is silently more
+    permissive than the rule text, and where the v0.5.0 release shipped
+    documented features that no code reads. Operational consequence is
+    a governance facade — rule files describe checks that do not happen.
+  failure_class: F7_VALIDATION_FAILURE
+  evidence:
+  - rules/94-no-self-approval.md line 12 declares "responsibility.executor
+    must not equal responsibility.approver. This is a hard schema constraint
+    checked by scripts/validate_foundry.py." scripts/validate_foundry.py
+    never compares those fields. The rule lies about its own enforcement.
+  - rules/92-ecp.md specifies approval.approver and rollback_considerations
+    as required fields. schemas/ecp.schema.yml does not list them.
+    scripts/validate_foundry.py checks approved_by, not approver. Three-way
+    drift across rule, schema, and validator on the most governance-critical
+    field (who approved the change).
+  - rules/95-generating-eous.md line 48 routes candidate-set artifacts to
+    foundry/self-evolution/ecp/proposed/. scripts/validate_foundry.py
+    validate_ecps() walks every *.yml in that directory as an ECP. A
+    compliant candidate-set artifact will fail ECP validation or force
+    fake ECP fields.
+  - book-workshop/foundry/registry.yml has function:execute (two entries —
+    compile-chapter, export-book). execute is not in VALID_FUNCTIONS in
+    scripts/validate_foundry.py. The validator enum-checks EOU specs but
+    not registry entries, so invalid registry vocabulary passes silently.
+  - foundry/overrides/ is documented in scripts/init_app.sh, the
+    new app's README, and check_legacy_engine_copies advises users to
+    "move the override to foundry/overrides/<fname>". No code reads
+    foundry/overrides/. Users will follow the advice and see no effect.
+  - _merge_constitution() in scripts/validate_foundry.py protects
+    invariants/forbidden/generation_invariants from weakening on merge,
+    but not change_rules or purpose. An app can replace change_rules
+    (the meta-governance layer) with a blank dict and pass validation.
+  - foundry/constitution.yml is allowed to declare
+    application.owner = "TODO set human owner before activating any EOU"
+    and validate green. The constitutional invariant "No active EOU may
+    lack an owner" is unenforced at the validator level.
+  - validate_foundry() does not validate foundry/incidents/*.yml against
+    incident.schema.yml. The schema exists; the validator skips it.
+  - validate_foundry() does not validate the plugin's engine/*.yml
+    artifacts (failure-taxonomy, maturity-model, refactoring-patterns,
+    runtime-contract, governance, constitution-defaults) against any
+    schema. ecp-0001 already established that these files can ship
+    malformed.
+  - engine/eou-contract.md line 107 declares path convention
+    {BOOK_PATH} = applications/book-workshop/books/{book_id}/. The
+    post-split workshop uses books/{book_id}/ at the root; specs
+    generated from this contract inherit dead paths.
+  - scripts/promote_upstream.py docstring says "Clones the eou-foundry
+    plugin repo to a temp dir" (line 14). Implementation uses
+    find_plugin_path() (line 135) which returns the developer checkout;
+    git -C <plugin> checkout -B branch mutates that checkout (line 169);
+    only the success path returns to main (line 215). A failed push or
+    gh-create command strands the plugin on the submission branch.
+proposed_change:
+  summary: Make the validator enforce what the rules say is enforced.
+    Reconcile ECP approval-field naming across rule, schema, and validator.
+    Implement the documented foundry/overrides/ merge path. Extend
+    weakening protection to change_rules and purpose. Enforce
+    constitutional owner presence. Add incident validation. Add engine
+    artifact schema validation. Fix the eou-contract path convention.
+    Replace promote_upstream's in-place mutation with a temp clone +
+    try/finally cleanup.
+  files_changed:
+  - scripts/validate_foundry.py — multiple checks added (see below)
+  - schemas/ecp.schema.yml — add approver, rollback_considerations to
+    required; bump schema_id to ecp.schema.v3
+  - schemas/incident.schema.yml — already exists; validator wired up
+  - rules/92-ecp.md — already specifies the right fields; no change needed
+  - rules/94-no-self-approval.md — already specifies the constraint;
+    validator catches up to it
+  - engine/eou-contract.md — drop applications/book-workshop/ prefix from
+    path conventions; use book-root-relative form
+  - scripts/promote_upstream.py — clone plugin to temp dir; try/finally
+    to clean up; remove in-place checkout mutation
+  - CHANGELOG.md — 0.5.1 entry
+  - .claude-plugin/{plugin,marketplace}.json — version bump
+  validator_changes:
+  - "validate_eou_card: refuse responsibility.executor == responsibility.approver
+    string-equal after normalization; refuse approver matching role-label
+    pattern when lifecycle_stage is active."
+  - "validate_constitution: refuse missing/empty/TODO-prefixed
+    application.owner when any registered EOU has lifecycle_stage active."
+  - "_merge_constitution: extend weakening check to change_rules (dict
+    keys cannot be dropped; values must remain at least as restrictive
+    by string match) and purpose (cannot be empty)."
+  - "validate_registry: enum-check classification fields (function,
+    automation_mode, authority_level, risk_level, lifecycle_stage)
+    against the same VALID sets used for EOU specs; verify registry
+    classification matches the loaded spec classification exactly."
+  - "validate_ecps: accept both approval.approver and approval.approved_by
+    (warn on approved_by); require approval.rollback_considerations on
+    any ECP whose approval.status is approved or implemented; skip files
+    matching the candidate-set pattern in the proposed directory."
+  - "validate_incidents: new function. Walk foundry/incidents/*.yml;
+    validate each against incident.schema.yml required fields."
+  - "validate_engine_artifacts: new function. Validate plugin's engine
+    YAML artifacts have well-formed YAML and the structural top-level
+    keys downstream consumers depend on."
+  - "load_constitution and validate_foundry: after merging engine defaults,
+    apply foundry/overrides/<file>.yml as a final layer for each engine
+    file. The override merges by deep dict union; app overrides win key
+    by key but cannot drop keys present in the engine canonical."
+expected_benefit:
+- Rule 94 stops lying. executor != approver is enforced for the first time.
+- ECP approval has one canonical shape across rule, schema, validator;
+  existing approved_by entries continue to work during the deprecation
+  window.
+- foundry/overrides/ becomes a real feature, not a documented promise.
+- An app cannot ship with TODO owner once any EOU is active.
+- Constitutional change_rules cannot be silently replaced.
+- Incident files are validated; malformed entries surface immediately.
+- Plugin's own engine artifacts are validated; ecp-0001-class failures
+  are caught upstream.
+- promote_upstream cannot strand the plugin checkout on a half-finished
+  submission branch.
+- eou-contract.md teaches the correct post-split path layout.
+risks:
+- Stricter validator will fail on existing applications scaffolded under
+  v0.5.0 with TODO owner, or apps with role-label approver in active EOUs.
+  Mitigation. The stricter checks fire only when the relevant EOU is at
+  lifecycle_stage active. Apps with everything still at pilot/draft do
+  not break; they get clear migration warnings.
+- ECP schema change requires existing ECPs to add approver +
+  rollback_considerations. Mitigation. Validator accepts approved_by as
+  legacy during 0.5.x with deprecation warning; rule 92 already requires
+  the new shape; 1.0.0 will hard-error on legacy.
+- foundry/overrides/ merge semantics could surprise users who expect
+  full-file replacement. Mitigation. Document key-by-key deep union
+  explicitly; refuse to drop engine keys.
+tests_required:
+- Regression. An EOU with responsibility.executor == approver fails
+  validation with a specific message.
+- Regression. An EOU at lifecycle_stage active with approver = "human
+  owner" fails validation; same EOU at lifecycle_stage draft passes
+  with a warning.
+- Regression. An app whose foundry/constitution.yml has
+  application.owner = "TODO" and any active EOU registered fails
+  validation; the same constitution with owner = "jane.doe" passes.
+- Regression. An ECP with approver but missing rollback_considerations
+  at approval.status = approved fails validation.
+- Regression. An ECP with only legacy approved_by validates with a
+  deprecation warning.
+- Regression. A candidate-set file at foundry/self-evolution/ecp/proposed/
+  named *-candidates-*.yml is NOT validated as an ECP.
+- Regression. A foundry/overrides/maturity-model.yml override that adds
+  a new maturity level passes validation; an override that drops a key
+  present in engine/maturity-model.yml is refused.
+- Regression. A foundry/incidents/inc-XXXX.yml missing failure_class
+  fails validation.
+- Regression. A plugin engine/failure-taxonomy.yml missing F1_INPUT_FAILURE
+  fails validation against the new validate_engine_artifacts check.
+- Regression. promote_upstream invoked on a checkout with uncommitted
+  changes refuses without mutating the checkout state.
+simulation:
+  status: not_simulated
+  rationale: Structural change to validator and schemas. Proof is the
+    regression case set above. No EOU-runtime simulation needed.
+approval:
+  proposed_by: book-workshop self-evolution (post-v0.5.0 architecture audit roundtable)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert plugin to v0.5.0; downstream apps already on v0.5.1 need to
+    relax their own ECP rollback_considerations field (added in this
+    cycle); legacy approved_by remains valid throughout 0.5.x.
+submitted_as: null
