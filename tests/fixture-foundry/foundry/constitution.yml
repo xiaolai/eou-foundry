@@ -1,0 +1,10 @@
+inherits_from: "eou-foundry@>=0.5.0"
+
+application:
+  id: "fixture-app"
+  description: "Minimal fixture application used by the plugin's own CI to smoke-test validate_foundry.py."
+  owner: "eou-foundry CI"
+
+invariants_additional: []
+forbidden_additional: []
+generation_invariants_additional: []

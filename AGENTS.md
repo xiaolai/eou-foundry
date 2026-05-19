@@ -13,16 +13,16 @@
 3. Update every skill in `skills/` that references the changed enum
 4. Update every matching codex skill in `codex/skills/`
 5. Update every rule in `rules/` that documents the enum
-6. Update any meta-EOU template in `templates/meta-eous/` that uses the value
+6. Update any meta-EOU in `engine/meta-eous/` that uses the value
 
 Never update vocabulary in only one place — all six layers must stay in sync.
 
 ### Testing changes
 
-After editing any script, run the validator against the plugin's own foundry:
+After editing any script, run the validator against the fixture foundry:
 
 ```bash
-python3 scripts/validate_foundry.py
+python3 scripts/validate_foundry.py tests/fixture-foundry
 ```
 
 After editing any SKILL.md, verify the output path it declares matches the path the consuming skill (`eou-promote`, `eou-diagnose`, `eou-refactor`, `foundry-audit`, `audit-candidate-eou-set`) reads from.

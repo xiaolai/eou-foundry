@@ -45,7 +45,7 @@ Any change to:
 - An EOU spec in `foundry/eous/` or `foundry/meta-eous/`
 - A schema in `schemas/`
 - `foundry/constitution.yml`, `foundry/governance.yml`, `foundry/registry.yml`
-- A meta-EOU template in `templates/meta-eous/`
+- A meta-EOU in `engine/meta-eous/`
 
 ## Violation indicators
 
