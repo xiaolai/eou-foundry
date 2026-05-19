@@ -1,4 +1,4 @@
-schema_id: registry-entry.schema.v2
+schema_id: registry-entry.schema.v3
 required:
 - eou_id
 - current_version
@@ -10,6 +10,8 @@ required:
 - dependencies
 - last_audit
 - known_issues
+required_when_active:
+- activated_by  # required when status is in active/monitored/stable
 status_values:
 - candidate
 - draft
@@ -28,3 +30,40 @@ maturity_values:
 - L4_AUDITABLE
 - L5_GOVERNED
 - L6_SELF_IMPROVING
+dependencies_shape:
+  eous:        # list of EOU ids this EOU depends on (DAG nodes; cycles refused)
+    type: list
+    items: string
+    optional: true
+  schemas:     # list of schema files this EOU consumes
+    type: list
+    items: string
+  constitution: # boolean: depends on foundry/constitution.yml
+    type: bool
+    optional: true
+activated_by_shape:
+  ecp_id:                  # ECP that approved this activation
+    type: string
+    optional: true
+  approver:                # named human (rule 91)
+    type: string
+    optional: true
+  activated_at:            # ISO-8601 UTC
+    type: string
+    optional: true
+  legacy_bootstrap:        # set true for entries that existed before ECP-0010
+    type: bool
+    optional: true
+  bootstrap_justification: # required when legacy_bootstrap: true
+    type: string
+    optional: true
+  bootstrap_expires_at:    # date after which legacy_bootstrap is no longer accepted
+    type: string
+    optional: true
+purpose: |
+  Registry entry describes the application's claim about an EOU's state,
+  dependencies, and authorization. ECP-0009 introduces dependencies.eous
+  (DAG building block) and ECP-0010 introduces activated_by (evidence
+  for status: active). Legacy applications can declare
+  activated_by.legacy_bootstrap: true with a justification during the
+  0.6.x transition window.

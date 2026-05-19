@@ -1,5 +1,66 @@
 # EOU Foundry Plugin Changelog
 
+## 0.6.0 — Lifecycle/evidence triangle (ECPs 0007, 0009, 0010)
+
+Minor release. Implements the three coupled ECPs from the audit
+roundtable that together turn lifecycle claims from self-declarations
+into evidence-bound assertions. Breaking for applications with active
+EOUs that claim higher maturity than their evidence supports.
+
+ECP-0007 — Run trace shape (stage 1):
+- `schemas/run-trace.schema.yml` bumped to v3. Required: run_id, eou_id,
+  eou_version, status (success/partial/failed/aborted), started_at,
+  ended_at, executor_identity, inputs, context_loaded, steps_completed,
+  warnings, outputs, validation, human_approval. Storage:
+  `foundry/runs/{eou_id}/{run_id}.yml`.
+- `schemas/no-trace-justification.schema.yml` new. Required: eou_id,
+  impossibility_reason, reviewed_by, reviewed_at, expires_at. Storage:
+  `foundry/audits/no-trace/{eou_id}.yml`. "We haven't gotten around to
+  it" is not an impossibility reason.
+- `scripts/runs.py` new — `record_run()` helper for EOU implementations.
+- `scripts/init_app.sh` scaffolds `foundry/audits/no-trace/`.
+- `rules/93-recursive-governance.md` documents trace evidence.
+
+ECP-0009 — Dependency DAG + maturity evidence:
+- `schemas/registry-entry.schema.yml` bumped to v3. `dependencies.eous`
+  optional list shape introduced; entries that declare it form a DAG
+  the validator walks.
+- `scripts/validate_foundry.py` builds the DAG, refuses cycles and
+  references to retired EOUs.
+- New `validate_maturity_evidence()` reads `engine/maturity-model.yml`
+  and refuses any registry entry whose `maturity` claim is below the
+  level required by its `lifecycle_stage` (per the established
+  `lifecycle_stage_to_maturity_mapping`).
+
+ECP-0010 — Activation evidence:
+- `schemas/registry-entry.schema.yml` introduces `activated_by`:
+  either `{ecp_id, approver, activated_at}` or `{legacy_bootstrap:
+  true, bootstrap_justification, bootstrap_expires_at}`.
+- `validate_activation_evidence()` refuses status:
+  active/monitored/stable without populated `activated_by`. Legacy
+  bootstrap accepted during transition; bootstrap_expires_at enforces
+  re-evaluation.
+- `rules/89-eou-foundry.md` documents activation evidence + maturity
+  evidence + dependency DAG.
+
+Migration for consuming apps:
+- Apps whose active EOUs lack `activated_by` will fail validation.
+  Either backfill `activated_by` (with named approver + activation
+  date), or use the legacy_bootstrap escape with an expiry date, or
+  demote out of active stages.
+- Apps whose maturity claims exceed evidence will fail. Either produce
+  the evidence (regression cases for L4, run traces for L3) or demote
+  the lifecycle_stage to match the actual evidence level.
+- book-workshop migrated by demoting its 4 EOUs from active to draft
+  (matching their actual L2_STRUCTURED evidence) — a transparent
+  acknowledgment that the workshop EOUs are scaffold-level until
+  trace + audit discipline is established.
+
+Tracking:
+
+- ECPs 0007, 0009, 0010 in
+  `book-workshop/foundry/self-evolution/upstream/proposed-to-plugin/`
+
 ## 0.5.2 — Patch bundle: version pinning, path discovery, governance exception, foundry guard, validator move
 
 Bug-fix patch bundling six approved ECPs from the post-roundtable

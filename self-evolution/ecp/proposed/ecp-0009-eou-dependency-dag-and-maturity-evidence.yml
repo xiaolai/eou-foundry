@@ -1,0 +1,91 @@
+id: ecp-0009-eou-dependency-dag-and-maturity-evidence
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.6.0
+problem:
+  observed_failure: |
+    Two related issues with EOU registry scaling. (1) Each entry's
+    `dependencies:` lists schemas/eou.schema.yml and foundry/constitution.yml
+    — same two for every EOU. There is no record of which EOU depends
+    on which other EOU. At 4 work EOUs today this is invisible; at 50
+    EOUs, refactor blast-radius becomes opaque. (2) Maturity levels
+    (L0_TACIT through L4_MATURE) are declared as strings in the
+    registry. The validator never checks that an EOU at L2_STRUCTURED
+    actually has a regression case, or that L3_VALIDATED has a successful
+    run trace. Maturity is a self-declared label, not evidenced state.
+  failure_class: F6_JUDGMENT_FAILURE
+  evidence:
+  - "All 4 workshop registry entries have identical dependencies (just
+    the two universals). EOUs that obviously depend on each other
+    (e.g. compile-chapter -> audit-chapter -> validate-book pipeline)
+    have no machine-readable record of the relationship."
+  - "Workshop's 4 EOUs are all marked maturity: L2_STRUCTURED with
+    last_audit.result: not_yet_audited and zero run traces."
+  - "engine/maturity-model.yml defines what each level means in prose
+    but doesn't expose machine-checkable evidence requirements."
+proposed_change:
+  summary: |
+    Two changes shipped together because they reinforce each other.
+    (1) Extend registry entry schema: dependencies: { eous: [<id>...],
+    schemas: [...], constitution: bool }. Validator builds the DAG,
+    flags cycles, flags references to retired EOUs.
+    (2) Add evidence_requirements to each maturity level in
+    engine/maturity-model.yml. Validator checks: L2 requires at least
+    one regression case targeting this EOU; L3 requires at least one
+    run trace; L4 requires an audit report. Promotion through maturity
+    requires the matching evidence to exist.
+  files_changed:
+  - "schemas/registry-entry.schema.yml — add dependencies.eous structure"
+  - "engine/maturity-model.yml — add evidence_requirements per level"
+  - "scripts/validate_foundry.py — build_dag(); check_maturity_evidence()"
+  - "rules/89-eou-foundry.md — section on maturity evidence chain"
+  - "CHANGELOG.md — 0.6.0 entry (minor: schema extension + new gates)"
+expected_benefit:
+- "Refactor blast-radius is visible: changing compile-chapter shows
+  which downstream EOUs depend on its outputs."
+- "Maturity promotion stops being self-declared. Apps must produce
+  the evidence (regression case, run trace, audit) before advancing."
+- "Cycles are caught structurally instead of being a latent bug."
+- "Required for credible scaling. Today's 4 EOUs are manageable by
+  human inspection; 30+ EOUs aren't."
+risks:
+- "Existing apps have L2/L3 entries without the required evidence.
+  Mitigation: 0.6.0 ships with a one-time demotion warning — apps
+  must either produce evidence or accept demotion to L1_NARRATIVE.
+  Workshop will fail until inc-0011 is addressed (which is the right
+  thing for it to do)."
+- "The DAG check needs to handle the engine/meta-eous dependency edge
+  (work EOUs may depend on meta-EOUs for governance). Mitigation:
+  treat plugin engine EOUs as always-available leaves of the DAG."
+- "Cycle detection could false-positive on dual-purpose EOUs.
+  Mitigation: cycle errors include the path so authors can split or
+  redeclare; not a silent failure."
+tests_required:
+- "Regression: registry with EOU A depending on B, B depending on A
+  fails with `dependency cycle: A -> B -> A`."
+- "Regression: registry with EOU A depending on retired-EOU C fails."
+- "Regression: workshop entry at L2 with zero regression cases fails
+  validation with `L2 requires at least 1 regression case`."
+- "Regression: workshop entry at L3 with zero run traces fails."
+- "Regression: workshop entry at L1_NARRATIVE passes without evidence
+  (the level where evidence is not required)."
+simulation:
+  status: not_simulated
+  rationale: |
+    Schema extension + validator pass. The interesting failure mode is
+    the migration shock for existing apps; that is the operational
+    test in tests_required.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #10)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert the schema extension and validator gates. Existing apps that
+    relied on maturity claims being unenforced go back to that state;
+    apps that wrote dependencies.eous entries would have the data
+    structure but no enforcement. Medium risk: schema extension means
+    existing data formats need a forward-compatible reader through
+    the deprecation window.
+submitted_as: null

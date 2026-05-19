@@ -58,6 +58,59 @@ When these objectives conflict with execution speed or apparent completeness, th
 
 `activate`, `implement`, and `retire` are the only functions that change lifecycle state or apply structural mutations. They require a prior human-approved governance artifact (recommendation or ECP) on record.
 
+## Activation evidence (ECP-0010)
+
+An EOU at `lifecycle_stage` in `{active, monitored, stable}` MUST have a registry entry whose `activated_by` field is populated:
+
+```yaml
+activated_by:
+  ecp_id: <ECP that approved this activation>
+  approver: <named human identity per rule 91>
+  activated_at: <ISO-8601 UTC>
+```
+
+OR, for apps that existed before this rule was enforced, a legacy bootstrap record:
+
+```yaml
+activated_by:
+  legacy_bootstrap: true
+  bootstrap_justification: <one-sentence reason; reference to git history is acceptable>
+  bootstrap_expires_at: <ISO-8601 UTC; six months from declaration is the suggested maximum>
+```
+
+After `bootstrap_expires_at`, the EOU must either acquire proper activation evidence (ECP + approver + activated_at) or be demoted out of the active stages.
+
+## Maturity evidence (ECP-0009)
+
+A registry entry's `maturity` field must be at or above the level required by its `lifecycle_stage`, per `engine/maturity-model.yml`:
+
+| lifecycle_stage | required maturity (minimum) |
+|---|---|
+| `candidate` | `L1_NARRATIVE` |
+| `draft` | `L2_STRUCTURED` |
+| `simulated` | `L2_STRUCTURED` |
+| `pilot` | `L3_EXECUTABLE` |
+| `active` | `L4_AUDITABLE` |
+| `monitored` | `L5_GOVERNED` |
+| `stable` | `L6_SELF_IMPROVING` |
+
+`deprecated` and `retired` are governance states, not maturity claims; maturity-evidence checks are skipped for them.
+
+A registry entry claiming maturity higher than its evidence supports is a self-declaration without backing. The validator refuses such mismatches.
+
+## Dependency DAG (ECP-0009)
+
+Registry entries may declare inter-EOU dependencies:
+
+```yaml
+dependencies:
+  eous: [<other-eou-id>, ...]
+  schemas: [<schema-file>, ...]
+  constitution: true
+```
+
+The validator builds the DAG from `dependencies.eous` and refuses cycles or references to retired EOUs.
+
 ## Terminology: "generate"
 
 The word "generate" has four distinct uses in the Foundry — do not conflate them:

@@ -1,0 +1,36 @@
+schema_id: no-trace-justification.schema.v1
+required:
+- eou_id
+- impossibility_reason
+- reviewed_by
+- reviewed_at
+- expires_at
+optional:
+- alternative_evidence
+- promotion_target
+purpose: |
+  No-trace-justification records the explicit, time-bounded acceptance
+  that a particular EOU operates without producing run traces. Used as
+  an escape hatch for the constitutional "every active EOU must produce
+  trace" invariant when traces are genuinely impossible (e.g., EOUs that
+  delegate execution to a third party that cannot be instrumented).
+
+  Required fields:
+  - eou_id: which EOU is exempted
+  - impossibility_reason: why traces cannot be produced
+    (NOT "we haven't gotten around to it yet" — this field demands
+    structural impossibility, not procedural laziness)
+  - reviewed_by: named human who reviewed and accepted this exemption
+  - reviewed_at: ISO-8601 UTC timestamp of the review
+  - expires_at: ISO-8601 UTC timestamp; after this date the EOU fails
+    validation unless the exemption is re-reviewed and renewed.
+    Six months is the suggested maximum.
+
+  Optional fields:
+  - alternative_evidence: list of artifacts that compensate for the
+    missing trace (audit reports, manual verification logs, etc.)
+  - promotion_target: lifecycle_stage the EOU intends to promote to
+    after the exemption expires; used to focus follow-on work.
+
+  storage: foundry/audits/no-trace/{eou_id}.yml
+  reviewed: by named human at named time, with expiration

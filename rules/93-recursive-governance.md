@@ -28,6 +28,31 @@ No step may be skipped. Each step produces a traceable artifact:
 | human approval | — | ECP `approval.status: approved`, `approval.approver` set to named human identity |
 | implement | `implement` | ECP moved to `foundry/self-evolution/ecp/implemented/`; EOU spec updated; registry updated |
 
+## Trace evidence (ECP-0007)
+
+Active and higher-stage EOUs produce run traces. The constitution's
+"every active EOU must produce trace or declare why trace is impossible"
+invariant is enforced through two artifacts:
+
+**Run trace.** Per `schemas/run-trace.schema.yml`, stored at
+`foundry/runs/{eou_id}/{run_id}.yml`. Records what ran, when, with what
+inputs, what context was loaded, which steps completed, what warnings
+arose, what outputs were produced, what validation gates ran, and who
+approved (if approval was needed). Use `scripts/runs.py`'s `record_run()`
+helper from EOU implementations to emit compliant traces.
+
+**No-trace-justification.** Per `schemas/no-trace-justification.schema.yml`,
+stored at `foundry/audits/no-trace/{eou_id}.yml`. Used when traces are
+genuinely impossible (e.g., delegated execution that can't be
+instrumented). Requires `impossibility_reason`, `reviewed_by` (named
+human), `reviewed_at`, and `expires_at` (typically six months).
+Expired justifications fail validation; the EOU owner must re-review
+and renew or accept demotion.
+
+"We haven't gotten around to it" is **not** an impossibility reason.
+The no-trace escape hatch is for structural impossibility, not
+procedural laziness.
+
 ## Forbidden shortcuts
 
 ```text
