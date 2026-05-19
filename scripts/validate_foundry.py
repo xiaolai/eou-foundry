@@ -5,7 +5,7 @@ from pathlib import Path
 import argparse
 from _common import find_repo_root, load_yaml
 
-VALID_FUNCTIONS = {"generate", "specify", "validate", "diagnose", "promote", "refactor", "audit", "propose"}
+VALID_FUNCTIONS = {"generate", "specify", "validate", "diagnose", "promote", "refactor", "audit", "propose", "activate", "implement", "retire"}
 VALID_AUTOMATION = {"deterministic", "LLM_assisted", "human_executed", "hybrid"}
 VALID_AUTHORITY = {"suggest_only", "draft_only", "write_candidate", "write_inactive", "mutate_active", "approve", "publish"}
 VALID_RISK = {"low", "medium", "high", "critical"}

@@ -1,6 +1,6 @@
 ---
 name: eou-promote
-description: "Evaluate whether an EOU should be promoted, deprecated, or retired based on evidence, maturity model, audits, and owner approval."
+description: "Evaluate whether an EOU should be promoted, deprecated, or retired based on evidence, maturity model, audits, and owner approval. Produces a recommendation only — does not execute any lifecycle transition."
 argument-hint: EOU_ID
 arguments:
   - eou_id
@@ -10,9 +10,13 @@ allowed-tools:
   - Grep
 ---
 
-# Promote or Retire EOU
+# Evaluate EOU Lifecycle
 
 Evaluate `$eou_id` against the maturity model and produce a lifecycle recommendation.
+
+This skill has `function: promote` — it evaluates and recommends. It does not
+execute lifecycle transitions. The human owner executes promotion via `activate`
+and retirement via `retire` after approving this recommendation.
 
 ## Inputs
 
@@ -82,5 +86,9 @@ requires_human_approval: true  # always true for promote_to:active, retire
 ## Constraints
 
 - Output recommendation only — do not modify the EOU spec, registry, or governance files directly.
+- Do not execute any lifecycle transition. Evaluation and execution are separate acts:
+  - `function: promote` (this skill) — evaluate gates and recommend
+  - `function: activate` — execute promotion to active (requires human approval)
+  - `function: retire` — execute retirement (requires human approval)
 - A missing audit, trace, or owner record blocks promotion — record the gap, do not invent evidence.
 - `promote_to: active` always requires `requires_human_approval: true`.

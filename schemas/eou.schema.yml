@@ -36,6 +36,9 @@ classification:
   - refactor
   - audit
   - propose
+  - activate
+  - implement
+  - retire
   valid_automation_mode:
   - deterministic
   - LLM_assisted

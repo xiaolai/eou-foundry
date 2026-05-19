@@ -12,21 +12,21 @@ The Foundry may recursively inspect and improve its own EOUs, but only through b
 Every structural change to an EOU spec, schema, constitution, or governance rule must pass through this chain in order:
 
 ```text
-observe → diagnose → propose (ECP) → simulate → regression test → audit → human approval → deploy
+observe → diagnose → propose (ECP) → simulate → regression test → audit → human approval → implement
 ```
 
 No step may be skipped. Each step produces a traceable artifact:
 
-| Step | Artifact |
-|------|---------|
-| observe | incident report (`foundry/audits/incidents/{id}.yml`) for operational anomalies; audit finding (`foundry/audits/eou-audits/{id}.audit.yml`) for inspection results |
-| diagnose | `foundry/audits/incidents/{id}.diagnosis.yml` |
-| propose | `foundry/self-evolution/ecp/proposed/{eou}-ecp-{YYYYMMDD}.yml` |
-| simulate | ECP `simulation` field populated |
-| regression test | `foundry/self-evolution/regression/cases/{id}.regression.yml` |
-| audit | `foundry/audits/eou-audits/{eou_id}.audit.yml` |
-| human approval | ECP `approval.status: approved`, `approval.approver` set to named human identity |
-| deploy | ECP moved to `foundry/self-evolution/ecp/implemented/` |
+| Step | Function | Artifact |
+|------|---------|---------|
+| observe | — | incident report (`foundry/audits/incidents/{id}.yml`) for operational anomalies; audit finding (`foundry/audits/eou-audits/{id}.audit.yml`) for inspection results |
+| diagnose | `diagnose` | `foundry/audits/incidents/{id}.diagnosis.yml` or `foundry/audits/incidents/{id}.no-change.yml` |
+| propose | `propose` | `foundry/self-evolution/ecp/proposed/{eou}-ecp-{YYYYMMDD}.yml` |
+| simulate | — | ECP `simulation` field populated |
+| regression test | — | `foundry/self-evolution/regression/cases/{id}.regression.yml` |
+| audit | `audit` | `foundry/audits/eou-audits/{eou_id}.audit.yml` |
+| human approval | — | ECP `approval.status: approved`, `approval.approver` set to named human identity |
+| implement | `implement` | ECP moved to `foundry/self-evolution/ecp/implemented/`; EOU spec updated; registry updated |
 
 ## Forbidden shortcuts
 

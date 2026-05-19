@@ -9,10 +9,11 @@ classification:
   risk_level: high
   lifecycle_stage: draft
 purpose:
-  statement: Evaluate promotion, deprecation, or retirement of an EOU based on maturity gates, audit evidence, regression coverage, and recorded owner approval.
+  statement: Evaluate promotion, deprecation, or retirement of an EOU based on maturity gates, audit evidence, regression coverage, and recorded owner approval — produce a recommendation only; execution is performed by activate or retire.
   non_goals:
   - Do not bypass ECP or human approval.
-  - Do not modify the EOU spec or registry directly — produce a recommendation only.
+  - Do not execute any lifecycle transition — produce a recommendation only; activate and retire are the execution functions.
+  - Do not modify the EOU spec or registry directly.
   - Do not promote if any required gate is missing.
 operating_hypothesis: Given an EOU spec, maturity model, audit records, and execution traces, this EOU can determine whether the required promotion prerequisites are satisfied and recommend the appropriate lifecycle transition.
 inputs:
@@ -65,8 +66,9 @@ execution:
   prohibited_actions:
   - Modifying the EOU spec
   - Updating registry.yml directly
-  - Setting lifecycle_stage on any file
+  - Setting lifecycle_stage on any file — use activate or retire for execution
   - Approving an ECP
+  - Executing any lifecycle transition
 outputs:
   primary:
   - foundry/governance/lifecycle/{eou_id}.recommendation.yml

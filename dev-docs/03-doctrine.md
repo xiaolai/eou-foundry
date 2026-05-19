@@ -57,7 +57,7 @@ name: string
 version: string
 
 classification:
-  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose
+  function:         generate | specify | validate | diagnose | promote | refactor | audit | propose | activate | implement | retire
   target_object:    string
   automation_mode:  deterministic | LLM_assisted | human_executed | hybrid
   authority_level:  suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish

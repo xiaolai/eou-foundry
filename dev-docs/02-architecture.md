@@ -70,6 +70,9 @@ The Foundry manages those hypotheses.
 | `refactor` | Produces structural refactor options for an EOU based on audit findings. |
 | `audit` | Inspects and evaluates an EOU spec, candidate set, or the whole Foundry for quality and compliance. |
 | `propose` | Creates a formal EOU Change Proposal from a diagnosed failure or refactor option. |
+| `activate` | Executes an approved lifecycle transition (typically to `active`). Requires human-approved recommendation on record. State-changing — does not evaluate. |
+| `implement` | Executes an approved ECP: applies changes, updates the EOU spec and registry, moves ECP to `implemented/`. Requires approved ECP. State-changing. |
+| `retire` | Executes retirement of an EOU: sets `lifecycle_stage: retired`, documents successor or owner decision. Requires human approval. State-changing. |
 
 ```mermaid
 flowchart TD
@@ -78,7 +81,9 @@ flowchart TD
     SEL -->|specify| SPEC["EOU spec"]
     SPEC -->|audit| AR["audit findings"]
     SPEC -->|validate| VR["validation report"]
-    SPEC -->|promote| LS["lifecycle stage"]
+    SPEC -->|promote| REC["lifecycle recommendation"]
+    REC -->|activate| ACTIVE["EOU spec\nlifecycle_stage: active"]
+    REC -->|retire| RET["EOU spec\nlifecycle_stage: retired"]
     AR -->|diagnose| DIAG["diagnosis + F-code"]
     DIAG -->|propose| ECP["ECP"]
     DIAG -->|refactor| RO["refactor options"]
@@ -413,7 +418,7 @@ flowchart TD
     SIM --> REG["regression test — add regression case"]
     REG --> AUD["audit — produce audit.yml"]
     AUD --> APP["human approval\napproval.status: approved"]
-    APP --> DEP["deploy — move ECP to implemented/"]
+    APP --> DEP["implement — apply ECP, move to implemented/"]
     DEP --> UPD[registry update]
     UPD --> DONE([done])
     NOC --> DONE

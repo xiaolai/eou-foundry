@@ -14,7 +14,7 @@ An EOU is an operational hypothesis, not merely a prompt, checklist, SOP, or scr
 Every EOU must declare all six classification facets:
 
 ```text
-function:         generate | specify | validate | diagnose | promote | refactor | audit | propose
+function:         generate | specify | validate | diagnose | promote | refactor | audit | propose | activate | implement | retire
 target_object:    the specific artifact or decision this EOU acts on
 automation_mode:  deterministic | LLM_assisted | hybrid | human_executed
 authority_level:  suggest_only | draft_only | write_candidate | write_inactive | mutate_active | approve | publish
@@ -37,6 +37,26 @@ Optimize for: reduced hidden failure, inspectability, truthfulness, schema coher
 Do not optimize for: speed, fluency, fewer warnings, higher apparent pass rate, or number of EOUs created.
 
 When these objectives conflict with execution speed or apparent completeness, the canonical objective takes precedence.
+
+## Function vocabulary
+
+| Value | What it means | Evaluation or execution? |
+|-------|--------------|--------------------------|
+| `generate` | Produce candidate outputs (EOU specs, regression cases, ECPs, refactor options). Subject to Rule 95 envelope constraints. | execution — produces artifact |
+| `specify` | Turn an approved candidate into a schema-conformant EOU spec at draft stage. | execution — produces artifact |
+| `validate` | Deterministic structural check: schema conformance, field presence, registry consistency. Produces a validation report; does not repair. | execution — produces artifact |
+| `diagnose` | Classify a failure using the F-code taxonomy; recommend minimum-blast-radius repairs. Produces a diagnosis report or no-change record. | execution — produces artifact |
+| `promote` | Evaluate an EOU against maturity gates and recommend a lifecycle transition. Does **not** execute any transition. | evaluation — produces recommendation |
+| `refactor` | Produce structural refactor options based on audit findings. Does not apply any option. | execution — produces artifact |
+| `audit` | Judgment-heavy inspection of an EOU spec, candidate set, or the whole Foundry. Produces an audit report. | execution — produces artifact |
+| `propose` | Create a formal ECP from a diagnosed failure or refactor option. | execution — produces artifact |
+| `activate` | Execute a lifecycle transition approved by the human owner (typically to `active`). Requires named human approval on record. | execution — state-changing |
+| `implement` | Execute an approved ECP: apply changes to the EOU spec or governance artifact, update registry, move ECP to `implemented/`. Requires approved ECP. | execution — state-changing |
+| `retire` | Execute retirement of an EOU: set `lifecycle_stage: retired`, document successor or owner decision. Requires named human approval. | execution — state-changing |
+
+`promote`, `audit`, and `validate` are evaluation functions — they inspect and report. All other functions either produce artifacts or change system state.
+
+`activate`, `implement`, and `retire` are the only functions that change lifecycle state or apply structural mutations. They require a prior human-approved governance artifact (recommendation or ECP) on record.
 
 ## Terminology: "generate"
 

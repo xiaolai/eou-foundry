@@ -38,7 +38,14 @@ Halt and request clarification if:
 
 ## Output
 
-Write to `foundry/audits/incidents/{incident_id}.diagnosis.yml` with the following structure:
+Every diagnosis produces one of two outcomes:
+
+- **Change warranted** — write the diagnosis report, then use `$ecp-propose` to open an ECP.
+- **No change warranted** — write a no-change record to `foundry/audits/incidents/{incident_id}.no-change.yml` with fields: `incident_id`, `eou_id`, `diagnosis_summary`, `decision: no_change`, `rationale`, `reviewed_by`, `reviewed_at`, `reopen_condition`.
+
+A no-change record is not a failure of the diagnosis process. It is evidence that the system reviewed and rejected a change rather than silently ignoring the incident.
+
+Write the diagnosis report to `foundry/audits/incidents/{incident_id}.diagnosis.yml` with the following structure:
 
 ```yaml
 incident_id:      # from $target or generated
