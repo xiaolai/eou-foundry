@@ -1,0 +1,81 @@
+id: ecp-0010-activation-evidence-requirement
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.6.0
+problem:
+  observed_failure: |
+    Rule 89-eou-foundry.md says EOU activation requires prior human-
+    approved governance. In practice, an EOU spec can be created at
+    lifecycle_stage: active and its registry entry can declare status:
+    active with no record of the approval that authorized that state.
+    Workshop's 4 EOUs are all active; last_audit.result is
+    not_yet_audited for all; there is no ECP that approved their
+    activation. The transition "candidate -> active" is governance-
+    critical and currently unguarded.
+  failure_class: F11_LIFECYCLE_FAILURE
+  evidence:
+  - "All 4 workshop registry entries: status: active, last_audit:
+    not_yet_audited. No corresponding ECP exists for any of them."
+  - "Rule 89 line 53 references human-approved governance as
+    prerequisite for activation. The validator does not check this
+    prerequisite."
+  - "Codex audit roundtable, finding #6: 'Active lifecycle status is
+    accepted without activation evidence.'"
+proposed_change:
+  summary: |
+    Add an `activated_by` field to registry entries: a reference to an
+    ECP id that approved the activation, plus the approver and date.
+    Activation transitions must produce such a record before the entry
+    can be saved with status: active. Validator refuses status: active
+    on an entry without activated_by.
+  files_changed:
+  - "schemas/registry-entry.schema.yml — add activated_by mapping"
+  - "scripts/validate_foundry.py — check activated_by presence and
+    that referenced ECP exists with status implemented or approved"
+  - "rules/89-eou-foundry.md — document the activation evidence
+    requirement and the field"
+  - "engine/maturity-model.yml — note that activation is a separate
+    gate from maturity progression (an EOU can be L1 narrative and
+    still need ECP-approved activation)"
+  - "CHANGELOG.md — 0.6.0 entry"
+expected_benefit:
+- "The most consequential lifecycle transition (-> active) becomes
+  evidence-bound."
+- "An EOU's activation record is auditable: which ECP authorized it,
+  when, by whom."
+- "Catches the failure mode where compile-chapter exists, works, and
+  is marked active despite never being formally approved."
+risks:
+- "Existing apps have active EOUs with no activated_by record.
+  Mitigation: 0.6.0 ships with a one-time grandfather flag — apps
+  can declare activated_by: legacy-bootstrap for pre-0.6.0 entries
+  with a note pointing to git history as evidence-of-record. Future
+  activations cannot use this escape."
+- "Pairs with ECP-0009 (maturity evidence). Both touch lifecycle.
+  Mitigation: ship together as 0.6.0; document the interaction."
+tests_required:
+- "Regression: registry entry with status: active and no activated_by
+  fails validation."
+- "Regression: entry with activated_by pointing to a non-existent ECP
+  id fails."
+- "Regression: entry with activated_by pointing to an ECP at status:
+  proposed (not yet approved) fails."
+- "Regression: entry with activated_by: legacy-bootstrap and a
+  bootstrap_justification field passes during the deprecation window."
+simulation:
+  status: not_simulated
+  rationale: |
+    Schema field + validator check. Workshop's existing 4 EOUs become
+    the migration test: they must either declare legacy-bootstrap or
+    have backfilled ECPs.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, codex #6)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert schema field and validator check. Existing apps that wrote
+    activated_by have benign extra data. Low risk: feature is additive
+    until enforcement gates engage.
+submitted_as: null

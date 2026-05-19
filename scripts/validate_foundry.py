@@ -48,6 +48,19 @@ CONSTITUTION_REQUIRED = ["purpose", "optimize_for", "do_not_optimize_for_alone",
 REGISTRY_REQUIRED = ["registry_version", "entries"]
 REG_ENTRY_REQUIRED = ["eou_id", "current_version", "path", "status", "maturity", "owner", "classification", "dependencies", "last_audit", "known_issues"]
 INCIDENT_REQUIRED = ["id", "date", "affected_eou", "failure_class", "summary", "impact", "root_causes", "corrective_actions", "status"]
+RUN_TRACE_REQUIRED = ["run_id", "eou_id", "eou_version", "status", "started_at", "ended_at", "executor_identity", "inputs", "context_loaded", "steps_completed", "warnings", "outputs", "validation", "human_approval"]
+RUN_TRACE_VALID_STATUS = {"success", "partial", "failed", "aborted"}
+NO_TRACE_REQUIRED = ["eou_id", "impossibility_reason", "reviewed_by", "reviewed_at", "expires_at"]
+LIFECYCLE_TO_MATURITY = {
+    "candidate":  "L1_NARRATIVE",
+    "draft":      "L2_STRUCTURED",
+    "simulated":  "L2_STRUCTURED",
+    "pilot":      "L3_EXECUTABLE",
+    "active":     "L4_AUDITABLE",
+    "monitored":  "L5_GOVERNED",
+    "stable":     "L6_SELF_IMPROVING",
+}
+MATURITY_ORDER = ["L0_TACIT", "L1_NARRATIVE", "L2_STRUCTURED", "L3_EXECUTABLE", "L4_AUDITABLE", "L5_GOVERNED", "L6_SELF_IMPROVING"]
 
 ENGINE_FILES = [
     "failure-taxonomy.yml",
@@ -84,17 +97,12 @@ def find_plugin_root() -> Path:
 
     1. EOU_FOUNDRY_PLUGIN_PATH environment variable (offline testing,
        development checkouts).
-    2. `claude plugin path eou-foundry@xiaolai` if the claude CLI is on
-       PATH (production install via Claude Code).
+    2. ~/.claude/plugins/installed_plugins.json — read the installPath
+       for `eou-foundry@xiaolai` if installed via Claude Code.
     3. Path(__file__).parents[1] (fallback when this script is invoked
-       directly inside a plugin checkout — e.g., plugin self-test).
+       directly inside a plugin checkout — plugin self-test).
 
-    Steps 1 and 2 deliberately precede step 3 so that a workshop running
-    against an installed plugin gets the installed path, not whatever
-    checkout the script happens to live in. Hardcoded user-specific
-    fallback paths are intentionally absent: an unconfigured environment
-    should fail with a setup error, not silently pick up a path that
-    only exists on the maintainer's machine.
+    No hardcoded user-specific fallback paths.
     """
     env = os.environ.get("EOU_FOUNDRY_PLUGIN_PATH")
     if env:
@@ -102,32 +110,31 @@ def find_plugin_root() -> Path:
         if (p / ".claude-plugin" / "plugin.json").exists():
             return p
 
-    if shutil.which("claude"):
+    # Read Claude Code's installed_plugins registry.
+    registry = Path.home() / ".claude" / "plugins" / "installed_plugins.json"
+    if registry.exists():
         try:
-            result = subprocess.run(
-                ["claude", "plugin", "path", "eou-foundry@xiaolai"],
-                capture_output=True, text=True, timeout=10,
-            )
-            if result.returncode == 0:
-                path_str = result.stdout.strip()
-                if path_str:
-                    p = Path(path_str).expanduser().resolve()
+            data = json.loads(registry.read_text())
+            entries = (data.get("plugins") or {}).get("eou-foundry@xiaolai") or []
+            for entry in entries:
+                install_path = entry.get("installPath")
+                if install_path:
+                    p = Path(install_path).expanduser().resolve()
                     if (p / ".claude-plugin" / "plugin.json").exists():
                         return p
-        except (subprocess.TimeoutExpired, OSError):
+        except (OSError, json.JSONDecodeError, AttributeError):
             pass
 
-    # Last-resort fallback: the directory two levels up from this script.
-    # Only useful when validate_foundry.py is invoked from within a plugin
-    # checkout (plugin self-test, or workshop with the checkout symlinked).
+    # Last-resort fallback: directory two levels up from this script
+    # (plugin self-test from within a checkout).
     fallback = Path(__file__).resolve().parents[1]
     if (fallback / ".claude-plugin" / "plugin.json").exists():
         return fallback
 
     raise RuntimeError(
-        "Plugin root not found. Set EOU_FOUNDRY_PLUGIN_PATH, install via "
-        "`claude plugin install eou-foundry@xiaolai`, or invoke this "
-        "script from inside a plugin checkout."
+        "Plugin root not found. Set EOU_FOUNDRY_PLUGIN_PATH to your plugin "
+        "checkout, install via `claude plugin install eou-foundry@xiaolai`, "
+        "or run from inside a plugin checkout."
     )
 
 
@@ -666,6 +673,234 @@ def validate_regression_cases(root: Path) -> list[str]:
     return problems
 
 
+def _maturity_satisfies(claimed: str, required: str) -> bool:
+    if claimed not in MATURITY_ORDER or required not in MATURITY_ORDER:
+        return False
+    return MATURITY_ORDER.index(claimed) >= MATURITY_ORDER.index(required)
+
+
+def validate_activation_evidence(root: Path) -> list[str]:
+    """Per ECP-0010: status:active/monitored/stable entries must have
+    activated_by, with either ECP-and-approver evidence OR a legacy
+    bootstrap declaration with bootstrap_justification + (non-expired)
+    bootstrap_expires_at."""
+    problems: list[str] = []
+    path = root / "foundry" / "registry.yml"
+    if not path.exists():
+        return problems
+    data = load_yaml(path)
+    if not isinstance(data, dict):
+        return problems
+    entries = data.get("entries") or []
+    if not isinstance(entries, list):
+        return problems
+    import datetime as _dt
+    now = _dt.datetime.now(_dt.timezone.utc)
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        status = entry.get("status")
+        if status not in ACTIVE_STAGES:
+            continue
+        eou_id = entry.get("eou_id", f"entries[{idx}]")
+        ab = entry.get("activated_by")
+        if not isinstance(ab, dict):
+            problems.append(
+                f"{path}: registry entry `{eou_id}` has status `{status}` but "
+                f"`activated_by` is missing (rule 89 / ECP-0010)"
+            )
+            continue
+        if ab.get("legacy_bootstrap") is True:
+            if not ab.get("bootstrap_justification"):
+                problems.append(
+                    f"{path}: registry entry `{eou_id}` has "
+                    f"activated_by.legacy_bootstrap: true but no "
+                    f"bootstrap_justification"
+                )
+            expires = ab.get("bootstrap_expires_at")
+            if not expires:
+                problems.append(
+                    f"{path}: registry entry `{eou_id}` legacy_bootstrap "
+                    f"needs bootstrap_expires_at (ISO-8601 date)"
+                )
+            else:
+                try:
+                    expiry = _dt.datetime.fromisoformat(str(expires).replace("Z", "+00:00"))
+                    if expiry < now:
+                        problems.append(
+                            f"{path}: registry entry `{eou_id}` "
+                            f"legacy_bootstrap expired at {expires}"
+                        )
+                except ValueError:
+                    problems.append(
+                        f"{path}: registry entry `{eou_id}` "
+                        f"bootstrap_expires_at `{expires}` is not ISO-8601"
+                    )
+        else:
+            if not ab.get("ecp_id") and not ab.get("approver"):
+                problems.append(
+                    f"{path}: registry entry `{eou_id}` activated_by needs "
+                    f"ecp_id and approver (or legacy_bootstrap: true)"
+                )
+    return problems
+
+
+def validate_maturity_evidence(root: Path) -> list[str]:
+    """Per ECP-0009: registry entry's maturity must be at-or-above the
+    level mapped from its lifecycle_stage. (For deprecated/retired this
+    check is skipped — those are governance states, not maturity claims.)"""
+    problems: list[str] = []
+    path = root / "foundry" / "registry.yml"
+    if not path.exists():
+        return problems
+    data = load_yaml(path)
+    if not isinstance(data, dict):
+        return problems
+    entries = data.get("entries") or []
+    if not isinstance(entries, list):
+        return problems
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        eou_id = entry.get("eou_id", f"entries[{idx}]")
+        status = entry.get("status")
+        if status in {"deprecated", "retired"}:
+            continue
+        claimed = entry.get("maturity")
+        required = LIFECYCLE_TO_MATURITY.get(status)
+        if not required or not claimed:
+            continue
+        if not _maturity_satisfies(claimed, required):
+            problems.append(
+                f"{path}: registry entry `{eou_id}` claims maturity "
+                f"`{claimed}` at lifecycle_stage `{status}`, but `{status}` "
+                f"requires `{required}` per engine/maturity-model.yml mapping"
+            )
+    return problems
+
+
+def validate_dependency_dag(root: Path) -> list[str]:
+    """Per ECP-0009: build the EOU dependency DAG; reject cycles and
+    references to retired EOUs."""
+    problems: list[str] = []
+    path = root / "foundry" / "registry.yml"
+    if not path.exists():
+        return problems
+    data = load_yaml(path)
+    if not isinstance(data, dict):
+        return problems
+    entries = data.get("entries") or []
+    if not isinstance(entries, list):
+        return problems
+
+    # Build graph: eou_id -> [eou_id...] (only follow dependencies.eous)
+    graph: dict[str, list[str]] = {}
+    retired: set[str] = set()
+    known: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        eou_id = entry.get("eou_id")
+        if not eou_id:
+            continue
+        known.add(eou_id)
+        if entry.get("status") == "retired":
+            retired.add(eou_id)
+        deps = (entry.get("dependencies") or {})
+        if isinstance(deps, dict):
+            dep_eous = deps.get("eous") or []
+        else:
+            dep_eous = []
+        graph[eou_id] = list(dep_eous) if isinstance(dep_eous, list) else []
+
+    # Reference checks: dangling and retired
+    for eou_id, deps in graph.items():
+        for d in deps:
+            if d not in known:
+                problems.append(
+                    f"{path}: registry entry `{eou_id}` dependencies.eous "
+                    f"references unknown `{d}`"
+                )
+            elif d in retired:
+                problems.append(
+                    f"{path}: registry entry `{eou_id}` dependencies.eous "
+                    f"references retired `{d}`"
+                )
+
+    # Cycle detection via DFS
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {k: WHITE for k in graph}
+    cycle_msg: list[str] = []
+
+    def dfs(node: str, stack: list[str]) -> None:
+        if color.get(node) == GRAY:
+            i = stack.index(node) if node in stack else 0
+            cycle_msg.append(" -> ".join(stack[i:] + [node]))
+            return
+        if color.get(node) == BLACK:
+            return
+        color[node] = GRAY
+        for nxt in graph.get(node, []):
+            if nxt in graph:
+                dfs(nxt, stack + [node])
+        color[node] = BLACK
+
+    for n in list(graph):
+        if color[n] == WHITE:
+            dfs(n, [])
+    for c in cycle_msg:
+        problems.append(f"{path}: dependency cycle detected: {c}")
+
+    return problems
+
+
+def validate_run_traces(root: Path) -> list[str]:
+    problems: list[str] = []
+    base = root / "foundry" / "runs"
+    if not base.exists():
+        return problems
+    for path in sorted(base.rglob("*.yml")):
+        if path.name == ".gitkeep":
+            continue
+        data = load_yaml(path)
+        if not isinstance(data, dict):
+            problems.append(f"{path}: run trace must be a mapping")
+            continue
+        problems.extend(validate_required(path, data, RUN_TRACE_REQUIRED))
+        if data.get("status") and data["status"] not in RUN_TRACE_VALID_STATUS:
+            problems.append(
+                f"{path}: status `{data['status']}` not in {sorted(RUN_TRACE_VALID_STATUS)}"
+            )
+    return problems
+
+
+def validate_no_trace_justifications(root: Path) -> list[str]:
+    problems: list[str] = []
+    base = root / "foundry" / "audits" / "no-trace"
+    if not base.exists():
+        return problems
+    import datetime as _dt
+    now = _dt.datetime.now(_dt.timezone.utc)
+    for path in sorted(base.glob("*.yml")):
+        data = load_yaml(path)
+        if not isinstance(data, dict):
+            problems.append(f"{path}: no-trace-justification must be a mapping")
+            continue
+        problems.extend(validate_required(path, data, NO_TRACE_REQUIRED))
+        expires = data.get("expires_at")
+        if expires:
+            try:
+                expiry = _dt.datetime.fromisoformat(str(expires).replace("Z", "+00:00"))
+                if expiry < now:
+                    problems.append(
+                        f"{path}: expires_at `{expires}` is in the past; "
+                        f"re-review and renew before relying on this justification"
+                    )
+            except ValueError:
+                problems.append(f"{path}: expires_at `{expires}` is not ISO-8601")
+    return problems
+
+
 def validate_incidents(root: Path) -> list[str]:
     problems: list[str] = []
     base = root / "foundry" / "incidents"
@@ -883,6 +1118,11 @@ def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str
 
     problems.extend(validate_regression_cases(root))
     problems.extend(validate_incidents(root))
+    problems.extend(validate_run_traces(root))
+    problems.extend(validate_no_trace_justifications(root))
+    problems.extend(validate_dependency_dag(root))
+    problems.extend(validate_maturity_evidence(root))
+    problems.extend(validate_activation_evidence(root))
 
     p, w = validate_overrides(root, plugin_root)
     problems.extend(p)

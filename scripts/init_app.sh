@@ -59,7 +59,7 @@ fi
 # App's foundry/ holds only app-specific state. Engine artifacts (taxonomy,
 # maturity, governance, meta-eous, etc.) live in the plugin and are read
 # from there by the validator.
-mkdir -p "$APP_NAME"/{foundry/{eous,incidents,audits,runs,overrides},.claude/{rules,skills,agents,commands,hooks},foundry/self-evolution/{ecp/{proposed,approved,implemented,rejected},regression/{cases,fixtures},upstream/{proposed-to-plugin,landed}}}
+mkdir -p "$APP_NAME"/{foundry/{eous,incidents,audits/no-trace,runs,overrides},.claude/{rules,skills,agents,commands,hooks},foundry/self-evolution/{ecp/{proposed,approved,implemented,rejected},regression/{cases,fixtures},upstream/{proposed-to-plugin,landed}}}
 
 # Copy instance starters with placeholder substitution.
 # Only constitution and registry are scaffolded as files; governance is
@@ -74,6 +74,7 @@ done
 touch "$APP_NAME/foundry/eous/.gitkeep"
 touch "$APP_NAME/foundry/incidents/.gitkeep"
 touch "$APP_NAME/foundry/audits/.gitkeep"
+touch "$APP_NAME/foundry/audits/no-trace/.gitkeep"
 touch "$APP_NAME/foundry/runs/.gitkeep"
 touch "$APP_NAME/foundry/overrides/.gitkeep"
 touch "$APP_NAME/foundry/self-evolution/ecp/proposed/.gitkeep"

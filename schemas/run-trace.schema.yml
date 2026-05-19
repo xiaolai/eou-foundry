@@ -1,9 +1,12 @@
-schema_id: run-trace.schema.v2
+schema_id: run-trace.schema.v3
 required:
 - run_id
 - eou_id
 - eou_version
 - status
+- started_at
+- ended_at
+- executor_identity
 - inputs
 - context_loaded
 - steps_completed
@@ -11,5 +14,38 @@ required:
 - outputs
 - validation
 - human_approval
-purpose: Run traces make execution reconstructable and convert each EOU run into evidence
-  about the EOU itself.
+optional:
+- decisions_taken
+- success_criteria_results
+- escalations_triggered
+- inputs_hash
+- outputs_summary
+- validator_invocations
+status_values:
+- success
+- partial
+- failed
+- aborted
+purpose: |
+  Run traces make execution reconstructable and convert each EOU run
+  into evidence about the EOU itself.
+
+  A run trace is required to claim L3_EXECUTABLE or higher maturity per
+  engine/maturity-model.yml. An EOU at lifecycle_stage active without
+  either a recent run trace OR a current no-trace-justification fails
+  validation per ECP-0007.
+
+  Required fields:
+  - run_id: globally unique within the EOU's run history
+  - eou_id, eou_version: which EOU and which version ran
+  - status: success | partial | failed | aborted
+  - started_at, ended_at: ISO-8601 UTC timestamps
+  - executor_identity: named human OR machine identity that produced the run
+  - inputs: the actual input artifacts (paths or hashes) consumed
+  - context_loaded: which context-manifest entries were resolved
+  - steps_completed: per-step record (step_id, outcome)
+  - warnings: list of warnings encountered (empty list permitted)
+  - outputs: paths or hashes of produced artifacts
+  - validation: results of validation gates the run encountered
+  - human_approval: who approved (if approval was needed), or null if not applicable
+storage: foundry/runs/{eou_id}/{run_id}.yml

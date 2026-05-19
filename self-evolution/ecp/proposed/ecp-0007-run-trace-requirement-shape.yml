@@ -1,0 +1,86 @@
+id: ecp-0007-run-trace-requirement-shape
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.6.0
+problem:
+  observed_failure: |
+    The constitution declares: "Every active EOU must produce trace or
+    declare why trace is impossible." Today, foundry/runs/ is empty in
+    every consuming application, no validator demands traces, and there
+    is no schema for what a trace artifact looks like. The invariant is
+    performative — true on paper, untrue in practice. The auditor at
+    book-workshop has been at lifecycle_stage active for months without
+    producing a single trace.
+  failure_class: F9_TRACE_FAILURE
+  evidence:
+  - "schemas/run-trace.schema.yml exists but is consumed by no validator."
+  - "foundry/runs/ in book-workshop and in plugin's fresh init scaffold
+    is gitignored-empty."
+  - "All four workshop EOUs (compile-chapter, audit-chapter, validate-book,
+    export-book) have lifecycle_stage active and last_audit.result =
+    not_yet_audited."
+proposed_change:
+  summary: |
+    Two-stage. Stage 1 (this ECP): pin down what a trace artifact IS.
+    Stage 2 (a follow-on ECP after stage 1 lands): enforce the invariant
+    in the validator. This ECP delivers stage 1 only because enforcing
+    a check whose evidence shape is undefined is cargo-cult governance.
+    Stage 1 work:
+    - "Lock the run-trace.schema.yml shape: required fields are
+      run_id, eou_id, version, started_at, ended_at, inputs_hash,
+      outputs_summary, decisions_taken, success_criteria_results,
+      validator_invocations, escalations_triggered, executor_identity."
+    - "Add scripts/runs.py with a record_run() helper that EOU
+      implementations can call to emit a compliant trace file at
+      foundry/runs/{eou_id}/{run_id}.yml."
+    - "Define what a no-trace-justification record looks like:
+      foundry/audits/no-trace/{eou_id}.yml with fields impossibility_reason,
+      reviewed_by, reviewed_at, expires_at."
+    - "Document both in rules/93-recursive-governance.md."
+  files_changed:
+  - "schemas/run-trace.schema.yml — bump and finalize"
+  - "scripts/runs.py — new helper module"
+  - "schemas/no-trace-justification.schema.yml — new schema"
+  - "rules/93-recursive-governance.md — section on trace evidence"
+  - "engine/eou-contract.md — outputs.trace requirement clarified"
+  - "CHANGELOG.md — 0.6.0 entry (minor version: new contract)"
+expected_benefit:
+- "Apps and EOU implementations have a concrete target. Today they have
+  a noun (trace) with no shape; tomorrow they have a schema."
+- "Stage 2 (follow-on ECP) can mechanically enforce 'active EOU has
+  trace or no-trace justification.' Without stage 1 the check is
+  undefined."
+- "The constitutional claim of traceability becomes verifiable."
+risks:
+- "Locking the schema before any real run trace has been produced means
+  the schema may be wrong. Mitigation: emit a pilot run trace from the
+  audit-chapter EOU in book-workshop as part of testing this ECP;
+  revise schema based on what production actually wants to record."
+- "Stage 2 is breaking for every existing active EOU. Mitigation: stage
+  2 ships with a migration window and a no-trace-justification escape
+  hatch — apps explicitly opt-out per EOU with reviewed_by + expires_at."
+tests_required:
+- "Regression: a sample run trace at foundry/runs/audit-chapter/r001.yml
+  passes the new schema."
+- "Regression: a trace missing executor_identity fails validation."
+- "Regression: a no-trace-justification record with expires_at in the
+  past fails validation (forces periodic re-justification)."
+- "Operational test: produce a real run trace from book-workshop's
+  audit-chapter EOU as the canary."
+simulation:
+  status: not_simulated
+  rationale: |
+    Stage 1 is schema + helper module. The canary run trace is the
+    operational test in tests_required. No simulation beyond writing
+    one real trace.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #7)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert schemas and helper; rules/93 reverts to prior wording. No
+    apps depend on it yet because stage 2 is the enforcement step. Low
+    risk: stage 1 is additive infrastructure.
+submitted_as: null
