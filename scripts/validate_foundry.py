@@ -379,6 +379,13 @@ def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str
 
     Returns (problems, warnings). Problems fail validation; warnings are
     informational (printed to stderr by the caller).
+
+    Two-tier EOU bookkeeping:
+      - engine_eou_paths: meta-EOUs canonical to the plugin. These are
+        validated but are NOT required to appear in the app registry.
+      - app_eou_paths: EOUs owned by the application (work EOUs in
+        foundry/eous/, plus any divergent overrides under
+        foundry/meta-eous/). These MUST appear in the app registry.
     """
     problems: list[str] = []
     warnings: list[str] = []
@@ -390,25 +397,23 @@ def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str
 
     problems.extend(validate_constitution(root, plugin_root))
 
-    # Validate engine canonicals (defensive — should be enforced upstream).
     engine_dir = plugin_root / "engine"
     canonical_meta = engine_dir / "meta-eous"
     if not canonical_meta.exists():
         problems.append(f"plugin engine/meta-eous/ not found at {canonical_meta}")
-    else:
-        # Validate canonical meta-EOUs (they must pass the same EOU schema).
+
+    engine_eou_paths: dict[str, Path] = {}
+    app_eou_paths: dict[str, Path] = {}
+
+    # Validate and index canonical meta-EOUs (plugin-owned; not in app registry).
+    if canonical_meta.exists():
         for path in sorted(canonical_meta.glob("*.yml")):
             problems.extend(validate_eou_card(path, plugin_root))
+            data = load_yaml(path)
+            if isinstance(data, dict) and data.get("id"):
+                engine_eou_paths[str(data["id"])] = path
 
-    eou_paths: dict[str, Path] = {}
-
-    # Collect canonical meta-EOU ids (these are not in the app registry).
-    for path in sorted(canonical_meta.glob("*.yml")) if canonical_meta.exists() else []:
-        data = load_yaml(path)
-        if isinstance(data, dict) and data.get("id"):
-            eou_paths[str(data["id"])] = path
-
-    # App's work EOUs.
+    # App's work EOUs (always app-owned, must be in registry).
     app_eous = foundry / "eous"
     if not app_eous.exists():
         problems.append("missing foundry/eous/ directory")
@@ -416,29 +421,34 @@ def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str
         for path in sorted(app_eous.glob("*.yml")):
             data = load_yaml(path)
             if isinstance(data, dict) and data.get("id"):
-                eou_paths[str(data["id"])] = path
+                app_eou_paths[str(data["id"])] = path
             problems.extend(validate_eou_card(path, root))
 
-    # Optional legacy app-side meta-eous/ — validate any divergent files.
+    # Optional legacy app-side meta-eous/.
+    #   - Byte-identical copies: skipped silently (deprecation warning fires
+    #     elsewhere).
+    #   - Divergent copies: treated as app-owned overrides, validated, AND
+    #     required in the app registry.
     app_meta = foundry / "meta-eous"
     if app_meta.exists():
         for path in sorted(app_meta.glob("*.yml")):
-            canonical_path = canonical_meta / path.name
-            if canonical_path.exists():
+            canonical_path = canonical_meta / path.name if canonical_meta.exists() else None
+            if canonical_path and canonical_path.exists():
                 try:
                     if path.read_bytes() == canonical_path.read_bytes():
-                        continue  # byte-identical legacy copy; deprecation warned elsewhere
+                        continue  # byte-identical legacy copy
                 except OSError:
                     pass
+            # Divergent or no canonical match: this is an app override.
             data = load_yaml(path)
             if isinstance(data, dict) and data.get("id"):
-                eou_paths[str(data["id"])] = path
+                app_eou_paths[str(data["id"])] = path
             problems.extend(validate_eou_card(path, root))
 
-    if not eou_paths:
+    if not engine_eou_paths and not app_eou_paths:
         problems.append("foundry: no EOU specs found")
 
-    problems.extend(validate_registry(root, eou_paths))
+    problems.extend(validate_registry(root, app_eou_paths))
     problems.extend(validate_ecps(root))
     problems.extend(validate_regression_cases(root))
 
