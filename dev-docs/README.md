@@ -1,17 +1,23 @@
 # Plugin Dev Docs
 
 Design memory for the **eou-foundry** plugin itself: foundations,
-architecture, doctrine, and vocabulary. These docs describe the engine
-that governs consuming applications.
+architecture, doctrine, vocabulary, and the running log of design
+proposals absorbed from external reviews. These docs describe the
+engine that governs consuming applications.
 
 ## Current canonical docs
 
 | # | File | Purpose |
 |---|---|---|
 | 01 | `01-foundations.md` | Core EOU and Foundry concepts |
-| 02 | `02-architecture.md` | Plugin layout and engine/instance separation |
-| 03 | `03-doctrine.md` | Design and maintenance doctrine for EOUs |
-| 04 | `04-vocabulary-principles.md` | Vocabulary discipline and precedence rules |
+| 02 | `02-architecture.md` | Plugin layout, engine/application split (ECP-0003), file structure, lifecycle/evidence triangle |
+| 03 | `03-doctrine.md` | Design and maintenance doctrine for EOUs, organized under D1–D7 |
+| 04 | `04-vocabulary-principles.md` | Vocabulary discipline (P1–P6), precedence rules, V-01 through V-12 self-audit |
+| 05 | `05-v6-design-pulls.md` | Log of what we absorbed / deferred / rejected from the V6 architecture proposal, with rot-watch conditions for deferred items |
+
+## Reading order
+
+For a new contributor, read in order: `01` (concepts) → `02` (architecture, especially Part 4 engine/app split) → `03` (doctrine D1–D7) → `04` (vocabulary). Read `05` when you encounter a design question that looks like "should we adopt X from V6?" — the answer is probably already logged there.
 
 ## historical/
 

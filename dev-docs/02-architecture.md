@@ -123,50 +123,78 @@ graph LR
 
 ### Canonical file structure
 
+The tree splits cleanly into **plugin scope** (what the plugin owns and ships) and **application scope** (what each consuming app owns). Apps inherit engine artifacts; they do not copy them.
+
 ```text
-schemas/
-  eou.schema.yml
-  ecp.schema.yml
-  incident.schema.yml
-  regression-case.schema.yml
-  audit-report.schema.yml
-  registry-entry.schema.yml
-  run-trace.schema.yml
-  constitution.schema.yml
+# PLUGIN SCOPE — canonical, lives in the plugin checkout / install
+plugin/
+  .claude-plugin/plugin.json
+  schemas/                       # ground-truth schemas
+    eou.schema.yml
+    ecp.schema.yml
+    candidate-set.schema.yml     # v0.6.0 (ECP-0013)
+    incident.schema.yml
+    regression-case.schema.yml
+    audit-report.schema.yml
+    registry-entry.schema.yml
+    run-trace.schema.yml
+    no-trace-justification.schema.yml
+    constitution.schema.yml
+  engine/                        # canonical engine artifacts (v0.5.0+, ECP-0003)
+    constitution-defaults.yml    # body inherited via inherits_from
+    failure-taxonomy.yml
+    maturity-model.yml
+    refactoring-patterns.yml
+    runtime-contract.yml
+    governance.yml
+    meta-eous/                   # canonical generating / governing EOUs
+      generate-eou-candidates.yml
+      audit-candidate-eou-set.yml
+      eou-specify.yml
+      ...
+  scripts/
+    validate_foundry.py          # walks app foundry/ + reads plugin engine/
+    runs.py                      # record_run() helper (ECP-0007)
+    init_app.sh                  # scaffolds a fresh application
+  rules/                         # enforcement docstrings
+  skills/                        # Claude skills
+  codex/skills/                  # Codex mirrors
 
-foundry/
-  constitution.yml
-  registry.yml
-  governance.yml
-  maturity-model.yml
-  failure-taxonomy.yml
-  refactoring-patterns.yml
-  runtime-contract.yml
-  eous/                          # standard EOU specs
-  meta-eous/                     # generating / governing EOU specs
-  self-evolution/
-    ecp/
-      proposed/
-      implemented/
-    regression/
-      cases/
-    refactor-options/
-  audits/
-    eou-audits/
-    foundry-audits/
-    incidents/
-    validation/
-
-runs/                            # execution traces
+# APPLICATION SCOPE — each consuming app owns this tree
+app/
+  foundry/
+    constitution.yml             # `inherits_from: "eou-foundry@>=0.5.0"` + app preamble + *_additional
+    registry.yml                 # app's own EOU registry
+    eous/                        # app-owned work EOUs
+    meta-eous/                   # optional: app-owned overrides of canonical meta-EOUs
+    overrides/                   # optional: app-specific overrides of engine artifacts (ECP-0004)
+    self-evolution/
+      ecp/{proposed,implemented,approved,rejected}/
+      regression/cases/
+      candidate-sets/            # canonical candidate-set artifacts (v0.6.0, ECP-0013)
+      refactor-options/
+    audits/
+      eou-audits/
+      foundry-audits/
+      candidate-set-audits/
+      incidents/
+      no-trace/                  # no-trace-justification artifacts (ECP-0014 escape hatch)
+  runs/                          # execution traces (foundry/runs/{eou_id}/{run_id}.yml)
 ```
 
 ```mermaid
 graph LR
-    SCH["schemas/ — ground truth"] --> VAL["validate_foundry.py"]
-    SCH --> RUL["rules/"]
-    SCH --> TMP["templates/meta-eous/"]
-    VAL --> SKI["skills/ — Claude"]
-    SKI --> COD["codex/skills/ — Codex mirror"]
+    subgraph plugin["plugin scope (canonical)"]
+        SCH["schemas/"] --> VAL["validate_foundry.py"]
+        ENG["engine/"] --> VAL
+        ENG --> RUL["rules/"]
+        ENG --> SKI["skills/ + codex/skills/"]
+    end
+    subgraph app["application scope (per-app)"]
+        APPCON["foundry/constitution.yml<br/>inherits_from"] -.->|merges with| ENG
+        APPEOU["foundry/eous/"] --> VAL
+        APPREG["foundry/registry.yml"] --> VAL
+    end
 ```
 
 ### Canonical anti-patterns
@@ -357,7 +385,19 @@ counter_generation:
 
 The Foundry should generate against itself. This is the main protection against process inflation.
 
-### Candidate set audit
+### Candidate set as governed artifact
+
+As of v0.6.0 (ECP-0013), the candidate set is a schematized, validator-enforced artifact, not a documentation convention.
+
+**Canonical path:** `foundry/self-evolution/candidate-sets/cs-{generating_eou_id}-{YYYYMMDD}-{hhmm}.yml`
+
+**Schema:** `schemas/candidate-set.schema.yml`. Required top-level fields: `id`, `generated_by`, `generated_at`, `target_class` ∈ {`eou_spec`, `ecp`, `regression_case`, `refactor_option`}, `candidates`, `audit_outcome`, `audit_status` ∈ {`pending_audit`, `audited`, `rejected_in_full`}.
+
+**Audit outcome contract:** the `audit_outcome` block must declare all seven keys — `accepted`, `merged`, `demoted_to_rule`, `demoted_to_validator`, `demoted_to_stop_condition`, `rejected`, `minimal_recommended_subset` — even if some are empty pre-audit. An `audit_status: audited` set with both `minimal_recommended_subset` and `rejected` empty hard-fails validation; an audited set must say something explicit about what survived.
+
+**Per-candidate contract:** every candidate inside the set must have `status: candidate` and non-empty `arguments_against`. Generators cannot emit candidates at any other lifecycle state, and the counter-generation requirement is enforced at the artifact level, not just the spec level.
+
+### Candidate set audit (as a system)
 
 A generated candidate set must be audited as a system, not only as individual units.
 
@@ -443,3 +483,84 @@ foundry/audits/incidents/{incident_id}.no-change.yml
 ```
 
 Required fields: `incident_id`, `eou_id`, `diagnosis_summary`, `decision: no_change`, `rationale`, `reviewed_by`, `reviewed_at`, `reopen_condition`.
+
+### Lifecycle/evidence triangle (v0.6.0)
+
+ECPs 0007, 0009, 0010, and 0014 together turn lifecycle claims from self-declarations into evidence-bound assertions. Three coupled checks:
+
+1. **Activation evidence (ECP-0010).** Every registry entry at `status` ∈ {active, monitored, stable} must populate `activated_by` with either `{ecp_id, approver, activated_at}` or a legacy bootstrap escape `{legacy_bootstrap: true, bootstrap_justification, bootstrap_expires_at}`. No EOU enters an active stage without a recorded path through governance.
+
+2. **Maturity evidence (ECP-0009).** The registry entry's `maturity` claim must be at or above the level required by its `lifecycle_stage` per `engine/maturity-model.yml`. An EOU at `active` claiming `L2_STRUCTURED` fails validation. Self-declared maturity is rejected at the validator level.
+
+3. **Trace gate (ECP-0014, hard-cut).** Every EOU at active/monitored/stable must EITHER declare a non-empty `outputs.trace` listing paths under `runs/` OR have a non-expired `foundry/audits/no-trace/{eou_id}.yml` justification with a named human reviewer (rejected if `reviewed_by` matches `/^TODO/i`). No warning phase, no deprecation window — writing a no-trace-justification is the explicit migration path.
+
+The dependency DAG (ECP-0009) closes the loop: registry entries declare `dependencies.eous` lists; the validator walks the resulting DAG, refuses cycles and references to retired EOUs. Refactor blast-radius becomes a graph traversal rather than guesswork.
+
+---
+
+## Part 4 — Engine vs application scope
+
+Before v0.5.0, every scaffolded application carried a snapshot copy of the Foundry engine — `failure-taxonomy.yml`, `maturity-model.yml`, `governance.yml`, `runtime-contract.yml`, plus the meta-EOU templates — written into its own `foundry/` tree at init time. This was a layering violation. Apps drifted from the engine as the plugin evolved; engine fixes did not propagate; "is this app's `maturity-model` what we ship now?" had no answer without diffing trees.
+
+ECP-0003 resolved this: **engine artifacts live canonically in the plugin; applications reference them, never snapshot them.**
+
+### What lives where
+
+| Lives in plugin (engine scope) | Lives in app (application scope) |
+|---|---|
+| `engine/constitution-defaults.yml` (body) | `foundry/constitution.yml` (preamble + `inherits_from`) |
+| `engine/failure-taxonomy.yml` | (optional) `foundry/overrides/failure-taxonomy.yml` |
+| `engine/maturity-model.yml` | (optional) `foundry/overrides/maturity-model.yml` |
+| `engine/governance.yml` | (optional) `foundry/overrides/governance.yml` |
+| `engine/runtime-contract.yml` | (optional) `foundry/overrides/runtime-contract.yml` |
+| `engine/refactoring-patterns.yml` | (optional) `foundry/overrides/refactoring-patterns.yml` |
+| `engine/meta-eous/*.yml` (canonical generators/auditors) | `foundry/eous/*.yml` (app work EOUs) |
+| `schemas/*.yml` (ground truth) | `foundry/registry.yml` (app registry) |
+
+### How inheritance works
+
+An application's `foundry/constitution.yml` declares:
+
+```yaml
+inherits_from: "eou-foundry@>=0.5.0"
+
+application:
+  id: "book-workshop"
+  description: "..."
+  owner: "jane.doe"
+
+invariants_additional: [...]
+forbidden_additional: [...]
+generation_invariants_additional: [...]
+```
+
+The validator (ECP-0005 parser):
+1. Resolves the plugin install via `EOU_FOUNDRY_PLUGIN_PATH` env, then `claude plugin path`, then `Path(__file__).parents[1]`.
+2. Refuses if the installed plugin version doesn't satisfy the `inherits_from` constraint (`==`, `>=`, or `~=`).
+3. Merges `engine/constitution-defaults.yml` as base, then layers the app's local file on top, then layers `foundry/overrides/<file>.yml` if present.
+4. **Refuses any merge that drops or weakens an engine key.** Lists (invariants, forbidden, generation_invariants) require local re-declarations to be supersets of engine. `change_rules` requires every engine key to remain present. `purpose` cannot be emptied.
+
+### Engine canonical meta-EOUs are not in the app registry
+
+`engine/meta-eous/audit-eou.yml`, `engine/meta-eous/generate-eou-candidates.yml`, etc. are plugin-owned. The validator indexes them but does NOT require them to appear in `foundry/registry.yml` (this was ECP-0003's follow-on fix). The app's registry lists only the app's own work EOUs.
+
+### Override merge semantics
+
+If an app needs to diverge from an engine artifact, the path is:
+
+1. Place `foundry/overrides/<engine-file>.yml` containing the override.
+2. The validator merges it over the engine canonical, key by key.
+3. The override may *add* keys or *strengthen* values; it cannot drop a key that the engine declares.
+4. If divergence is fundamental (a different `maturity-model.yml` entirely), the path is an ECP against the plugin, not an override hidden in the app.
+
+This is the structural answer to the question V6's audit raised: how does the system stay theory-of-control-aligned across many consuming applications without each app silently drifting? **The engine is canonical; the apps are products.**
+
+### What apps still own
+
+- Their own work EOUs (`foundry/eous/`)
+- Their own registry (`foundry/registry.yml`)
+- Their own application preamble in the constitution
+- Their own additions to engine invariants (`invariants_additional`, `forbidden_additional`, etc.) — additive only, never subtractive
+- Their own ECPs (`foundry/self-evolution/ecp/`)
+- Their own candidate sets, regression cases, audits, incidents, run traces
+- Their own no-trace-justifications when the trace gate forces an explicit exemption

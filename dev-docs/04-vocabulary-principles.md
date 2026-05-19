@@ -251,14 +251,17 @@ option, diagnosis) is complete except for the closure gaps noted above.
 
 ### Resolution status
 
-| ID | Resolution |
-|----|-----------|
-| V-01 | Prose discipline: "candidate set" for the artifact, "candidate-stage EOU spec" for the role-state. No vocabulary addition. |
-| V-02 | `promote` redefined as evaluation-only in skills, codex/skills, and template. Skills now explicitly state that `activate` and `retire` are the execution functions. |
-| V-03 | `implement` added to `VALID_FUNCTIONS`, schema, rules, and all six vocabulary-authority-chain layers. Rule 93 pipeline updated: `deploy` → `implement`. |
-| V-04 | **Cross-scope noun (open).** Incident is produced by the application scope (`observe` belongs to the application's vocabulary); consumed by the foundry scope (`diagnose`). Formally designated as cross-scope — not a foundry closure gap. Producing scope: consuming application. |
-| V-05 | **Cross-scope noun (open).** Run trace is produced by application-level EOU execution; consumed by foundry audit and promotion gates. Formally designated as cross-scope. Producing scope: consuming application. |
-| V-06 | `diagnose` dual-output contract documented in both Claude and Codex skills. |
-| V-07 | `activate` added to `VALID_FUNCTIONS` and all six layers. |
-| V-08 | `retire` added to `VALID_FUNCTIONS` and all six layers. |
-| V-09 | Function vocabulary table in `02-architecture.md` distinguishes evaluation functions (`promote`, `audit`, `validate`) from execution functions. |
+| ID | Resolution | Shipped in |
+|----|-----------|------------|
+| V-01 | Prose discipline: "candidate set" for the artifact, "candidate-stage EOU spec" for the role-state. V-10 below makes the artifact itself schematized; the prose-discipline rule still applies for spoken/written reference. | v0.4.0 prose; v0.6.0 schema (V-10) |
+| V-02 | `promote` redefined as evaluation-only in skills, codex/skills, and template. Skills now explicitly state that `activate` and `retire` are the execution functions. | v0.4.0 |
+| V-03 | `implement` added to `VALID_FUNCTIONS`, schema, rules, and all six vocabulary-authority-chain layers. Rule 93 pipeline updated: `deploy` → `implement`. | v0.4.0 |
+| V-04 | **Cross-scope noun (resolved).** Incident is produced by the application scope (`observe` belongs to the application's vocabulary); consumed by the foundry scope (`diagnose`). Formally designated as cross-scope. The v0.5.0 engine/app split (ECP-0003) makes the scope distinction structural: incidents live in `foundry/incidents/` (app scope); ECPs and the diagnose meta-EOU live in plugin scope. Validator walks incidents via `validate_incidents()` (ECP-0004). | v0.5.0 / ECP-0003 + ECP-0004 |
+| V-05 | **Cross-scope noun (resolved).** Run trace is produced by application-level EOU execution; consumed by foundry audit and promotion gates. ECP-0007 finalized `schemas/run-trace.schema.yml`; ECP-0014 hard-cuts the active-EOU trace obligation. The producing scope (application) and consuming scope (foundry audit) are no longer ambiguous. | v0.6.0 / ECP-0007 + ECP-0014 |
+| V-06 | `diagnose` dual-output contract (change → ECP, no-change → no-change record) documented in both Claude and Codex skills. | v0.4.0 |
+| V-07 | `activate` added to `VALID_FUNCTIONS` and all six layers. ECP-0010 makes activation evidence (`activated_by` block) a validator-enforced requirement. | v0.4.0 vocab; v0.6.0 evidence (ECP-0010) |
+| V-08 | `retire` added to `VALID_FUNCTIONS` and all six layers. | v0.4.0 |
+| V-09 | Function vocabulary table in `02-architecture.md` distinguishes evaluation functions (`promote`, `audit`, `validate`) from execution functions (`activate`, `implement`, `retire`). | v0.4.0 |
+| V-10 | **Candidate set schematized.** ECP-0013 ships `schemas/candidate-set.schema.yml`, the canonical path `foundry/self-evolution/candidate-sets/cs-{generator}-{YYYYMMDD}-{hhmm}.yml`, and the `validate_candidate_sets()` walker. The artifact is now governed at the schema level: required fields, audit_outcome with seven keys, audit_status enum, per-candidate `status:candidate` and `arguments_against`. Resolves the closure gap V-01 identified at the schema level. | v0.6.0 / ECP-0013 |
+| V-11 | **Trace gate enforced.** ECP-0014 hard-cuts the constitutional invariant "every active EOU must produce trace or declare why trace is impossible." `validate_active_trace_obligation()` walks app EOUs at active/monitored/stable; requires either `outputs.trace` referencing `runs/` paths OR a non-expired `foundry/audits/no-trace/{eou_id}.yml` with named human reviewer (TODO placeholders rejected). The invariant had no teeth before v0.6.0; it does now. | v0.6.0 / ECP-0014 |
+| V-12 | **Run-vs-Foundry distinction (doctrine only, open as code).** V6 absorption: a single EOU run is DAG-like (bounded, no cycles within the run); the Foundry over time is a state machine (incidents → diagnoses → ECPs → revised specs feeding future runs). We absorbed this as doctrine (see 03-doctrine.md D3.3) but did NOT reify it in code — no separate "run-DAG" schema beyond `run-trace.schema.yml`, no explicit state-machine model. Tracked in `05-v6-design-pulls.md` as deferred. | Doctrine: v0.6.0; code: deferred |

@@ -324,7 +324,7 @@ error schema
 trace schema
 ```
 
-The schema, validator, skill, and docs should not each invent their own interpretation.
+The schema, validator, skill, and docs should not each invent their own interpretation. The v0.5.0 engine-reference split (ECP-0003) makes this enforceable across applications: engine artifacts live canonically at `plugin/engine/`, applications inherit through `inherits_from`, and the validator refuses merges that drop or weaken engine keys.
 
 ---
 
@@ -486,7 +486,7 @@ Without this field, automation quietly becomes abdication.
 
 ---
 
-## 14. Current EOU spec schema (V2)
+## 14. EOU spec schema (V2, v0.6.0 shape)
 
 ```yaml
 id: string                   # matches the filename stem
@@ -564,6 +564,8 @@ versioning:
 ```
 
 The authoritative source is `schemas/eou.schema.yml`. If this document and the schema ever drift, the schema wins.
+
+As of v0.6.0 (ECP-0014), every EOU at `lifecycle_stage` in {active, monitored, stable} must EITHER declare a non-empty `outputs.trace` listing a path under `runs/`, OR have a non-expired `foundry/audits/no-trace/{eou_id}.yml` justification with a named human reviewer. The validator enforces this as a hard error — no warning phase.
 
 ---
 
@@ -704,6 +706,8 @@ Still fails:
 ```
 
 A falsifiable output can be audited. A non-falsifiable output is just an opinion.
+
+(This is the same concept V6 names *governed effect* — typed, named, traceable, attributable to a run, connected to a target artifact. The current schema captures it through `outputs` + `success_criteria` + `validation.deterministic`; absorbing V6's `effect_contract` as a derived block is tracked in `05-v6-design-pulls.md`.)
 
 ---
 
