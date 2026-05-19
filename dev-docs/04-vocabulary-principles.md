@@ -21,6 +21,11 @@ meaning different things across scopes is not a violation — it is a boundary
 that must be named. Never apply the merge test globally across undeclared scope
 boundaries.
 
+**Scope-timing rule:** scope must be declared *before* a vocabulary decision
+enters review. A scope boundary declared after the fact to resolve a collision
+is a retroactive exemption, not a valid scope, and is treated as a P1
+violation.
+
 Sibling terms in the vocabulary must be at comparable levels of specificity.
 A vocabulary that mixes crisp acts (`diagnose`) with vague phases (`process`)
 at the same level fails this principle even if each term individually passes
@@ -48,8 +53,20 @@ A verb earns its place when it either:
 (a) changes what the executor is permitted to do next, or
 (b) produces a named artifact that governance can act on independently.
 
-An act that evaluates and recommends but does not change authority or produce
-a governed artifact is a sub-step, not a top-level verb.
+A **governed artifact** is any artifact with a declared schema, a file path,
+and an owner. This includes advisory artifacts — recommendations,
+no-change records, audit reports — not only active state-changers. An act
+that produces only ephemeral output or internal prose does not qualify.
+
+An act that evaluates and recommends but does not meet either condition above
+is a sub-step, not a top-level verb.
+
+**Pipeline-membership override:** when an act is a required named step in a
+declared governance pipeline, P5 naming pressure overrides the
+gates-or-produces test. The act is named regardless of whether it
+independently satisfies (a) or (b). For cross-scope pipeline steps, the
+naming obligation belongs to the scope that *produces* the step's output
+artifact, not the scope that consumes it.
 
 ### P4 — The vocabulary is closed under its own operations, within scope
 
@@ -60,6 +77,12 @@ has no structural role and is a deletion candidate.
 Evaluate closure per declared scope, not globally. A closure gap — a noun with
 no producing verb, or a verb whose artifacts are only described in prose — is
 evidence of an unnamed act.
+
+**Cross-scope nouns:** a noun produced in one scope and consumed in another is
+a *cross-scope noun*, not a closure gap. It must be formally designated as
+such, naming the producing scope explicitly. "Application-domain" without
+naming the scope is not a valid designation — it is a deferment that must be
+recorded and revisited.
 
 ### P5 — Comprehensive means no unnamed judgment
 
@@ -76,11 +99,46 @@ A term earns inclusion through at least one of:
 
 - **Literary warrant** — it appears in actual domain artifacts (specs, rules, schemas)
 - **User warrant** — practitioners reach for it unprompted when describing their work
-- **Structural warrant** — the vocabulary hierarchy requires it for coherence
+- **Structural warrant** — the vocabulary hierarchy requires it for coherence; must cite a specific P4 closure requirement or P1 hierarchy coherence requirement — self-referential structural warrant ("the hierarchy needs this term") is not valid without naming which other term's relationship breaks without it
 - **Domain warrant** — the operational domain requires the distinction to prevent a specific failure
 
 Intuition alone is not warrant. Absence of warrant is grounds for exclusion or
 demotion to a sub-step or field value.
+
+---
+
+## Conflict resolution: precedence order
+
+When two or more principles point in different directions, apply them in this
+order:
+
+```
+P2 > P3 > P1 > P4 > P5 > P6
+```
+
+**P2 first** — artifact integrity and the noun/verb distinction are
+non-negotiable. If a candidate term fails the rigid-artifact or
+state-changing-act test, no other principle can reinstate it.
+
+**P3 second** — gatekeeping purity. A verb that neither gates nor produces (by
+P3's definition, including the pipeline-membership override) does not enter
+regardless of naming pressure from P5.
+
+**P1 third** — scope discipline and merge decisions. After identity and
+gatekeeping are settled, resolve collisions by scope.
+
+**P4 fourth** — closure. Use P4 to identify gaps after the vocabulary is
+otherwise stable; do not use it to force terms into the vocabulary before P2
+and P3 have been satisfied.
+
+**P5 fifth** — comprehensiveness. Naming pressure from P5 can trigger addition
+only after P2–P4 have been evaluated. P5 overrides P3 only via the
+pipeline-membership override, not generally.
+
+**P6 last** — warrant is an entry check, not a veto over terms that satisfy
+P2–P5. A term that satisfies all five structural principles enters; P6 then
+confirms it has evidence. If warrant is absent, the term is deferred, not
+permanently rejected.
 
 ---
 
@@ -193,15 +251,13 @@ option, diagnosis) is complete except for the closure gaps noted above.
 
 ### Resolution status
 
-All findings have been resolved:
-
 | ID | Resolution |
 |----|-----------|
 | V-01 | Prose discipline: "candidate set" for the artifact, "candidate-stage EOU spec" for the role-state. No vocabulary addition. |
 | V-02 | `promote` redefined as evaluation-only in skills, codex/skills, and template. Skills now explicitly state that `activate` and `retire` are the execution functions. |
 | V-03 | `implement` added to `VALID_FUNCTIONS`, schema, rules, and all six vocabulary-authority-chain layers. Rule 93 pipeline updated: `deploy` → `implement`. |
-| V-04 | Deferred — incident creation (`observe`) is application-domain, not foundry-level. |
-| V-05 | Deferred — run trace production is application-domain. |
+| V-04 | **Cross-scope noun (open).** Incident is produced by the application scope (`observe` belongs to the application's vocabulary); consumed by the foundry scope (`diagnose`). Formally designated as cross-scope — not a foundry closure gap. Producing scope: consuming application. |
+| V-05 | **Cross-scope noun (open).** Run trace is produced by application-level EOU execution; consumed by foundry audit and promotion gates. Formally designated as cross-scope. Producing scope: consuming application. |
 | V-06 | `diagnose` dual-output contract documented in both Claude and Codex skills. |
 | V-07 | `activate` added to `VALID_FUNCTIONS` and all six layers. |
 | V-08 | `retire` added to `VALID_FUNCTIONS` and all six layers. |
