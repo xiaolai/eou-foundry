@@ -1,0 +1,15 @@
+id: cs-malformed-20260520-1200
+generated_by: some-generator-eou
+generated_at: "2026-05-20T12:00:00Z"
+target_class: eou_spec
+candidates:
+- id: cand-A
+  status: active           # WRONG — must be candidate
+  arguments_against: []    # WRONG — empty
+- id: cand-B
+  status: candidate
+  # missing arguments_against entirely
+audit_outcome:              # WRONG — missing several required keys
+  accepted: []
+  rejected: []
+audit_status: audited       # WRONG — audited but both survived/rejected empty (in combination with the missing keys)

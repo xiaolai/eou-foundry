@@ -12,11 +12,11 @@ allowed-tools:
 
 # Audit Candidate EOU Set
 
-Audit `$path` (a `candidate_eou_set.yml` file).
+Audit `$path` (a candidate-set artifact under `foundry/self-evolution/candidate-sets/`).
 
 ## Inputs
 
-- `$path` (required) — path to a `candidate_eou_set.yml` file produced by `$generate-eou-candidates`.
+- `$path` (required) — path to a candidate-set file at `foundry/self-evolution/candidate-sets/cs-{generating_eou}-{YYYYMMDD}-{hhmm}.yml`, produced by `$generate-eou-candidates`. Schema: `schemas/candidate-set.schema.yml` (ECP-0013).
 
 ## Required reading
 

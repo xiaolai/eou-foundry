@@ -1,0 +1,177 @@
+id: ecp-0014-active-eou-trace-gate-enforcement
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.6.0
+problem:
+  observed_failure: |
+    The constitution declares (engine/constitution-defaults.yml line 40):
+    "Every active EOU must produce trace or declare why trace is impossible."
+    ECP-0007 (proposed) establishes WHAT a trace artifact is — schema, helper
+    module, no-trace-justification shape. This ECP is the corresponding
+    enforcement step that ECP-0007 explicitly defers ("Stage 2 — enforce the
+    invariant in the validator").
+
+    Without this ECP, ECP-0007 lands as additive infrastructure that nobody is
+    obligated to use. The validator passes EOUs at lifecycle_stage:active that
+    have no trace link in their outputs block and no no-trace-justification on
+    record. The most-cited constitutional invariant — invoked in five separate
+    rule files and named in every doctrine pass — has no teeth at the validator
+    level. V6's adversarial review (independent_architect_audit.md line 220-236)
+    flagged this exact pattern as "audit independence too weak" — process
+    discipline declared, not enforced.
+  failure_class: F9_TRACE_FAILURE
+  evidence:
+  - engine/constitution-defaults.yml line 40 declares the invariant. No code
+    in scripts/validate_foundry.py checks it.
+  - book-workshop's four active EOUs (compile-chapter, audit-chapter,
+    validate-book, export-book) all have lifecycle_stage:active and zero
+    files under foundry/runs/. The validator passes them green.
+  - ECP-0007 line 50-52 names this enforcement as "stage 2, a follow-on ECP
+    after stage 1 lands." This is the follow-on.
+  - Codex review of V6 absorption explicitly identified active-EOU trace
+    gate as one of two highest-leverage closure gaps not currently covered
+    by any in-flight ECP (the other was the candidate-set schema, ECP-0013).
+proposed_change:
+  summary: |
+    Hard-cut at 0.6.0. Every EOU at lifecycle_stage:active either declares trace
+    output OR has a non-expired no-trace-justification on file. No warning
+    phase, no deprecation window — the no-trace-justification mechanism IS the
+    migration path. Apps that cannot meet the gate on day one write a justification
+    with a real owner and an expiry. The act of writing the justification is the
+    intended forcing function.
+
+    The check is structural, not runtime: it verifies the EOU spec *commits to*
+    producing trace (outputs.trace is non-empty and points at runs/{eou_id}/
+    paths) OR the EOU is exempted by an explicit, time-bounded justification.
+    It does NOT verify that actual run trace files exist on disk — that would
+    couple validation to runtime presence and break in CI/scaffold contexts.
+    Runtime presence is the job of a separate run-audit pass, not the
+    foundry validator.
+  files_changed:
+  - scripts/validate_foundry.py — new validate_active_trace_obligation()
+    function; new walker for foundry/audits/no-trace/*.yml
+  - schemas/no-trace-justification.schema.yml — already exists from ECP-0007;
+    add expires_at as required if it isn't already
+  - rules/93-recursive-governance.md — section on trace evidence finalized
+    (ECP-0007 ships the prose; this ECP makes the validator enforce it)
+  - rules/89-eou-foundry.md — add explicit pointer to no-trace-justification
+    escape hatch
+  - templates/eou-template/eou.yml — outputs.trace populated in the template
+    so freshly-generated EOUs declare a sensible default
+  - tests/fixture-foundry/foundry/audits/no-trace/.gitkeep — ensure the
+    walker has a valid empty directory to walk in the fixture foundry
+  - CHANGELOG.md — 0.6.0 entry
+  validator_changes:
+  - "validate_active_trace_obligation: new function. For each EOU in
+    foundry/eous/ and foundry/meta-eous/ (app-owned overrides) with
+    lifecycle_stage:active, require ONE OF: (a) outputs.trace is a non-empty
+    list whose entries reference paths under runs/ (case-insensitive substring
+    match), or (b) foundry/audits/no-trace/{eou_id}.yml exists and parses,
+    has non-empty reviewed_by NOT matching /^TODO/i, has expires_at in the
+    future. If neither condition holds: HARD ERROR. No warning phase."
+  - "Walker for foundry/audits/no-trace/*.yml: validate each file against
+    no-trace-justification.schema.yml; refuse expired entries; refuse
+    reviewed_by matching /^TODO/i or empty."
+  - "validate_foundry: invoke validate_active_trace_obligation() after the
+    EOU/registry passes. Results surface as PROBLEMS, not warnings."
+  - "Engine scope exemption: walker is scoped to the FOUNDRY being validated
+    (app-side foundry/eous/ and foundry/meta-eous/ only). Plugin's
+    engine/meta-eous/ are explicitly NOT walked — plugin has its own audit
+    pass (foundry-audit skill) for engine-side trace policy."
+depends_on:
+- ecp-0007-run-trace-requirement-shape  # schema must be finalized first
+expected_benefit:
+- |
+  The most-cited constitutional invariant becomes verifiable. Today rule files
+  cite "every active EOU must produce trace" and the validator looks the other
+  way; tomorrow the validator catches it at lift.
+- |
+  no-trace-justification is no longer a documented-but-unused schema. It
+  becomes a real, time-bounded governance artifact with periodic re-review
+  forced by expires_at.
+- |
+  Apps wishing to be honest about not-yet-instrumented EOUs can declare so
+  explicitly with reviewed_by and an expiry, rather than silently violating
+  the constitution. The act of writing a no-trace-justification is itself a
+  forcing function for owner attention.
+- |
+  Sets up downstream telemetry: percentage of active EOUs with trace-link OR
+  no-trace-justification becomes a Foundry health metric that can be tracked
+  per release.
+risks:
+- |
+  Every existing active EOU in book-workshop and any v0.5.x-scaffolded app
+  will fail this check on the day 0.6.0 lands. This is the INTENDED forcing
+  function, not a side effect. The migration path is explicit: for each
+  failing EOU, either (a) add outputs.trace pointing at runs/{eou_id}/ and
+  start producing traces, or (b) write a no-trace-justification with a
+  named human reviewer and an expiry date. No migration helper is provided
+  because the act of writing the justification is the work that needs to
+  happen — automating it would defeat the gate.
+- |
+  Apps may game the system by mass-generating no-trace-justifications with
+  TODO owners and far-future expiry. Mitigation built in: validate_foundry
+  refuses a no-trace-justification with reviewed_by matching /^TODO/i or
+  reviewed_by empty. Owner names must be real strings. expires_at is checked
+  on every validation run; expired justifications fail validation forcing
+  periodic re-attestation.
+- |
+  Locking the structural shape (outputs.trace must reference runs/ paths)
+  forecloses alternative trace conventions. Mitigation: the path-substring
+  check is intentionally lenient (case-insensitive substring "runs/"); apps
+  with unconventional layouts can satisfy it with any path containing the
+  word "runs". Tightening to a strict pattern is deferred to a future ECP
+  once we have observed real-world variance.
+- |
+  Recursive Foundry trap: the plugin's own engine/meta-eous/ files include
+  active-stage canonical EOUs (audit-eou, validate-foundry, etc.) which
+  by V6 logic also need trace. Mitigation: engine meta-EOUs are scoped as
+  PLUGIN governance, not app governance, and are exempt from the app-level
+  trace gate. The plugin gets a separate audit pass (foundry-audit skill)
+  that can address engine-side trace if and when we choose. This ECP scopes
+  enforcement to consuming-application foundries only.
+tests_required:
+- |
+  Regression. An EOU at lifecycle_stage:active with empty outputs.trace and
+  no foundry/audits/no-trace/{eou_id}.yml fails validation with a specific
+  message naming the EOU id.
+- |
+  Regression. Same EOU with foundry/audits/no-trace/{eou_id}.yml present,
+  reviewed_by="jane.doe", expires_at=now+30d → passes silently.
+- |
+  Regression. Same EOU with no-trace-justification but expires_at=now-1d
+  fails validation.
+- |
+  Regression. no-trace-justification with reviewed_by="TODO set owner" fails
+  validation with a specific message.
+- |
+  Regression. EOU at lifecycle_stage:pilot with empty outputs.trace passes
+  silently (the check fires only at active).
+- |
+  Regression. Plugin's own engine/meta-eous/audit-eou.yml at lifecycle_stage:
+  active with no app-side trace link passes (engine scope, not app scope).
+- |
+  Operational test. book-workshop tries to validate on 0.6.0; validator
+  hard-errors on 4 active EOUs; owner writes 4 no-trace-justification files
+  with real reviewer names and 90-day expiry; validator passes.
+simulation:
+  status: not_simulated
+  rationale: |
+    Structural validator addition. The simulation IS the regression case
+    set: every behavior the validator should and should not flag is listed
+    above. ECP-0007 stage 1 (the schema) must be implemented first; this
+    ECP cannot land until 0007 does.
+approval:
+  proposed_by: plugin maintainer (V6 architecture absorption — closure gap identified by Codex adversarial review)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert validate_active_trace_obligation() and the no-trace walker.
+    Apps that started writing no-trace-justification files keep them as
+    informational documents — they're independently useful even without
+    validator enforcement. No data loss. Mid-deprecation rollback (after
+    0.6.0 but before 0.7.0) is the lowest-risk window because nothing
+    is hard-erroring yet.
+submitted_as: null

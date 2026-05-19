@@ -5,7 +5,7 @@ description: Audit a generated candidate EOU set for boundary quality, minimalit
 
 # Audit Candidate EOU Set
 
-Audit `$path` (a `candidate_eou_set.yml` file).
+Audit `$path` (a candidate-set artifact under `foundry/self-evolution/candidate-sets/`, schema `schemas/candidate-set.schema.yml` — ECP-0013).
 
 ## Required reading
 

@@ -1,11 +1,66 @@
 # EOU Foundry Plugin Changelog
 
-## 0.6.0 — Lifecycle/evidence triangle (ECPs 0007, 0009, 0010)
+## 0.6.0 — Lifecycle/evidence triangle + closure gaps (ECPs 0007, 0009, 0010, 0013, 0014)
 
 Minor release. Implements the three coupled ECPs from the audit
-roundtable that together turn lifecycle claims from self-declarations
-into evidence-bound assertions. Breaking for applications with active
-EOUs that claim higher maturity than their evidence supports.
+roundtable that turn lifecycle claims from self-declarations into
+evidence-bound assertions, plus two closure gaps surfaced by adversarial
+review of the V6 architecture proposal. Breaking for applications with
+active EOUs that claim higher maturity than their evidence supports OR
+that have not declared trace output / no-trace-justification.
+
+ECP-0013 — Candidate-set schema and validation (V6 closure gap):
+- `schemas/candidate-set.schema.yml` new. Required fields: id, generated_by,
+  generated_at, target_class (eou_spec | ecp | regression_case |
+  refactor_option), candidates, audit_outcome, audit_status (pending_audit
+  | audited | rejected_in_full).
+- Canonical storage path: `foundry/self-evolution/candidate-sets/cs-{generating_eou}-{YYYYMMDD}-{hhmm}.yml`.
+  Pre-v0.6.0 layout (`foundry/self-evolution/ecp/proposed/{slug}-candidates-{YYYYMMDD}.yml`)
+  is deprecated; the ECP/candidate-set skip-pattern workaround in
+  validate_ecps is no longer required (kept for legacy compatibility).
+- `validate_candidate_sets()` new walker enforces: every candidate has
+  `status: candidate` and non-empty `arguments_against`; `audit_outcome`
+  declares all seven required keys (accepted, merged, demoted_to_rule,
+  demoted_to_validator, demoted_to_stop_condition, rejected,
+  minimal_recommended_subset); `audit_status: audited` requires either
+  `minimal_recommended_subset` or `rejected` to be non-empty (an audited
+  set must explicitly say what survived and what didn't).
+- `engine/meta-eous/generate-eou-candidates.yml` updated to declare the
+  canonical output path; `engine/meta-eous/audit-candidate-eou-set.yml`
+  updated to consume from it.
+- Skills (Claude + Codex) and `rules/95-generating-eous.md` updated.
+
+ECP-0014 — Active-EOU trace gate enforcement (hard-cut):
+- `validate_active_trace_obligation()` new function. For each EOU at
+  lifecycle_stage in {active, monitored, stable}, requires ONE OF:
+  (a) `outputs.trace` is a non-empty list whose entries reference paths
+  under `runs/`, OR (b) `foundry/audits/no-trace/{eou_id}.yml` exists,
+  parses, has non-empty `reviewed_by` (NOT matching /^TODO/i), and has
+  `expires_at` in the future. Hard-cut at 0.6.0 — no warning phase, no
+  deprecation window. The no-trace-justification mechanism IS the
+  migration path; apps that cannot meet the gate write an explicit
+  exemption with a named human reviewer and expiry date.
+- `validate_no_trace_justifications()` strengthened to reject TODO
+  placeholder reviewers (anti-gaming clause).
+- Scope: app-side EOUs only (`foundry/eous/`, `foundry/meta-eous/`).
+  Engine canonical meta-EOUs are explicitly NOT walked — plugin governs
+  its own engine via the foundry-audit skill.
+- Structural check, not runtime: verifies the EOU spec commits to
+  producing trace, OR is exempted. Does NOT verify run trace files
+  exist on disk (that's a separate run-audit pass).
+- `rules/93-recursive-governance.md` updated to reflect hard-cut
+  enforcement and TODO-placeholder rejection.
+
+Test infrastructure:
+- `tests/regression-fixtures/active-no-trace/` — verifies ECP-0014
+  hard-error on active EOU lacking both trace and justification.
+- `tests/regression-fixtures/bad-candidate-set/` — verifies ECP-0013
+  rejects malformed candidate-set artifacts.
+- `.github/workflows/pr-ci.yml` adds a regression-fixtures step that
+  asserts each fixture fails validation (catches silent validator
+  regressions like ECP-0004's PR #4 class).
+
+
 
 ECP-0007 — Run trace shape (stage 1):
 - `schemas/run-trace.schema.yml` bumped to v3. Required: run_id, eou_id,

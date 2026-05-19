@@ -1,0 +1,66 @@
+schema_id: candidate-set.schema.v1
+required:
+- id
+- generated_by
+- generated_at
+- target_class
+- candidates
+- audit_outcome
+- audit_status
+optional:
+- generation_rationale
+- open_questions
+- rejected_candidates
+- recommended_minimal_set_rationale
+valid_target_class:
+- eou_spec
+- ecp
+- regression_case
+- refactor_option
+valid_audit_status:
+- pending_audit
+- audited
+- rejected_in_full
+audit_outcome_required_keys:
+- accepted
+- merged
+- demoted_to_rule
+- demoted_to_validator
+- demoted_to_stop_condition
+- rejected
+- minimal_recommended_subset
+candidate_required_fields:
+- id
+- status              # MUST be "candidate"; generators may not emit other lifecycle states
+- arguments_against   # counter_generation requirement
+storage: foundry/self-evolution/candidate-sets/{set_id}.yml
+purpose: |
+  Candidate-set artifact: the named output of every `function: generate` EOU.
+  Holds a generated batch of candidates (EOU specs, ECPs, regression cases,
+  or refactor options) plus the audit_outcome that says which survived,
+  which were demoted, and to what.
+
+  Required fields:
+  - id: canonical pattern `cs-{generating_eou_id}-{YYYYMMDD}-{hhmm}`
+  - generated_by: EOU id of the generating EOU
+  - generated_at: ISO-8601 UTC timestamp
+  - target_class: the kind of artifact being generated; one of
+    {eou_spec, ecp, regression_case, refactor_option}
+  - candidates: list of candidate entries. Each candidate MUST declare
+    status="candidate" and arguments_against (non-empty).
+  - audit_outcome: mapping with seven required keys (all 7 must be
+    present; they may be empty lists pre-audit). The keys are:
+    accepted, merged, demoted_to_rule, demoted_to_validator,
+    demoted_to_stop_condition, rejected, minimal_recommended_subset.
+  - audit_status: one of {pending_audit, audited, rejected_in_full}.
+    If audited: either minimal_recommended_subset OR rejected must be
+    non-empty — an audited set must explicitly say what survived and
+    what didn't.
+
+  Storage: foundry/self-evolution/candidate-sets/{set_id}.yml
+
+  Consumed by: `audit-candidate-eou-set` meta-EOU populates the
+  audit_outcome block and flips audit_status from pending_audit to
+  audited (or rejected_in_full).
+
+  Produced by: any EOU with `function: generate`.

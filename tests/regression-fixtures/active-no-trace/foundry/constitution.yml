@@ -1,0 +1,8 @@
+inherits_from: "eou-foundry@>=0.5.0"
+application:
+  id: "regression-active-no-trace"
+  description: "Regression fixture: active EOU with no trace, no justification → should FAIL validation per ECP-0014."
+  owner: "regression test"
+invariants_additional: []
+forbidden_additional: []
+generation_invariants_additional: []

@@ -47,9 +47,20 @@ generate → argue against each candidate → rank → select minimal subset →
 
 ## Candidate output path
 
-`foundry/self-evolution/ecp/proposed/{workflow_slug}-candidates-{YYYYMMDD}.yml`
+`foundry/self-evolution/candidate-sets/cs-{generating_eou_id}-{YYYYMMDD}-{hhmm}.yml`
 
-Candidates must not be written directly to `foundry/eous/` or `foundry/meta-eous/` — those directories are for approved, active specs only.
+Schema: `schemas/candidate-set.schema.yml` (ECP-0013, v0.6.0+). The validator
+walks this directory and enforces:
+- every candidate has `status: candidate` and non-empty `arguments_against`
+- `audit_outcome` declares all seven required keys (`accepted`, `merged`,
+  `demoted_to_rule`, `demoted_to_validator`, `demoted_to_stop_condition`,
+  `rejected`, `minimal_recommended_subset`)
+- `audit_status: audited` requires either `minimal_recommended_subset` or
+  `rejected` to be non-empty (an audited set must say what survived)
+
+Candidates must not be written directly to `foundry/eous/` or `foundry/meta-eous/` — those directories are for approved, active specs only. Pre-v0.6.0 layout
+(`foundry/self-evolution/ecp/proposed/{slug}-candidates-{YYYYMMDD}.yml`) is
+deprecated; the validator no longer requires the skip-pattern workaround.
 
 ## Violation indicators
 

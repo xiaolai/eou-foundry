@@ -1,0 +1,26 @@
+registry_version: "1"
+entries:
+- eou_id: bad-active-no-trace
+  current_version: "0.1.0"
+  path: foundry/eous/bad-active-no-trace.yml
+  status: active
+  maturity: L4_AUDITABLE
+  owner: test fixture
+  classification:
+    function: validate
+    automation_mode: deterministic
+    authority_level: suggest_only
+    risk_level: low
+    lifecycle_stage: active
+  dependencies:
+    schemas:
+    - schemas/eou.schema.yml
+    eous: []
+  last_audit:
+    date: "2026-01-01"
+    result: not_yet_audited
+  known_issues: []
+  activated_by:
+    legacy_bootstrap: true
+    bootstrap_justification: "Regression test fixture"
+    bootstrap_expires_at: "2099-01-01T00:00:00Z"

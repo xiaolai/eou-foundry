@@ -51,6 +51,10 @@ INCIDENT_REQUIRED = ["id", "date", "affected_eou", "failure_class", "summary", "
 RUN_TRACE_REQUIRED = ["run_id", "eou_id", "eou_version", "status", "started_at", "ended_at", "executor_identity", "inputs", "context_loaded", "steps_completed", "warnings", "outputs", "validation", "human_approval"]
 RUN_TRACE_VALID_STATUS = {"success", "partial", "failed", "aborted"}
 NO_TRACE_REQUIRED = ["eou_id", "impossibility_reason", "reviewed_by", "reviewed_at", "expires_at"]
+CANDIDATE_SET_REQUIRED = ["id", "generated_by", "generated_at", "target_class", "candidates", "audit_outcome", "audit_status"]
+CANDIDATE_SET_AUDIT_OUTCOME_KEYS = ["accepted", "merged", "demoted_to_rule", "demoted_to_validator", "demoted_to_stop_condition", "rejected", "minimal_recommended_subset"]
+CANDIDATE_SET_VALID_STATUS = {"pending_audit", "audited", "rejected_in_full"}
+CANDIDATE_SET_VALID_TARGET_CLASS = {"eou_spec", "ecp", "regression_case", "refactor_option"}
 LIFECYCLE_TO_MATURITY = {
     "candidate":  "L1_NARRATIVE",
     "draft":      "L2_STRUCTURED",
@@ -882,11 +886,22 @@ def validate_no_trace_justifications(root: Path) -> list[str]:
     import datetime as _dt
     now = _dt.datetime.now(_dt.timezone.utc)
     for path in sorted(base.glob("*.yml")):
+        if path.name == ".gitkeep":
+            continue
         data = load_yaml(path)
         if not isinstance(data, dict):
             problems.append(f"{path}: no-trace-justification must be a mapping")
             continue
         problems.extend(validate_required(path, data, NO_TRACE_REQUIRED))
+        # ECP-0014 anti-gaming: reviewed_by must be a real human identity,
+        # not a TODO placeholder. Mass-generating justifications with TODO
+        # owners would defeat the gate.
+        reviewer = data.get("reviewed_by")
+        if reviewer and is_todo(reviewer):
+            problems.append(
+                f"{path}: reviewed_by `{reviewer}` is a TODO placeholder; "
+                f"name a real human reviewer (ECP-0014)"
+            )
         expires = data.get("expires_at")
         if expires:
             try:
@@ -898,6 +913,122 @@ def validate_no_trace_justifications(root: Path) -> list[str]:
                     )
             except ValueError:
                 problems.append(f"{path}: expires_at `{expires}` is not ISO-8601")
+    return problems
+
+
+def validate_active_trace_obligation(root: Path, app_eou_paths: dict[str, Path]) -> list[str]:
+    """ECP-0014: every EOU at lifecycle_stage:active must either declare
+    trace output OR have a non-expired no-trace-justification on record.
+
+    Hard-cut at 0.6.0 — no warning phase. The no-trace-justification
+    mechanism IS the migration path: apps that cannot meet the gate write
+    an explicit, time-bounded exemption with a named human reviewer.
+
+    Scope: app-side EOUs only (foundry/eous/, foundry/meta-eous/). Engine
+    canonical meta-EOUs are explicitly NOT walked — plugin governs its
+    own engine via the foundry-audit skill.
+
+    Check is STRUCTURAL: verifies the spec commits to producing trace, OR
+    is exempted. Does NOT verify run trace files exist on disk (that's
+    runtime, not validation — would break CI/scaffold contexts).
+    """
+    problems: list[str] = []
+    no_trace_dir = root / "foundry" / "audits" / "no-trace"
+    for eou_id, spec_path in sorted(app_eou_paths.items()):
+        data = load_yaml(spec_path)
+        if not isinstance(data, dict):
+            continue
+        c = data.get("classification") or {}
+        if c.get("lifecycle_stage") not in ACTIVE_STAGES:
+            continue
+        outputs = data.get("outputs") or {}
+        trace_decl = outputs.get("trace") if isinstance(outputs, dict) else None
+        has_trace_decl = (
+            isinstance(trace_decl, list)
+            and any(isinstance(t, str) and "runs/" in t.lower() for t in trace_decl)
+        )
+        if has_trace_decl:
+            continue
+        # No declared trace — check for no-trace-justification.
+        justification = no_trace_dir / f"{eou_id}.yml"
+        if not justification.exists():
+            problems.append(
+                f"{spec_path}: active EOU `{eou_id}` declares no outputs.trace "
+                f"and has no foundry/audits/no-trace/{eou_id}.yml. Either add "
+                f"trace declaration (outputs.trace listing runs/{eou_id}/... path) "
+                f"or write a no-trace-justification with named reviewer and "
+                f"expires_at (ECP-0014)"
+            )
+    return problems
+
+
+def validate_candidate_sets(root: Path) -> list[str]:
+    """ECP-0013: candidate-set artifacts are the named output of every
+    generating EOU. They live at foundry/self-evolution/candidate-sets/
+    {set_id}.yml. Schema enforced by this walker.
+    """
+    problems: list[str] = []
+    base = root / "foundry" / "self-evolution" / "candidate-sets"
+    if not base.exists():
+        return problems
+    for path in sorted(base.glob("*.yml")):
+        if path.name == ".gitkeep":
+            continue
+        data = load_yaml(path)
+        if not isinstance(data, dict):
+            problems.append(f"{path}: candidate-set must be a mapping")
+            continue
+        problems.extend(validate_required(path, data, CANDIDATE_SET_REQUIRED))
+        target_class = data.get("target_class")
+        if target_class and target_class not in CANDIDATE_SET_VALID_TARGET_CLASS:
+            problems.append(
+                f"{path}: target_class `{target_class}` not in "
+                f"{sorted(CANDIDATE_SET_VALID_TARGET_CLASS)}"
+            )
+        status = data.get("audit_status")
+        if status and status not in CANDIDATE_SET_VALID_STATUS:
+            problems.append(
+                f"{path}: audit_status `{status}` not in "
+                f"{sorted(CANDIDATE_SET_VALID_STATUS)}"
+            )
+        # Each candidate must declare status:candidate and arguments_against.
+        candidates = data.get("candidates")
+        if isinstance(candidates, list):
+            for idx, cand in enumerate(candidates):
+                if not isinstance(cand, dict):
+                    problems.append(f"{path}: candidates[{idx}] must be a mapping")
+                    continue
+                cand_id = cand.get("id", f"candidates[{idx}]")
+                cand_status = cand.get("status")
+                if cand_status and cand_status != "candidate":
+                    problems.append(
+                        f"{path}: candidate `{cand_id}` status=`{cand_status}`; "
+                        f"only `candidate` is allowed in a candidate-set "
+                        f"(generators may not emit other lifecycle states)"
+                    )
+                if empty(cand.get("arguments_against")):
+                    problems.append(
+                        f"{path}: candidate `{cand_id}` missing arguments_against "
+                        f"(counter_generation requirement)"
+                    )
+        # Audit outcome must have all 7 keys (may be empty lists pre-audit).
+        outcome = data.get("audit_outcome")
+        if isinstance(outcome, dict):
+            for key in CANDIDATE_SET_AUDIT_OUTCOME_KEYS:
+                if key not in outcome:
+                    problems.append(f"{path}: audit_outcome missing key `{key}`")
+            # If audited: the set must explicitly say what survived AND what didn't.
+            # Empty minimal_recommended_subset AND empty rejected = mute audit.
+            if status == "audited":
+                survived = outcome.get("minimal_recommended_subset") or []
+                rejected = outcome.get("rejected") or []
+                if not survived and not rejected:
+                    problems.append(
+                        f"{path}: audit_status=audited but both "
+                        f"minimal_recommended_subset and rejected are empty; "
+                        f"an audited set must record either what passed or "
+                        f"explicit rejection (rejected_in_full status if all rejected)"
+                    )
     return problems
 
 
@@ -1120,6 +1251,8 @@ def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str
     problems.extend(validate_incidents(root))
     problems.extend(validate_run_traces(root))
     problems.extend(validate_no_trace_justifications(root))
+    problems.extend(validate_active_trace_obligation(root, app_eou_paths))
+    problems.extend(validate_candidate_sets(root))
     problems.extend(validate_dependency_dag(root))
     problems.extend(validate_maturity_evidence(root))
     problems.extend(validate_activation_evidence(root))

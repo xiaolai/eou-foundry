@@ -1,0 +1,154 @@
+id: ecp-0013-candidate-set-schema-and-validation
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.6.0
+problem:
+  observed_failure: |
+    "Candidate set" is treated as a governed artifact in dev-docs (02-architecture.md
+    line 362, 04-vocabulary-principles.md line 155, 156, 157) and is the named output
+    of every `function: generate` EOU's pipeline. The audit-candidate-eou-set skill
+    consumes it. But it has no schema file, no validator check, and no concrete
+    on-disk shape. ECP-0004 proposes the validator skip files matching a candidate-set
+    pattern when walking foundry/self-evolution/ecp/proposed/ — that prevents false
+    failures but does not give the artifact governance teeth. A V6 review (independent
+    architectural review of this conversation) named this as the highest-leverage
+    closure gap not addressed by any in-flight ECP.
+
+    The concrete consequence: generating EOUs can emit candidate-set artifacts in any
+    shape they want. Two generating EOUs in two apps could each produce a candidate-set
+    with completely different field structure and both pass validation by virtue of
+    not being validated at all. The audit step that should catch this is itself a
+    candidate-set-shaped artifact, with the same shape ambiguity.
+  failure_class: F3_SCHEMA_FAILURE
+  evidence:
+  - dev-docs/04-vocabulary-principles.md line 155-157 treats "candidate set" as a
+    governed noun and gives it a producer (`generate`) and consumer (`audit`).
+    schemas/ has no candidate-set.schema.yml.
+  - scripts/validate_foundry.py walks foundry/self-evolution/ecp/proposed/ for ECPs
+    and foundry/self-evolution/regression/cases/ for regression cases but has no
+    walker for candidate-set artifacts. The artifact has no canonical directory.
+  - ECP-0004 line 24-28 acknowledges the gap and proposes a tactical skip rather
+    than schematizing the artifact. This ECP is the structural fix that ECP-0004
+    defers.
+  - V6 architecture (architecture_v6_staged_governed_effect_system.md line 436-444)
+    specifies a candidate-set audit outcome structure (`accepted`, `merged`,
+    `demoted_to_rule`, `demoted_to_validator`, `demoted_to_stop_condition`,
+    `rejected`, `minimal_recommended_subset`) that the current plugin echoes in
+    prose but not in schema.
+proposed_change:
+  summary: |
+    Add `schemas/candidate-set.schema.yml` declaring required fields. Define the
+    canonical directory: `foundry/self-evolution/candidate-sets/{set_id}.yml`. Add
+    `validate_candidate_sets()` to scripts/validate_foundry.py that walks the new
+    directory and validates each file against the schema. Update the
+    `generate-eou-candidates` and `audit-candidate-eou-set` meta-EOUs to declare
+    their output paths against this canonical location.
+  files_changed:
+  - schemas/candidate-set.schema.yml — new schema file
+  - scripts/validate_foundry.py — new validate_candidate_sets() function called
+    from validate_foundry()
+  - engine/meta-eous/generate-eou-candidates.yml — outputs.primary updated to the
+    canonical path
+  - engine/meta-eous/audit-candidate-eou-set.yml — inputs/outputs updated; consumes
+    from the canonical path, emits the audit_outcome block
+  - skills/generate-eou-candidates/SKILL.md — output path documented
+  - codex/skills/generate-eou-candidates/SKILL.md — mirror update
+  - skills/audit-candidate-eou-set/SKILL.md — input/output path documented
+  - codex/skills/audit-candidate-eou-set/SKILL.md — mirror update
+  - rules/95-generating-eous.md — line 48 candidate-set routing updated to the
+    canonical directory (currently points at ecp/proposed/)
+  - tests/fixture-foundry/foundry/self-evolution/candidate-sets/ — empty dir with
+    .gitkeep so the validator passes against the fixture
+  - CHANGELOG.md — 0.6.0 entry
+  schema_required_fields:
+  - id  # canonical: cs-{generating_eou_id}-{YYYYMMDD}-{hhmm}
+  - generated_by  # EOU id of the generating EOU
+  - generated_at  # ISO timestamp
+  - target_class  # what kind of artifact the candidates are (eou_spec / ecp / regression_case / refactor_option)
+  - candidates  # list; each entry MUST declare status:candidate and arguments_against
+  - audit_outcome  # mapping; required keys: accepted, merged, demoted_to_rule,
+                   #   demoted_to_validator, demoted_to_stop_condition, rejected,
+                   #   minimal_recommended_subset. May be empty lists pre-audit;
+                   #   audit step populates them.
+  - audit_status  # one of: pending_audit | audited | rejected_in_full
+  validator_changes:
+  - "validate_candidate_sets: new function. Walks foundry/self-evolution/candidate-sets/*.yml.
+    For each file: validate required top-level keys; refuse any candidate with status
+    other than `candidate`; refuse any candidate missing arguments_against; refuse
+    audit_status=audited with empty audit_outcome.minimal_recommended_subset AND
+    empty rejected lists (an audited set must explicitly say what survived and what
+    didn't, even if the answer is 'nothing survived')."
+  - "validate_foundry: invoke validate_candidate_sets() after validate_ecps()."
+expected_benefit:
+- |
+  Generators can no longer emit shape-divergent candidate-set artifacts. The most
+  consequential output of generating EOUs has a contract.
+- |
+  The audit-candidate-eou-set skill has a typed input and a typed output. Today
+  it consumes prose; tomorrow it consumes schema-validated YAML.
+- |
+  ECP-0004's tactical skip becomes structural: candidate-set files live in their
+  own directory; no pattern-matching against ecp/proposed/ is needed.
+- |
+  The candidate-set audit_outcome block forces an explicit, traceable answer to
+  "which candidates survived, which were demoted, and to what." Today this lives
+  in prose if it exists at all.
+risks:
+- |
+  Existing book-workshop and any other in-flight generation runs will emit
+  candidate-sets that don't match the schema once it lands. Mitigation: 0.6.0
+  ships with a 30-day deprecation warning window; the validator warns but does
+  not fail on candidate-sets at lifecycle_stage:candidate. Hard error fires only
+  on candidate-sets in audited state or when target_eou is at active stage.
+- |
+  Locking the schema before any real candidate-set audit has been produced means
+  the schema may be wrong. Mitigation: generate a canary candidate-set from
+  book-workshop and audit it as part of this ECP's testing; revise the schema
+  based on what production actually wants to record.
+- |
+  Moving candidate-sets out of ecp/proposed/ (ECP-0004's current home) will leave
+  ECP-0004's tactical skip rule looking like dead code. Mitigation: ECP-0004
+  drops the skip-rule clause; this ECP's directory rename makes the skip
+  unnecessary. Cross-link the two ECPs in approval.
+tests_required:
+- |
+  Regression. A candidate-set with a candidate at status:active fails validation
+  with a specific message naming the candidate id.
+- |
+  Regression. A candidate-set with audit_status=audited and audit_outcome
+  containing only empty lists fails validation.
+- |
+  Regression. A candidate-set with audit_status=audited, all candidates rejected,
+  and audit_outcome.rejected populated passes validation.
+- |
+  Regression. A well-formed candidate-set in foundry/self-evolution/candidate-sets/
+  passes validation; the same file in foundry/self-evolution/ecp/proposed/ is
+  invisible to the candidate-set walker (it should not be picked up there).
+- |
+  Operational test. book-workshop runs $generate-eou-candidates against a workflow
+  description and emits a candidate-set at the canonical path; the validator
+  passes on the resulting file.
+- |
+  Operational test. book-workshop runs $audit-candidate-eou-set against that file;
+  audit_status flips to audited; minimal_recommended_subset is non-empty; the
+  validator still passes.
+simulation:
+  status: not_simulated
+  rationale: |
+    Schema + walker is additive infrastructure. Proof is the regression case set
+    above plus the two operational tests against book-workshop. No EOU-runtime
+    simulation needed.
+approval:
+  proposed_by: plugin maintainer (V6 architecture absorption — closure gap identified by adversarial review)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert the schema and validator function; restore rules/95-generating-eous.md
+    routing to ecp/proposed/. Apps that started using foundry/self-evolution/
+    candidate-sets/ need to be told to revert to the prior tactical home; warn
+    them in CHANGELOG. ECP-0004's skip-rule clause must be restored if dropped.
+    Low risk during deprecation window: nothing depends on this artifact being
+    schema-valid yet.
+submitted_as: null

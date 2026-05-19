@@ -17,7 +17,7 @@ purpose:
 operating_hypothesis: Given a candidate EOU set, the Foundry registry, and constitution, this EOU can identify whether the set is useful, minimal, non-overlapping, and safe to advance to specification.
 inputs:
   required:
-  - candidate_eou_set.yml
+  - foundry/self-evolution/candidate-sets/{set_id}.yml
   - foundry/registry.yml
   - foundry/constitution.yml
   optional:
@@ -28,7 +28,7 @@ inputs:
   - Do not assume a candidate is valid because it is present in the set.
 context_manifest:
   source_of_truth:
-  - candidate_eou_set.yml
+  - foundry/self-evolution/candidate-sets/{set_id}.yml
   - registry.yml
   - constitution.yml
   supporting:
@@ -38,7 +38,7 @@ context_manifest:
   - foundry/constitution.yml  # read-only; no mutations
 execution:
   steps:
-  - Load candidate_eou_set.yml, foundry/registry.yml, and foundry/constitution.yml.
+  - Load foundry/self-evolution/candidate-sets/{set_id}.yml, foundry/registry.yml, and foundry/constitution.yml.
   - For each candidate, run the Boundary Test — verify exactly one distinct success criterion; flag candidates whose criterion subsumes another candidate's.
   - Run the Non-Overlap Test — compare each candidate's purpose and target_object against all other candidates and against registered EOUs; flag overlapping pairs.
   - Run the Minimality Test — for each candidate, check whether it could be replaced by a rule, validator, stop condition, regression case, or checklist item; flag substitutable candidates.
@@ -53,7 +53,7 @@ execution:
   - If Boundary or Non-Overlap failures are present but fixable without rejection, verdict is REVISE.
   - Escalate to human if any candidate proposes authority_level:approve or publish.
   stop_conditions:
-  - candidate_eou_set.yml not found.
+  - foundry/self-evolution/candidate-sets/{set_id}.yml not found.
   - foundry/registry.yml not found.
   - foundry/constitution.yml not found.
   allowed_tools:

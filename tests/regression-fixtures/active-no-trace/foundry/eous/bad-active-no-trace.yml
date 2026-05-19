@@ -1,0 +1,76 @@
+id: bad-active-no-trace
+name: Bad Active No Trace
+version: "0.1.0"
+classification:
+  function: validate
+  target_object: regression fixture
+  automation_mode: deterministic
+  authority_level: suggest_only
+  risk_level: low
+  lifecycle_stage: active
+purpose:
+  statement: A regression fixture EOU at lifecycle_stage:active with NO trace declaration and NO no-trace-justification. Should fail validation per ECP-0014.
+  non_goals:
+  - This is a fixture; do not execute.
+operating_hypothesis: Validator hard-errors on this file.
+inputs:
+  required:
+  - nothing
+  optional: []
+  forbidden_assumptions:
+  - none
+context_manifest:
+  source_of_truth:
+  - none
+  supporting:
+  - none
+  forbidden: []
+execution:
+  steps:
+  - never executes
+  decision_points: []
+  stop_conditions:
+  - always
+  allowed_tools: []
+  prohibited_actions:
+  - execution
+outputs:
+  primary:
+  - nothing
+  secondary: []
+  trace: []
+success_criteria:
+  must_pass:
+  - the validator rejects this file
+  should_pass: []
+validation:
+  deterministic:
+  - validator runs without crashing
+  judgment: []
+  red_team: []
+failure_modes:
+  known:
+  - this is intentionally broken
+  warning_signs:
+  - validator passes (bug)
+  repair_actions:
+  - fix the validator
+escalation:
+  require_human_when:
+  - never
+  require_approval_for: []
+responsibility:
+  executor: test fixture
+  reviewer: regression suite
+  approver: jane.doe
+  cannot_delegate:
+  - human final approval
+blast_radius:
+  allowed_scope:
+  - tests/regression-fixtures/
+  forbidden_scope:
+  - production code
+versioning:
+  supersedes: []
+  changelog:
+  - "0.1.0: regression fixture for ECP-0014"

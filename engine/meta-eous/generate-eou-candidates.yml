@@ -75,12 +75,12 @@ execution:
   - Weakening validators
 outputs:
   primary:
-  - candidate_eou_set.yml
+  - foundry/self-evolution/candidate-sets/cs-generate-eou-candidates-{YYYYMMDD}-{hhmm}.yml
   secondary:
   - decomposition_rationale.md
   - open_questions.md
   trace:
-  - runs/{run_id}/trace.yml
+  - runs/generate-eou-candidates/{run_id}.yml
 success_criteria:
   must_pass:
   - Each candidate has a clear purpose, non-goal, success criterion, failure modes,
@@ -139,7 +139,7 @@ versioning:
   - '0.2.0: converted to faceted EOU Foundry V2 schema.'
 blast_radius:
   allowed_scope:
-  - foundry/self-evolution/ecp/proposed/
+  - foundry/self-evolution/candidate-sets/
   - foundry/self-evolution/regression/cases/
   - candidate output locations explicitly provided by user
   forbidden_scope:

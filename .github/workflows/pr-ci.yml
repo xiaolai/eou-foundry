@@ -55,9 +55,28 @@ jobs:
           echo "OK: Python syntax valid"
 
       - name: Foundry validator smoke-test
+        env:
+          EOU_FOUNDRY_PLUGIN_PATH: ${{ github.workspace }}
         run: |
           python3 scripts/validate_foundry.py tests/fixture-foundry
           echo "OK: fixture foundry valid"
+
+      - name: Foundry validator negative-tests
+        env:
+          EOU_FOUNDRY_PLUGIN_PATH: ${{ github.workspace }}
+        run: |
+          # Each regression fixture is INTENTIONALLY broken; the validator
+          # must exit non-zero. If any fixture passes, the validator has
+          # silently regressed and we want to catch that here.
+          for fixture in tests/regression-fixtures/*/; do
+            if [ ! -d "$fixture/foundry" ]; then continue; fi
+            if python3 scripts/validate_foundry.py "$fixture" >/dev/null 2>&1; then
+              echo "REGRESSION: $fixture should fail validation but passed"
+              exit 1
+            else
+              echo "OK: $fixture correctly rejected"
+            fi
+          done
 
   auto-merge:
     name: Auto-merge (xiaolai)
