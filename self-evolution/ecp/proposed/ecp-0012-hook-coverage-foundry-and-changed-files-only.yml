@@ -1,0 +1,89 @@
+id: ecp-0012-hook-coverage-foundry-and-changed-files-only
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.5.2
+problem:
+  observed_failure: |
+    Two related hook-layer failures.
+    (1) Coverage gap: workshop's .claude/settings.json hooks fire
+    validate_book_files.py, guard_banned_terms.py, validate_metaphor_
+    files.py on Write/Edit/MultiEdit. All three guard book content.
+    None guard foundry/ writes. An LLM editing constitution.yml,
+    registry.yml, or any EOU spec triggers zero automatic checks.
+    Foundry writes are the highest-stakes writes in the system.
+    (2) Performance and false-blocking: hooks scan the global book
+    corpus on every Write — books/, engine/, templates/ recursively
+    — even if only one unrelated file changed. A pre-existing invalid
+    file in another book blocks the current write. Brittle for repair
+    workflows; pathological at scale.
+  failure_class: F7_VALIDATION_FAILURE
+  evidence:
+  - "book-workshop/.claude/settings.json hooks list: no validate_foundry
+    invocation; no path-scoped invocation."
+  - "book-workshop/.claude/hooks/guard_banned_terms.py line 22-37:
+    rglob over books/, engine/, templates/ regardless of which file
+    triggered the hook."
+  - "Codex audit roundtable, findings #8 (hooks scan globally) and
+    Claude audit #11 (no foundry guard)."
+proposed_change:
+  summary: |
+    Two paired changes.
+    (a) Plugin ships a foundry/ guard hook in its templates/ scaffold
+    (and init_app.sh writes it into new apps' .claude/settings.json).
+    On any Write/Edit/MultiEdit matching foundry/**/*.yml, run
+    validate_foundry.py on that file's containing tree. Fails fast on
+    constitutional or registry corruption.
+    (b) Existing hooks accept the changed file path as argument and
+    validate that path (and its tree of cross-references) instead of
+    the global corpus. Repair workflows aren't blocked by unrelated
+    pre-existing failures. Global validation moves to the Stop hook
+    (whole-corpus check at session end) and to CI.
+  files_changed:
+  - "Plugin templates/.claude/settings.json.template — adds the
+    foundry guard hook block"
+  - "Plugin scripts/init_app.sh — writes the new template into
+    .claude/settings.json"
+  - "Workshop .claude/settings.json — adopts the same hook pattern
+    (manual migration for existing apps)"
+  - "Workshop .claude/hooks/guard_banned_terms.py — accept argv[1]
+    as the path to scope the check"
+  - "Workshop .claude/hooks/validate_book_files.py — same scoping"
+  - "Workshop .claude/hooks/validate_metaphor_files.py — same scoping"
+  - "CHANGELOG.md — 0.5.2 entry"
+expected_benefit:
+- "Highest-stakes files (constitution, registry, EOU specs) get the
+  same automated guard that book chapters get. Probably more so."
+- "Unrelated pre-existing failures no longer block targeted edits.
+  Repair workflows stop being painful."
+- "Hook latency drops for typical edits (no global rglob)."
+- "Sister applications inherit the foundry guard via init_app.sh."
+risks:
+- "Path-scoped hooks may miss cross-file invariants. Mitigation: the
+  Stop hook (session end) runs full validate_workshop.py. Per-write
+  hooks catch local invariants; per-session hooks catch global ones."
+- "Existing apps that customized their hook scripts won't pick up
+  the new behavior. Mitigation: 0.5.2 ships only the plugin template
+  change; app migration is documented but not forced."
+tests_required:
+- "Regression: editing book-workshop/foundry/constitution.yml triggers
+  validate_foundry on the workshop tree."
+- "Regression: editing books/the-perfect-assignment/manuscript/foo.md
+  while books/other-book/manuscript/bar.md has banned terms does NOT
+  fail on the bar.md issue (scoping works)."
+- "Regression: session Stop hook still catches the bar.md issue
+  globally."
+simulation:
+  status: not_simulated
+  rationale: |
+    Hook config + script argv changes. Validation is regression-based.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #11 + codex #8)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert hook config to global scan; remove the foundry guard. Low
+    risk: hooks are best-effort, not load-bearing. Workshop can
+    always be revalidated manually.
+submitted_as: null

@@ -1,5 +1,52 @@
 # EOU Foundry Plugin Changelog
 
+## 0.5.2 — Patch bundle: version pinning, path discovery, governance exception, foundry guard, validator move
+
+Bug-fix patch bundling six approved ECPs from the post-roundtable
+deferred-finding review.
+
+What changed:
+
+- **ECP-0005 (`scripts/validate_foundry.py`)**: parse and enforce the
+  `inherits_from: "eou-foundry@<spec>"` version constraint against the
+  installed plugin version. Supported spec syntax: `==X.Y.Z`, `>=X.Y.Z`,
+  `~=X.Y` (compatible release), or bare `X.Y.Z` (≡ `==`). An app pinned
+  to a constraint the installed plugin doesn't satisfy fails validation
+  with a specific error. The version string in `inherits_from` is now
+  a contract, not decoration.
+- **ECP-0006 (`scripts/validate_foundry.py`)**: plugin path discovery
+  unified. Priority: `EOU_FOUNDRY_PLUGIN_PATH` env var, then
+  `claude plugin path eou-foundry@xiaolai` (Claude Code install), then
+  fallback to `Path(__file__).parents[1]` for plugin self-test. The
+  prior hardcoded user-specific fallback in book-workshop is removed in
+  a companion workshop commit.
+- **ECP-0008 (`scripts/`)**: `validate_recursive_case.py` deleted from
+  plugin. The script validates a workshop-specific case study; it never
+  belonged in the plugin. Workshop adds its own copy in the companion
+  commit.
+- **ECP-0011 (`rules/94-no-self-approval.md`)**: explicit "Audited
+  exceptions" section names the CI auto-merge from the `xiaolai`
+  maintainer identity as a recorded, conditioned, revocable exception
+  to the general no-self-approval rule. Three conditions: CI must pass,
+  audit logs retained, revocable by follow-on ECP.
+- **ECP-0012 (`scripts/init_app.sh`)**: new apps now scaffold with a
+  foundry guard hook. `.claude/hooks/foundry_guard.py` runs
+  validate_foundry on any foundry/ write; scoped by `$CLAUDE_FILE_PATHS`
+  so unrelated edits don't trigger it. Companion workshop commit
+  retro-fits the same hook into book-workshop.
+
+What did *not* ship in 0.5.2:
+- The lifecycle/evidence triangle (run trace shape, dependency DAG +
+  maturity evidence, activation evidence) is the 0.6.0 minor release.
+  See ECP-0007, ECP-0009, ECP-0010.
+
+Tracking:
+
+- ECPs 0005, 0006, 0008, 0011, 0012 in
+  `book-workshop/foundry/self-evolution/upstream/proposed-to-plugin/`
+- Workshop-side ECP-0001 (promote_upstream temp clone) is workshop-internal
+  and lands in workshop's `foundry/self-evolution/ecp/proposed/`.
+
 ## 0.5.1 — Validator catches up to rules (ECP-0004)
 
 Bug-fix release. An external two-pass architecture audit found that the

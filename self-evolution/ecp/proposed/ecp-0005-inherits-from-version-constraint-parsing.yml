@@ -1,0 +1,82 @@
+id: ecp-0005-inherits-from-version-constraint-parsing
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.5.2
+problem:
+  observed_failure: |
+    foundry/constitution.yml declares `inherits_from: "eou-foundry@>=0.5.0"`
+    but scripts/validate_foundry.py never parses or enforces this version
+    constraint. An app declaring `>=0.5.0` will silently inherit engine
+    defaults from any installed plugin version — including 0.4.x (where
+    engine/constitution-defaults.yml does not exist) or a future 0.6.x with
+    different invariants. The whole point of versioned inheritance is to
+    pin semantics; today it is a string in a YAML file.
+  failure_class: F7_VALIDATION_FAILURE
+  evidence:
+  - "load_constitution() in scripts/validate_foundry.py reads inherits_from
+    only to detect the new-style format vs legacy full-body. The version
+    spec is discarded."
+  - "Plugin's .claude-plugin/plugin.json declares the installed version but
+    no validator code reads it."
+  - "If engine maintainer edits engine/constitution-defaults.yml between
+    plugin versions, every consuming app silently picks up the new defaults
+    on next validate — bypassing every app's own ECP process."
+proposed_change:
+  summary: |
+    Parse inherits_from as `<plugin-name>@<version-spec>`. Read the plugin's
+    installed version from .claude-plugin/plugin.json. Refuse validation
+    if the installed version does not satisfy the declared constraint.
+    Support a minimal subset of version specs: `==X.Y.Z`, `>=X.Y.Z`,
+    `~=X.Y` (compatible release; same major.minor), and bare `X.Y.Z`
+    (treated as ==).
+  files_changed:
+  - "scripts/validate_foundry.py — add parse_version_spec() helper;
+    enforce in load_constitution() before applying engine defaults"
+  - "schemas/constitution.schema.yml — document the version-spec syntax
+    under inherits_from"
+  - "rules/91-foundry-constitution.md — section explaining the constraint
+    contract"
+  - "CHANGELOG.md — 0.5.2 entry"
+  - ".claude-plugin/{plugin,marketplace}.json — version bump"
+expected_benefit:
+- "An app pinned to >=0.5.0 cannot accidentally validate against 0.4.x
+  (where the defaults file is absent — currently a different failure
+  mode that masks the version skew)."
+- "An engine-maintainer change to constitution-defaults.yml cannot
+  silently propagate to apps pinned to a specific version range. Apps
+  must explicitly re-declare their constraint to pick up the new version."
+- "Makes inherits_from a contract instead of decoration. Restores the
+  intended semantics of ECP-0003."
+risks:
+- "Apps with malformed or missing inherits_from (e.g. just `eou-foundry`
+  with no version) will fail under stricter parsing. Mitigation: emit a
+  deprecation warning for bare names in 0.5.2; hard-error in 0.6.0."
+- "The version-spec subset is intentionally small. Apps that want richer
+  spec syntax (PEP-440-style markers, prerelease tags) are out of scope.
+  Mitigation: document the supported subset; extension is its own ECP."
+tests_required:
+- "Regression: app declaring inherits_from `>=0.6.0` against plugin 0.5.2
+  fails validation with a specific message."
+- "Regression: app declaring inherits_from `==0.5.1` against plugin 0.5.2
+  fails validation."
+- "Regression: app declaring inherits_from `~=0.5` against plugin 0.5.x
+  passes; against plugin 0.6.0 fails."
+- "Regression: app with malformed inherits_from string fails with parse-
+  error message naming the supported syntax."
+simulation:
+  status: not_simulated
+  rationale: |
+    Parse logic is straightforward; proof is in the regression cases.
+    No EOU-runtime simulation needed.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #3)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert the validator change; apps depending on the constraint check
+    would need to re-add their own version assertions in their own
+    pre-validation scripts. Low risk: feature is additive; reverting just
+    restores the silent-skew behavior of 0.5.1.
+submitted_as: null

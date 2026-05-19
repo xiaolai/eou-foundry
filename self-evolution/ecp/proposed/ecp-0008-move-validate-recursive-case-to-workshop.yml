@@ -1,0 +1,66 @@
+id: ecp-0008-move-validate-recursive-case-to-workshop
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.5.2
+problem:
+  observed_failure: |
+    scripts/validate_recursive_case.py lives in the plugin but the
+    recursive case is workshop-specific — it validates the book-workshop
+    application's case-studies/recursive-book-production/ directory. No
+    other sister application has a "recursive book production" case;
+    none could. The plugin shouldn't ship app-specific validators. This
+    is the symmetric violation to ECP-0003 (engine in app); here we
+    have app concern in plugin.
+  failure_class: F4_SCOPE_FAILURE
+  evidence:
+  - "Plugin scripts/validate_recursive_case.py validates paths under
+    case-studies/recursive-book-production/ which exists only in
+    book-workshop."
+  - "Workshop scripts/validate_workshop.py line 122-135 invokes the
+    plugin's validate_recursive_case.py. The wiring is plugin->app
+    coupling that should be app-internal."
+proposed_change:
+  summary: |
+    Move scripts/validate_recursive_case.py from plugin to
+    book-workshop/scripts/. Update workshop's validate_workshop.py to
+    call the local script instead of the plugin's. Plugin sheds an
+    app-specific responsibility it should never have had.
+  files_changed:
+  - "Plugin: delete scripts/validate_recursive_case.py"
+  - "Workshop: add scripts/validate_recursive_case.py (moved from plugin)"
+  - "Workshop: scripts/validate_workshop.py — call local script directly"
+  - "Plugin CHANGELOG: 0.5.2 entry"
+expected_benefit:
+- "Plugin/application layering is symmetric: app-specific concerns live
+  in app, engine concerns live in plugin."
+- "Sister applications (when they exist) won't inherit a validator
+  irrelevant to their domain."
+- "Mirrors ECP-0003's pattern: where there's directional misplacement,
+  fix it both ways."
+risks:
+- "Workshop's validate_workshop.py needs to know where the recursive-case
+  validator lives. Mitigation: it already runs many local scripts from
+  scripts/; one more is no new concept."
+- "If any other application has secretly been using the plugin's
+  validate_recursive_case.py, they break. Mitigation: no other app
+  exists today; ECP-0003's migration window covers any latent
+  consumers."
+tests_required:
+- "Regression: workshop validates green with the relocated script."
+- "Regression: plugin's validate_foundry.py self-test doesn't reference
+  the deleted file."
+simulation:
+  status: not_simulated
+  rationale: |
+    Pure file move. Proof is in regression.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #9)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Reverse the move: copy validate_recursive_case.py back to plugin/scripts/;
+    revert workshop's validate_workshop.py to invoke plugin path. No data
+    affected.
+submitted_as: null

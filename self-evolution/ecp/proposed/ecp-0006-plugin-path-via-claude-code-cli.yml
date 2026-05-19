@@ -1,0 +1,70 @@
+id: ecp-0006-plugin-path-via-claude-code-cli
+target_eou: eou-foundry-plugin
+target_version_from: 0.5.1
+target_version_to: 0.5.2
+problem:
+  observed_failure: |
+    Plugin path discovery uses two incompatible mechanisms:
+    (1) scripts/validate_foundry.py: `find_plugin_root() =
+    Path(__file__).resolve().parents[1]` — fragile under wrapper scripts
+    that exec the file or change __file__.
+    (2) book-workshop/scripts/validate_workshop.py: env var with hardcoded
+    fallback `~/github/xiaolai/myprojects/claude-plugins/eou-foundry`.
+    Portability is broken on day one for any non-xiaolai user.
+  failure_class: F1_INPUT_FAILURE
+  evidence:
+  - "validate_workshop.py line 119-121: hardcoded path fallback."
+  - "If user has the plugin installed via `claude plugin install` but
+    also has a separate local checkout, find_plugin_root() returns one
+    while the env var path may point to the other. Validators disagree
+    on which engine artifacts to read."
+proposed_change:
+  summary: |
+    Single discovery mechanism via `claude plugin path eou-foundry@xiaolai`
+    (or whichever installed identifier). Cache the result for the run.
+    Env var override stays for offline testing. Drop user-specific
+    hardcoded fallbacks; emit a clear setup error instead.
+  files_changed:
+  - "scripts/_common.py — add find_plugin_path() that shells out to
+    `claude plugin path` and parses the result"
+  - "scripts/validate_foundry.py — use the shared helper instead of
+    Path(__file__).parents[1]"
+  - "Companion change in book-workshop/scripts/validate_workshop.py —
+    drop the hardcoded ~/github/xiaolai/... fallback; consume the same
+    helper"
+  - "CHANGELOG.md — 0.5.2 entry"
+expected_benefit:
+- "Portability: a second user clones the workshop, runs the validator,
+  it works."
+- "Determinism: one discovery mechanism, one answer. No more divergence
+  between plugin-side and app-side validators reading different plugin
+  checkouts."
+- "Removes the developer-machine assumption embedded in code."
+risks:
+- "If `claude plugin path` is not available (e.g. running outside Claude
+  Code), the discovery falls back to env var; if neither, fail with a
+  specific setup message. Mitigation: documented in README."
+- "Plugin install layout could change in future Claude Code releases.
+  Mitigation: helper is one function, easy to update."
+tests_required:
+- "Regression: validator run with EOU_FOUNDRY_PLUGIN_PATH set uses that
+  path; ignores `claude plugin path` even if installed."
+- "Regression: validator run without the env var calls `claude plugin
+  path` and uses its output."
+- "Regression: validator run with neither env var nor `claude` on PATH
+  fails with a setup-error message naming both options."
+simulation:
+  status: not_simulated
+  rationale: |
+    Discovery logic; proof is in the regression cases.
+approval:
+  proposed_by: book-workshop self-evolution (deferred from audit roundtable, mine #5)
+  audited_by: null
+  approver: null
+  status: proposed
+  implemented_in: null
+  rollback_considerations: |
+    Revert the helper; the previous discovery mechanism (file-relative)
+    still works for the plugin's own validator. The workshop's hardcoded
+    fallback gets re-added as a temporary stopgap.
+submitted_as: null
