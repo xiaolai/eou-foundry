@@ -5,6 +5,8 @@ description: Allow the Foundry to inspect and improve its own EOUs only through 
 
 # Recursive Governance Rule
 
+**Route every structural Foundry change through the full governance pipeline — no shortcuts, no step skipped.** The pipeline is the only thing that prevents the Foundry from drifting away from its own constitution; collapsing it (observe→edit, audit→implement, propose→implement-without-approval) turns recursive self-improvement into recursive self-corruption.
+
 The Foundry may recursively inspect and improve its own EOUs, but only through bounded governance.
 
 ## Required change pipeline

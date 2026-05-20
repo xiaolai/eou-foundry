@@ -1,6 +1,17 @@
 ---
 name: eou-specify
-description: "Convert an approved candidate into a formal EOU spec using Foundry V2 faceted classification and governance constraints."
+description: |
+  Convert an approved candidate (from a candidate set) into a formal EOU spec at lifecycle_stage draft, populating all six classification facets, context manifest, execution steps, stop conditions, validation, failure modes, blast radius, and responsibility.
+  <example>
+  Context: A candidate has been accepted in audit-candidate-eou-set; owner wants to draft the formal spec.
+  user: "$eou-specify foundry/self-evolution/candidate-sets/cs-generate-eou-candidates-20260520-1430.yml#audit-step-coverage"
+  assistant: "I'll resolve the candidate id, draft a complete EOU spec at lifecycle_stage draft under foundry/eous/, and never set lifecycle_stage active (that requires approved ECP and human owner)."
+  </example>
+  <example>
+  Context: User wants to REPAIR an existing partial spec.
+  user: "$eou-specify foundry/eous/audit-step-coverage.yml --mode repair"
+  assistant: "In REPAIR mode I leave fields that already satisfy schema constraints alone and only fill empty or placeholder-containing fields."
+  </example>
 argument-hint: CANDIDATE_PATH_OR_ID
 arguments:
   - candidate
@@ -16,7 +27,7 @@ Convert or repair `$candidate` into a formal EOU spec.
 
 ## Inputs
 
-- `$candidate` (required) — path to a candidate YAML file or YAML content describing the EOU to specify. Resolved in this order: direct file path → `foundry/self-evolution/ecp/proposed/{id}*.yml` → `foundry/eous/{id}.yml`.
+- `$candidate` (required) — path to a candidate YAML file or YAML content describing the EOU to specify. Resolved in this order: direct file path → `foundry/self-evolution/candidate-sets/*.yml` (search the `candidates` list for an entry whose `id` matches) → `foundry/eous/{id}.yml`.
 
 ## Required reading
 
@@ -125,11 +136,31 @@ Check every field group is populated. Reject placeholder strings ("target artifa
 - Set `lifecycle_stage: draft` — never `active`, `simulated`, `pilot`, or higher without audit evidence.
 - Write the spec to `foundry/eous/{eou_id}.yml` (standard EOU) or `foundry/meta-eous/{eou_id}.yml` (meta/generating EOU).
 
+## Output
+
+| Artifact | Path | Notes |
+|---|---|---|
+| Standard EOU spec | `foundry/eous/{eou_id}.yml` | Used when `function` is in `{specify, validate, diagnose, promote, refactor, audit, propose, activate, implement, retire}`. |
+| Meta/generating EOU spec | `foundry/meta-eous/{eou_id}.yml` | Used when `function: generate`. Requires an additional `generation_envelope` section beyond the standard fields. |
+| Run trace | `foundry/runs/{eou_id}/{run_id}.yml` | Per `schemas/run-trace.schema.yml`. Records the candidate read, mode (CREATE vs REPAIR), open questions left as `TBD`, and the output path written. |
+
+Every produced spec MUST set `lifecycle_stage: draft`. No higher stage is permitted at this step — that requires audit evidence and human approval via $eou-promote + activate (separate skills).
+
 ## Constraints
 
 - Do not set `lifecycle_stage` to `simulated`, `pilot`, `active`, or any promoted stage without explicit audit and human approval evidence in the file.
-- In REPAIR mode, do not change fields that are correctly populated — only fill gaps.
+- In REPAIR mode, do not change fields that already satisfy schema constraints and contain no placeholder text — only fill empty or placeholder-containing fields.
 - Generating EOUs (`function: generate`) require an additional `generation_envelope` section scoped to the specific outputs this EOU produces; do not copy a generic envelope from another EOU.
 - Do not add fields not present in `schemas/eou.schema.yml`.
 - Do not leave placeholder text in the output: "target artifact", "What this EOU is meant to do", "Perform bounded operation" are failures, not accepted defaults.
 - Stop and ask if the source candidate does not provide enough information to write a concrete `operating_hypothesis` — do not invent it.
+
+## Scope Note
+
+**Upstream:** receives an approved candidate id or path. Typically resolved from a candidate-set entry under `foundry/self-evolution/candidate-sets/` after `$audit-candidate-eou-set` has produced a PASS verdict and a human has reviewed.
+
+**Downstream:** produces a draft EOU spec at `foundry/eous/` or `foundry/meta-eous/` at lifecycle_stage draft. The spec then feeds `$eou-audit` for the draft→pilot promotion gate.
+
+**Related:** `$generate-eou-candidates` (upstream source); `$audit-candidate-eou-set` (upstream gate); `$eou-audit` (downstream consumer).
+
+**Pipeline:** `audit-candidate-eou-set (pass) → human review → eou-specify → eou-audit`

@@ -1,6 +1,17 @@
 ---
 name: foundry-audit
-description: "Audit the EOU Foundry itself for schema drift, self-approval risk, generation overreach, weak validators, and missing governance evidence."
+description: |
+  Audit the EOU Foundry as a whole — not individual EOUs, but the system: schema drift across rule/validator/skill/docs layers, self-approval risk, generation overreach, weakened validators, missing trace, orphan EOUs, stale active EOUs without ECP history.
+  <example>
+  Context: Owner wants a portfolio-level health check before a quarterly release.
+  user: "$foundry-audit"
+  assistant: "I'll audit the whole Foundry. Checks include schema/validator/skill consistency, no-self-approval enforcement across active EOUs, vocabulary drift in canonical functions, and lifecycle/evidence triangle compliance (trace gate, activation evidence, maturity claim vs evidence)."
+  </example>
+  <example>
+  Context: User wants to find which active EOUs have no run traces or no-trace justifications.
+  user: "$foundry-audit"
+  assistant: "Among other checks, I'll surface every EOU at lifecycle_stage active that fails the ECP-0014 trace gate. Report goes to foundry/audits/foundry-audits/."
+  </example>
 allowed-tools:
   - Read
   - Write
@@ -88,3 +99,13 @@ summary:
 - Treat missing required fields as failures, not warnings.
 - If a check cannot be executed (e.g., no EOU specs exist yet), record it as `skipped` with a reason, not as `pass`.
 - Zero findings for a Foundry with more than 5 specs is suspicious — record it as a `low`-severity warning finding.
+
+## Scope Note
+
+**Upstream:** no specific input — audits the whole Foundry. Typically invoked at release milestones, after schema changes, or when portfolio bloat is suspected.
+
+**Downstream:** produces a foundry-wide audit report under `foundry/audits/foundry-audits/`. Findings feed `$eou-diagnose`, `$eou-refactor`, or directly an ECP via `$ecp-propose` when policy gaps surface.
+
+**Related:** `$eou-audit` (sibling — per-EOU); `$eou-validate` (sibling — structural-only); `$audit-candidate-eou-set` (sibling — candidate sets only).
+
+**Pipeline:** `release milestone | schema change → foundry-audit → (findings) eou-diagnose | eou-refactor | ecp-propose`

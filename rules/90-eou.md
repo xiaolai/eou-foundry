@@ -5,6 +5,8 @@ description: Require new or changed workflows to be defined as EOU specs under f
 
 # Executable Operating Unit Rule
 
+**Define or update workflows as EOU specs under `foundry/eous/` or `foundry/meta-eous/`.** A workflow without an EOU spec has no schema, no validator, no audit gate, and no governed path through promotion — it cannot be inspected, retired, or held accountable.
+
 The canonical EOU layer is `foundry/`.
 
 When adding or changing workflows, define or update an EOU spec under:

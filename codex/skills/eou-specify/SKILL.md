@@ -9,7 +9,7 @@ Convert or repair `$candidate` into a formal EOU spec.
 
 ## Inputs
 
-- `$candidate` (required) — path to a candidate YAML file or YAML content describing the EOU to specify. Resolved in this order: direct file path → `foundry/self-evolution/ecp/proposed/{id}*.yml` → `foundry/eous/{id}.yml`.
+- `$candidate` (required) — path to a candidate YAML file or YAML content describing the EOU to specify. Resolved in this order: direct file path → `foundry/self-evolution/candidate-sets/*.yml` (search the `candidates` list for an entry whose `id` matches) → `foundry/eous/{id}.yml`.
 
 ## Required reading
 
@@ -121,7 +121,7 @@ Check every field group is populated. Reject placeholder strings ("target artifa
 ## Constraints
 
 - Do not set `lifecycle_stage` to `simulated`, `pilot`, `active`, or any promoted stage without explicit audit and human approval evidence in the file.
-- In REPAIR mode, do not change fields that are correctly populated — only fill gaps.
+- In REPAIR mode, do not change fields that already satisfy schema constraints and contain no placeholder text — only fill empty or placeholder-containing fields.
 - Generating EOUs (`function: generate`) require an additional `generation_envelope` section scoped to the specific outputs this EOU produces; do not copy a generic envelope from another EOU.
 - Do not add fields not present in `schemas/eou.schema.yml`.
 - Do not leave placeholder text in the output: "target artifact", "What this EOU is meant to do", "Perform bounded operation" are failures, not accepted defaults.

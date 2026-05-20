@@ -2,6 +2,13 @@
 
 > eou-foundry
 
+## Prerequisites
+
+- **Python 3.9+** — required by `scripts/validate_foundry.py` and the helper modules under `scripts/`.
+- **PyYAML** (`pip install pyyaml`) — the validator reads/writes YAML.
+- **No other runtime dependencies** for validation. CI may additionally need `gh` for ECP submission flows; local development does not.
+- **`EOU_FOUNDRY_PLUGIN_PATH`** environment variable should point at the plugin checkout when running `validate_foundry.py` outside an installed-plugin context (the validator falls back to `installed_plugins.json` and then to its own parent directory).
+
 ## Guidelines
 
 ### Vocabulary authority chain

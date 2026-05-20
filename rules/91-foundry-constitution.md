@@ -5,6 +5,8 @@ description: Require reading foundry/constitution.yml, governance.yml, and failu
 
 # Foundry Constitution Rule
 
+**Read the constitution and engine defaults before changing EOU behavior, authority, validation, or promotion rules.** Any change made without consulting the inherited invariants is structurally an act of self-approval — the EOU layer is mutating the boundary against runaway recursion that should bound it.
+
 Before changing EOU behavior, validation, authority, or promotion rules, read:
 
 - `foundry/constitution.yml` (app declaration + any strengthenings)

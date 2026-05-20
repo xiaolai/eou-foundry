@@ -1,6 +1,17 @@
 ---
 name: generate-eou-candidates
-description: "Generate a minimal, ranked candidate EOU set from a messy workflow using Foundry V2 constraints. Candidates are proposal-only and cannot be activated."
+description: |
+  Generate a minimal, ranked candidate EOU set from a messy workflow under Foundry V2 generation-envelope constraints. Candidates are proposal-only at lifecycle_stage candidate, with arguments_against and minimality results recorded per candidate; activation is forbidden at this stage.
+  <example>
+  Context: User has a workflow description and wants candidate EOUs to consider before specifying any.
+  user: "$generate-eou-candidates Compile-chapter workflow: fetch source, parse, render, validate, publish."
+  assistant: "I'll extract decision boundaries (not visible activity labels), test minimality per candidate (rule/validator/regression case alternatives), produce ≤ 7 candidates with arguments_against, and write a candidate-set artifact at foundry/self-evolution/candidate-sets/."
+  </example>
+  <example>
+  Context: User points the skill at an existing YAML workflow description.
+  user: "$generate-eou-candidates ./workflows/book-build.yml"
+  assistant: "I'll load the workflow, run registry-diff against existing EOUs to avoid duplicates, and emit candidates only where a rule/validator/checklist cannot serve the need."
+  </example>
 argument-hint: WORKFLOW_DESCRIPTION_OR_FILE
 arguments:
   - workflow
@@ -73,13 +84,13 @@ For each kept candidate:
 
 | Field | Value |
 |-------|-------|
-| `function` | One of: `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose` |
+| `function` | One of: `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose \| activate \| implement \| retire` |
 | `automation_mode` | `deterministic \| LLM_assisted \| hybrid \| human_executed` |
 | `authority_level` | `suggest_only \| draft_only \| write_candidate \| write_inactive \| mutate_active \| approve \| publish` |
 | `risk_level` | `low \| medium \| high \| critical` |
 | `lifecycle_stage` | `candidate` (always — do not set active) |
 
-Also fill: `purpose`, `non_goal`, `distinct_success_criterion`, `failure_modes`, `owner_required`, `activation_requirements`, `operational_value`, `arguments_against`, `minimality_result`.
+Also fill: `purpose`, `non_goals`, `distinct_success_criterion`, `failure_modes`, `owner_required`, `activation_requirements`, `operational_value`, `arguments_against`, `minimality_result`.
 
 ### Step 6 — Operational value test (per candidate)
 
@@ -91,14 +102,20 @@ Budget: **max 7 candidates**. Rank by operational value descending. Select the m
 
 ## Output
 
-Write to `foundry/self-evolution/ecp/proposed/{workflow_slug}-candidates-{YYYYMMDD}.yml`:
+Write to `foundry/self-evolution/candidate-sets/cs-generate-eou-candidates-{YYYYMMDD}-{hhmm}.yml` per `schemas/candidate-set.schema.yml` (ECP-0013):
 
 ```yaml
+id: cs-generate-eou-candidates-{YYYYMMDD}-{hhmm}
+generated_by: generate-eou-candidates
+generated_at: {ISO-8601 UTC timestamp}
+target_class: eou_spec
+audit_status: pending_audit
 source_workflow:
 candidates:
   - id:
+    status: candidate
     purpose:
-    non_goal:
+    non_goals: []
     distinct_success_criterion:
     classification:
       function:
@@ -112,14 +129,23 @@ candidates:
     operational_value:
     arguments_against:
     minimality_result:
+audit_outcome:
+  accepted: []
+  merged: []
+  demoted_to_rule: []
+  demoted_to_validator: []
+  demoted_to_stop_condition: []
+  rejected: []
+  minimal_recommended_subset: []
 rejected_candidates:
   - id:
     reason:
     prefer_instead:   # rule | schema_field | validator | regression_case | checklist | existing_eou
-recommended_minimal_set: []
 open_questions: []
 registry_diff_notes: []
 ```
+
+The `audit_outcome` block is populated by `$audit-candidate-eou-set` (the downstream skill), not by this generator. Emit it with all seven keys present and empty; do not pre-populate. The generator's job ends at `audit_status: pending_audit`.
 
 Record the run in `foundry/runs/{eou_id}/{run_id}.yml`. The `run_id` is `generate-eou-candidates-{YYYYMMDD}-{HHmmss}` using the current UTC time.
 
@@ -132,3 +158,13 @@ Record the run in `foundry/runs/{eou_id}/{run_id}.yml`. The `run_id` is `generat
 - Prefer fewer, sharper EOUs — a rule beats a new EOU every time.
 - Do not proceed past Step 2 if the stop conditions are met — clarify before generating candidates.
 - Every candidate in `recommended_minimal_set` must appear in the `candidates` list with all required fields populated.
+
+## Scope Note
+
+**Upstream:** top of the candidate pipeline. Receives a messy workflow description or a workflow YAML file.
+
+**Downstream:** produces a candidate-set artifact at `foundry/self-evolution/candidate-sets/cs-{generator}-{YYYYMMDD}-{hhmm}.yml`, consumed by `$audit-candidate-eou-set`.
+
+**Related:** `$audit-candidate-eou-set` (downstream consumer); `$eou-specify` (further downstream — consumes a single approved candidate from the audited set).
+
+**Pipeline:** `messy workflow → generate-eou-candidates → audit-candidate-eou-set → human review → eou-specify → eou-audit`

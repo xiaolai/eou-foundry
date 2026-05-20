@@ -1,6 +1,17 @@
 ---
 name: eou-promote
-description: "Evaluate whether an EOU should be promoted, deprecated, or retired based on evidence, maturity model, audits, and owner approval. Produces a recommendation only — does not execute any lifecycle transition."
+description: |
+  Evaluate whether an EOU should be promoted, deprecated, or retired based on evidence, maturity model, audits, run traces, and owner approval. Produces a recommendation only — does not execute any lifecycle transition (that is the role of activate/retire execution, which requires human approval).
+  <example>
+  Context: An EOU has been at pilot stage for two weeks; owner wants to know if it qualifies for active promotion.
+  user: "$eou-promote eou-diagnose"
+  assistant: "I'll check evidence against the maturity-model gates (audit pass, named owner, regression coverage, trace presence) and write a lifecycle recommendation. If gates are not met, recommendation is hold/demote, not activate."
+  </example>
+  <example>
+  Context: User wants to evaluate retirement of an unused EOU.
+  user: "$eou-promote eou-old-validator"
+  assistant: "I'll evaluate retirement evidence (successor documented or owner decision recorded). I produce a recommendation, never the retirement itself."
+  </example>
 argument-hint: EOU_ID
 arguments:
   - eou_id
@@ -92,3 +103,13 @@ requires_human_approval: true  # always true for promote_to:active, retire
   - `function: retire` — execute retirement (requires human approval)
 - A missing audit, trace, or owner record blocks promotion — record the gap, do not invent evidence.
 - `promote_to: active` always requires `requires_human_approval: true`.
+
+## Scope Note
+
+**Upstream:** receives an EOU id. Typically invoked when an EOU at pilot or active stage is being considered for the next lifecycle transition.
+
+**Downstream:** produces a lifecycle recommendation only. Execution (activate, retire) is a separate human-approved step, not part of this skill — promote evaluates, humans decide.
+
+**Related:** `$eou-audit` (upstream gate — audit pass is required input for promotion to active); the `activate` and `retire` execution functions (not skills, but governed verbs that consume this skill's recommendation after human approval).
+
+**Pipeline:** `eou-audit (pass) → eou-promote → human approval → activate | retire`

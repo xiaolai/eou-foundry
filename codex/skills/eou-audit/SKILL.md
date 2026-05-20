@@ -37,7 +37,7 @@ Verify all six classification facets are present and use schema-allowed values:
 
 | Facet | Allowed values |
 |-------|----------------|
-| `function` | `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose` |
+| `function` | `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose \| activate \| implement \| retire` |
 | `automation_mode` | `deterministic \| LLM_assisted \| hybrid \| human_executed` |
 | `authority_level` | `suggest_only \| draft_only \| write_candidate \| write_inactive \| mutate_active \| approve \| publish` |
 | `risk_level` | `low \| medium \| high \| critical` |

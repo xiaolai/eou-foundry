@@ -66,13 +66,13 @@ For each kept candidate:
 
 | Field | Value |
 |-------|-------|
-| `function` | One of: `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose` |
+| `function` | One of: `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose \| activate \| implement \| retire` |
 | `automation_mode` | `deterministic \| LLM_assisted \| hybrid \| human_executed` |
 | `authority_level` | `suggest_only \| draft_only \| write_candidate \| write_inactive \| mutate_active \| approve \| publish` |
 | `risk_level` | `low \| medium \| high \| critical` |
 | `lifecycle_stage` | `candidate` (always — do not set active) |
 
-Also fill: `purpose`, `non_goal`, `distinct_success_criterion`, `failure_modes`, `owner_required`, `activation_requirements`, `operational_value`, `arguments_against`, `minimality_result`.
+Also fill: `purpose`, `non_goals`, `distinct_success_criterion`, `failure_modes`, `owner_required`, `activation_requirements`, `operational_value`, `arguments_against`, `minimality_result`.
 
 ### Step 6 — Operational value test (per candidate)
 
@@ -84,14 +84,20 @@ Budget: **max 7 candidates**. Rank by operational value descending. Select the m
 
 ## Output
 
-Write to `foundry/self-evolution/ecp/proposed/{workflow_slug}-candidates-{YYYYMMDD}.yml`:
+Write to `foundry/self-evolution/candidate-sets/cs-generate-eou-candidates-{YYYYMMDD}-{hhmm}.yml` per `schemas/candidate-set.schema.yml` (ECP-0013):
 
 ```yaml
+id: cs-generate-eou-candidates-{YYYYMMDD}-{hhmm}
+generated_by: generate-eou-candidates
+generated_at: {ISO-8601 UTC timestamp}
+target_class: eou_spec
+audit_status: pending_audit
 source_workflow:
 candidates:
   - id:
+    status: candidate
     purpose:
-    non_goal:
+    non_goals: []
     distinct_success_criterion:
     classification:
       function:
@@ -105,14 +111,23 @@ candidates:
     operational_value:
     arguments_against:
     minimality_result:
+audit_outcome:
+  accepted: []
+  merged: []
+  demoted_to_rule: []
+  demoted_to_validator: []
+  demoted_to_stop_condition: []
+  rejected: []
+  minimal_recommended_subset: []
 rejected_candidates:
   - id:
     reason:
     prefer_instead:   # rule | schema_field | validator | regression_case | checklist | existing_eou
-recommended_minimal_set: []
 open_questions: []
 registry_diff_notes: []
 ```
+
+The `audit_outcome` block is populated by `$audit-candidate-eou-set` (the downstream skill), not by this generator. Emit it with all seven keys present and empty; do not pre-populate. The generator's job ends at `audit_status: pending_audit`.
 
 Record the run in `foundry/runs/{eou_id}/{run_id}.yml`. The `run_id` is `generate-eou-candidates-{YYYYMMDD}-{HHmmss}` using the current UTC time.
 

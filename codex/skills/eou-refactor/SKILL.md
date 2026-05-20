@@ -15,7 +15,8 @@ Generate candidate refactor options for `$target`. Do not apply any change.
 
 1. `foundry/refactoring-patterns.yml` — canonical refactor types (split, merge, scope-reduction, authority-downgrade, step-extraction, validator-addition, stop-condition-injection, responsibility-separation)
 2. `foundry/constitution.yml` — invariants that constrain any proposed change
-3. The source EOU spec (infer path from `$target` if an audit path is given)
+3. `foundry/governance.yml` — authority boundaries and lifecycle-gate rules; required because refactor options can touch authority_level and blast_radius
+4. The source EOU spec (infer path from `$target` if an audit path is given)
 
 ## Stop conditions
 

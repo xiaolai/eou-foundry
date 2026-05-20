@@ -1,6 +1,17 @@
 ---
 name: eou-audit
-description: "Audit EOU specs for Foundry V2 faceted classification, authority limits, schemas, validation, failure modes, trace, blast radius, and responsibility ownership."
+description: |
+  Audit a single EOU spec against Foundry V2 faceted classification, authority limits, validator schemas, failure modes, trace declaration, blast radius, and responsibility ownership.
+  <example>
+  Context: User wants to audit an EOU before promoting it to active.
+  user: "$eou-audit eou-diagnose"
+  assistant: "I'll load the spec, registry entry, governance.yml, and the engine maturity model, then produce an audit report under foundry/audits/eou-audits/ with severity-categorized findings."
+  </example>
+  <example>
+  Context: User wants to re-audit after applying an ECP.
+  user: "$eou-audit foundry/eous/audit-foundry.yml"
+  assistant: "I'll re-run the audit. If responsibility.executor equals responsibility.approver, the rule 94 hard check fails immediately."
+  </example>
 argument-hint: EOU_ID_OR_PATH
 arguments:
   - target
@@ -49,7 +60,7 @@ Verify all six classification facets are present and use schema-allowed values:
 
 | Facet | Allowed values |
 |-------|----------------|
-| `function` | `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose` |
+| `function` | `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose \| activate \| implement \| retire` |
 | `automation_mode` | `deterministic \| LLM_assisted \| hybrid \| human_executed` |
 | `authority_level` | `suggest_only \| draft_only \| write_candidate \| write_inactive \| mutate_active \| approve \| publish` |
 | `risk_level` | `low \| medium \| high \| critical` |
@@ -133,3 +144,13 @@ When auditing the whole `foundry/` directory, write one file per EOU. Do not mer
 - Do not modify any EOU spec — produce the audit report only.
 - Treat missing required fields as failures, not warnings.
 - Run `validate_foundry.py` before manual checks — its output is authoritative for schema errors.
+
+## Scope Note
+
+**Upstream:** receives an EOU spec id or path. Typically invoked on EOUs at lifecycle_stage pilot or active, or on ECP packages awaiting approval.
+
+**Downstream:** findings feed `$eou-diagnose` (when an audit failure needs root-cause diagnosis), `$eou-refactor` (when findings suggest structural change), and `$eou-promote` (audit pass is a gate for active promotion).
+
+**Related:** `$eou-validate` (sibling — structural validation, deterministic); `$foundry-audit` (sibling — system-wide rather than per-EOU); `$audit-candidate-eou-set` (sibling — audits a set, not a spec).
+
+**Pipeline:** `eou-specify → eou-audit → eou-promote (if pass) | eou-diagnose (if fail)`

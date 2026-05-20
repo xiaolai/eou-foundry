@@ -1,6 +1,17 @@
 ---
 name: eou-validate
-description: "Validate the structural integrity of Foundry schemas, registry entries, EOU specs, generating-EOU envelopes, and recursive-governance constraints. Produces a validation report; does not repair found violations."
+description: |
+  Validate the structural integrity of Foundry schemas, registry entries, EOU specs, generating-EOU envelopes, and recursive-governance constraints. Produces a validation report; does not repair found violations (that is the job of $eou-specify in repair mode or $eou-refactor).
+  <example>
+  Context: Owner wants to know if the foundry tree passes structural validation before opening a PR.
+  user: "$eou-validate"
+  assistant: "I'll run scripts/validate_foundry.py and parse the output into a categorized validation report under foundry/audits/validation/. Failures are listed but not auto-repaired."
+  </example>
+  <example>
+  Context: After a schema change, owner wants to confirm no specs drifted.
+  user: "$eou-validate --strict-no-legacy"
+  assistant: "I'll run validation with legacy engine copies treated as errors (not warnings). Useful pre-release to catch lingering pre-v0.5.0 layout."
+  </example>
 allowed-tools:
   - Read
   - Write
@@ -87,3 +98,13 @@ summary:
 - Do not modify any spec, schema, registry, or governance file — produce the validation report only.
 - Treat missing required fields as failures, not warnings.
 - Zero findings for a Foundry with more than 5 specs is statistically improbable — record it as a `low`-severity finding: "No violations found; verify checks ran against all specs."
+
+## Scope Note
+
+**Upstream:** no specific input — runs against the whole `foundry/` tree. Typically invoked before opening a PR or release.
+
+**Downstream:** produces a validation report under `foundry/audits/validation/`. Failures may seed `$eou-diagnose` (if a structural failure traces to an EOU) or `$eou-refactor`.
+
+**Related:** `$eou-audit` (sibling — judgment-heavy audit; this skill is mechanical/structural); `$foundry-audit` (sibling — system-wide, includes vocabulary and governance drift).
+
+**Pipeline:** `pre-release | pre-PR → eou-validate → (failures) eou-diagnose | eou-refactor`

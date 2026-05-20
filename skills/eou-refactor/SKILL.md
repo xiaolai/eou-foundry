@@ -1,6 +1,17 @@
 ---
 name: eou-refactor
-description: "Generate candidate EOU refactor options from an audit or incident. Does not apply changes directly."
+description: |
+  Generate candidate EOU refactor options (split, merge, scope-reduction, authority-downgrade, step-extraction, validator-addition, stop-condition-injection, responsibility-separation) from an audit finding or incident. Produces options only; applying any option requires an ECP through $ecp-propose.
+  <example>
+  Context: An audit flagged that one EOU conflates two distinct judgments. Owner wants refactor options before opening an ECP.
+  user: "$eou-refactor foundry/audits/eou-audits/audit-foundry.audit.yml"
+  assistant: "I'll generate refactor options from the canonical patterns in foundry/refactoring-patterns.yml, weighing blast radius and constitutional fit, then write options under foundry/self-evolution/refactor-options/."
+  </example>
+  <example>
+  Context: User asks for a specific refactor of an EOU with too-broad authority.
+  user: "$eou-refactor eou-promote"
+  assistant: "I'll generate options including authority-downgrade variants. None are applied; downstream $ecp-propose converts a chosen option into a proper change proposal."
+  </example>
 argument-hint: EOU_ID_OR_AUDIT_PATH
 arguments:
   - target
@@ -22,7 +33,8 @@ Generate candidate refactor options for `$target`. Do not apply any change.
 
 1. `foundry/refactoring-patterns.yml` — canonical refactor types (split, merge, scope-reduction, authority-downgrade, step-extraction, validator-addition, stop-condition-injection, responsibility-separation)
 2. `foundry/constitution.yml` — invariants that constrain any proposed change
-3. The source EOU spec (infer path from `$target` if an audit path is given)
+3. `foundry/governance.yml` — authority boundaries and lifecycle-gate rules; required because refactor options can touch authority_level and blast_radius
+4. The source EOU spec (infer path from `$target` if an audit path is given)
 
 ## Stop conditions
 
@@ -74,3 +86,13 @@ Mark `requires_ecp: true` when the option does any of the following:
 - Do not apply any refactor option. Write candidate set only.
 - Always include the "no change" baseline as an option.
 - The recommended minimal set must exclude options with unresolved open risks.
+
+## Scope Note
+
+**Upstream:** receives an EOU id or audit-findings path. Typically invoked when `$eou-audit` flags a structural issue (overlap, conflated judgment, authority creep).
+
+**Downstream:** produces refactor options (split, merge, scope-reduction, authority-downgrade, etc.) at `foundry/self-evolution/refactor-options/`. A chosen option then feeds `$ecp-propose` — refactor itself never applies changes.
+
+**Related:** `$eou-diagnose` (sibling — F-code classification path); `$ecp-propose` (downstream consumer).
+
+**Pipeline:** `eou-audit (fail) → eou-refactor → ecp-propose → simulate → audit → human approval → implement`

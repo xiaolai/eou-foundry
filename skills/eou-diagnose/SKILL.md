@@ -1,6 +1,17 @@
 ---
 name: eou-diagnose
-description: "Diagnose EOU failures using the Foundry failure taxonomy and recommend the smallest repair path."
+description: |
+  Diagnose an EOU failure using the F-code taxonomy and recommend the smallest-blast-radius repair, producing either a diagnosis (path to $ecp-propose) or a no-change record.
+  <example>
+  Context: An incident has been filed; owner wants a structured diagnosis before deciding whether to open an ECP.
+  user: "$eou-diagnose foundry/incidents/inc-0042.yml"
+  assistant: "I'll classify the failure under one or more F-codes, rank repair options by blast radius, and emit either a diagnosis YAML (decision: change) or a no-change record under foundry/audits/incidents/."
+  </example>
+  <example>
+  Context: User wants to diagnose from an audit finding rather than a full incident.
+  user: "$eou-diagnose foundry/audits/eou-audits/eou-promote.audit.yml"
+  assistant: "I'll diagnose the audit's findings; if evidence is insufficient for a change, I'll write a no-change record explicitly rather than silently doing nothing."
+  </example>
 argument-hint: INCIDENT_OR_AUDIT_PATH
 arguments:
   - target
@@ -79,3 +90,13 @@ rationale:        # why that fix and not the next one up
 - Do not recommend ECP when a stop condition or validator would suffice.
 - Do not invent an `incident_id` — use the one from `$target` or generate from `{eou_id}-{YYYYMMDD}` if absent.
 - Confidence ratings (`high/medium/low`) for failure class matches must be grounded in observable signals, not subjective judgment.
+
+## Scope Note
+
+**Upstream:** receives incident reports (`foundry/incidents/`) or audit failures (`foundry/audits/eou-audits/`).
+
+**Downstream:** dual outcome — `decision: change` produces a diagnosis fed to `$ecp-propose`; `decision: no_change` produces a no-change record under `foundry/audits/incidents/`.
+
+**Related:** `$eou-refactor` (sibling — also a path to ECP from audit findings, but produces structural options rather than F-code classification); `$generate-regression-cases` (sibling — converts incidents to durable test memory).
+
+**Pipeline:** `incident | audit failure → eou-diagnose → (change) ecp-propose | (no_change) no-change record`

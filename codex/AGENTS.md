@@ -2,6 +2,22 @@
 
 Recursive governance for Executable Operating Units. Faceted classification, generating-EOU constraints, ECP-governed change, no-self-approval.
 
+## Prerequisites
+
+- **Python 3.9+** — required by `scripts/validate_foundry.py`.
+- **PyYAML** (`pip install pyyaml`).
+- **`EOU_FOUNDRY_PLUGIN_PATH`** environment variable pointing at the plugin checkout (or install via `claude plugin install eou-foundry@xiaolai`).
+
+## Testing
+
+Run the validator against the bundled fixture foundry. A clean run prints `OK: foundry` to stdout and exits with status 0; any other output or non-zero exit indicates the plugin is not wired up to the expected paths:
+
+```bash
+EOU_FOUNDRY_PLUGIN_PATH=/path/to/eou-foundry python3 scripts/validate_foundry.py tests/fixture-foundry
+```
+
+For the full test protocol — including the regression-fixture sweep that asserts intentionally broken fixtures fail validation — see the root [`AGENTS.md`](../AGENTS.md).
+
 ## Skills
 
 | Skill | Purpose |

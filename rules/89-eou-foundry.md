@@ -5,6 +5,8 @@ description: Enforce faceted EOU classification (function + target + automation 
 
 # EOU Foundry V2 Rules
 
+**Declare all six EOU classification facets explicitly on every spec under `foundry/`.** Without faceted classification, authority and risk become inferred from a name, and the validator cannot tell a draft suggestion from an active state-changer.
+
 The canonical EOU layer is `foundry/`.
 
 An EOU is an operational hypothesis, not merely a prompt, checklist, SOP, or script.

@@ -5,6 +5,8 @@ description: "Require an EOU Change Proposal for significant Foundry mutations: 
 
 # EOU Change Proposal Rule
 
+**File an ECP before applying any significant Foundry mutation.** Without an ECP, the change has no recorded rationale, no simulation, no regression case, no audit, and no approver — every one of which is the evidence that distinguishes governed change from silent mutation.
+
 Significant Foundry mutations require an ECP before the change is applied.
 
 ## MUST have an ECP (blocking)

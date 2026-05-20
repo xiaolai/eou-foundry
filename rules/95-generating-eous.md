@@ -5,6 +5,8 @@ description: Require every generating EOU to declare its envelope, budget, regis
 
 # Generating EOUs Rule
 
+**Every generating EOU must declare its envelope, budget, registry-diff, minimality test, operational-value test, counter-generation, and blast radius before any candidate it produces is considered valid.** Generation is cheap and audit is expensive; without these declarations a generating EOU becomes an uncontrolled procedure factory that produces complexity faster than humans can review it.
+
 Generating EOUs (`function: generate`) are proposal-producing units with strictly limited authority.
 
 ## Required declaration fields

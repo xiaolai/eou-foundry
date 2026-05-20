@@ -64,7 +64,7 @@ Candidates touching finance, health, legal, safety, content about minors, public
 
 | Verdict | Criteria |
 |---|---|
-| **PASS** | All candidates pass Boundary, Authority, and Operational Value tests. At most 1 Minimality finding per 5 candidates. High-Stakes test passes for all domain-relevant candidates. |
+| **PASS** | All candidates pass Boundary, Authority, and Operational Value tests. At most 1 Minimality finding per 5 candidates. High-Stakes test passes for every candidate whose `target_object` falls in finance, health, legal, safety, content about minors, public claims, publication, or active governance domains. |
 | **REVISE** | 1–2 Minimality or Non-Overlap failures, no Authority or High-Stakes failures. Candidates can be revised without rejection. |
 | **FAIL** | Any Authority or High-Stakes failure. More than 2 Minimality failures. Any candidate with an Authority level above `write_inactive` lacking constitutional justification. |
 
@@ -94,7 +94,9 @@ required_revisions_before_specification:
 
 ## Constraints
 
-- Do not modify the candidate set file — produce the audit report only.
+- Do not modify the candidate set file — write only to the audit output path.
+- Do not apply verdicts retroactively to an existing audit report — write a new dated report.
+- Do not set `verdict: PASS` if any Authority or High-Stakes test fails, regardless of other results.
+- Do not promote any candidate to `lifecycle_stage: active` — that is the role of `$eou-promote` after human approval.
 - Treat `arguments_against` as required, not optional — candidates missing this field fail the Counter-Generation Test.
-- Do not pass a candidate if it fails the Authority Test, even if all other tests pass.
 - A PASS verdict does not authorize specification — candidates still require human review before proceeding to `$eou-specify`.

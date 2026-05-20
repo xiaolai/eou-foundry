@@ -1,6 +1,17 @@
 ---
 name: audit-candidate-eou-set
-description: "Audit a generated candidate EOU set for boundary quality, minimality, overlap, authority, operational value, and governance risk."
+description: |
+  Audit a generated candidate EOU set for boundary quality, minimality, overlap, authority, operational value, and governance risk before any candidate advances to specification.
+  <example>
+  Context: A generation run has just produced a candidate set; the owner wants to know which candidates survive audit before promotion.
+  user: "$audit-candidate-eou-set foundry/self-evolution/candidate-sets/cs-generate-eou-candidates-20260520-1430.yml"
+  assistant: "I'll run the eight tests (boundary, non-overlap, minimality, authority, operational value, counter-generation, set composition, high-stakes) and write the audit report under foundry/audits/candidate-set-audits/."
+  </example>
+  <example>
+  Context: User wants to audit a candidate set that contains a generating EOU without a corresponding audit path.
+  user: "$audit-candidate-eou-set ./my-candidates.yml"
+  assistant: "I'll audit. Heads-up that if any candidate has authority_level approve/publish or proposes weakening validators, I'll escalate to FAIL regardless of other test outcomes."
+  </example>
 argument-hint: CANDIDATE_SET_PATH
 arguments:
   - path
@@ -75,7 +86,7 @@ Candidates touching finance, health, legal, safety, content about minors, public
 
 | Verdict | Criteria |
 |---|---|
-| **PASS** | All candidates pass Boundary, Authority, and Operational Value tests. At most 1 Minimality finding per 5 candidates. High-Stakes test passes for all domain-relevant candidates. |
+| **PASS** | All candidates pass Boundary, Authority, and Operational Value tests. At most 1 Minimality finding per 5 candidates. High-Stakes test passes for every candidate whose `target_object` falls in finance, health, legal, safety, content about minors, public claims, publication, or active governance domains. |
 | **REVISE** | 1–2 Minimality or Non-Overlap failures, no Authority or High-Stakes failures. Candidates can be revised without rejection. |
 | **FAIL** | Any Authority or High-Stakes failure. More than 2 Minimality failures. Any candidate with an Authority level above `write_inactive` lacking constitutional justification. |
 
@@ -85,6 +96,8 @@ Candidates touching finance, health, legal, safety, content about minors, public
 - Do not apply verdicts retroactively to an existing audit report — write a new dated report.
 - Do not set `verdict: PASS` if any Authority or High-Stakes test fails, regardless of other results.
 - Do not promote any candidate to `lifecycle_stage: active` — that is the role of `$eou-promote` after human approval.
+- Treat `arguments_against` as required, not optional — candidates missing this field fail the Counter-Generation Test.
+- A PASS verdict does not authorize specification — candidates still require human review before proceeding to `$eou-specify`.
 
 ## Output
 
@@ -109,3 +122,13 @@ findings:
 required_revisions_before_specification:
   - # list of changes needed before any candidate can proceed to eou-specify
 ```
+
+## Scope Note
+
+**Upstream:** receives candidate-set artifacts produced by `$generate-eou-candidates` at `foundry/self-evolution/candidate-sets/`.
+
+**Downstream:** PASS verdict feeds `$eou-specify` (one candidate at a time, after human review); FAIL verdict feeds back into `$generate-eou-candidates` with a tighter brief.
+
+**Related:** `$eou-audit` (audits an EOU spec, not a candidate set); `$foundry-audit` (audits the whole Foundry, not one set).
+
+**Pipeline:** `generate-eou-candidates → audit-candidate-eou-set → human review → eou-specify`

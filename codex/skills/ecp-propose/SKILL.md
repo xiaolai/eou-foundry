@@ -15,7 +15,7 @@ Create a formal EOU Change Proposal (ECP) from `$target`.
 ## Stop conditions
 
 Halt and report before drafting the ECP if:
-- `$target` does not identify a concrete failure or refactor option (a vague goal is not sufficient).
+- `$target` does not identify a concrete failure or refactor option — a goal that names no concrete failure class, incident id, or refactor-option id is not accepted.
 - The `target_eou` cannot be determined from `$target`.
 - The proposed change would require modifying `foundry/constitution.yml` — use the constitutional change process instead.
 

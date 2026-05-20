@@ -1,6 +1,17 @@
 ---
 name: generate-regression-cases
-description: "Convert incident reports and audit failures into candidate regression cases that prevent re-occurrence. Cases are written as candidates; activation requires human owner approval."
+description: |
+  Convert incident reports and audit failures into candidate regression cases that prevent re-occurrence — each case captures a concrete observable symptom, the target EOU, the failure class (F-code), and an expected-behavior predicate. Cases are written as candidates; activation requires human owner approval.
+  <example>
+  Context: A diagnosis was filed for a path-drift incident; owner wants regression coverage so the failure cannot return silently.
+  user: "$generate-regression-cases foundry/incidents/inc-0042.yml"
+  assistant: "I'll extract the observable symptom, classify it under the F-code taxonomy, and write a regression case under foundry/self-evolution/regression/cases/. activation_status defaults to candidate."
+  </example>
+  <example>
+  Context: User wants regression cases for a batch of audit findings.
+  user: "$generate-regression-cases foundry/audits/eou-audits/*.audit.yml"
+  assistant: "I'll iterate each finding, generate at most one regression case per observable symptom, and refuse to generate cases for findings that name no observable symptom (a label without a symptom is not accepted)."
+  </example>
 argument-hint: INCIDENT_PATH_OR_GLOB
 arguments:
   - source
@@ -29,7 +40,7 @@ Convert `$source` (one or more incident reports or audit failures) into candidat
 
 Halt and report before generating cases if:
 - `$source` resolves to no readable files.
-- No observable failure symptom can be extracted from any source file — labels and conclusions without symptoms are not sufficient.
+- No observable failure symptom can be extracted from any source file — labels and conclusions without at least one observable symptom (error message, wrong output, missing artifact, schema mismatch) are not accepted as source input.
 - `schemas/regression-case.schema.yml` does not exist — cannot validate output structure.
 
 ## Procedure
@@ -67,3 +78,13 @@ Record the run in `foundry/runs/{eou_id}/{run_id}.yml`.
 - Do not generate cases without a concrete source incident or audit failure.
 - Each case must include at least one `failure_shape_assertion` — what observable output signals the failure is occurring. Cases asserting only pass are invalid.
 - If a duplicate case exists for this failure, record the duplicate ID and skip generation.
+
+## Scope Note
+
+**Upstream:** receives incidents (`foundry/incidents/`) or audit findings (`foundry/audits/eou-audits/`).
+
+**Downstream:** produces regression cases at `foundry/self-evolution/regression/cases/` at activation_status candidate. Cases enter the regression suite only after human owner approval — this skill never sets activation_status to active.
+
+**Related:** `$eou-diagnose` (sibling — F-code classification of the same incident); `$ecp-propose` (sibling — proposes change; regression cases pin the failure so the change can be verified).
+
+**Pipeline:** `incident | audit failure → generate-regression-cases → human approval → activation_status: active`

@@ -5,6 +5,8 @@ description: Forbid any EOU, skill, script, or agent from being the sole approve
 
 # No Self-Approval Rule
 
+**Keep generation, auditing, approval, and execution in separate hands — no EOU may be the sole approver of changes to itself.** Self-approval by indirection (formally separate steps, substantively the same executor) is the failure mode this rule exists to make impossible.
+
 No EOU, skill, script, or agent may be the sole approver of changes to itself.
 
 ## Structural requirement
