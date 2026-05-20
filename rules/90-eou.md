@@ -22,7 +22,7 @@ Every EOU must declare all six classification facets using schema-allowed values
 
 | Facet | Allowed values |
 |-------|----------------|
-| `function` | `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose` |
+| `function` | `generate \| specify \| validate \| diagnose \| promote \| refactor \| audit \| propose \| activate \| implement \| retire` |
 | `target_object` | (free text — name the artifact the EOU acts on) |
 | `automation_mode` | `deterministic \| LLM_assisted \| hybrid \| human_executed` |
 | `authority_level` | `suggest_only \| draft_only \| write_candidate \| write_inactive \| mutate_active \| approve \| publish` |

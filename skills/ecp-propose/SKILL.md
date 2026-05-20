@@ -38,7 +38,7 @@ Halt and report before drafting the ECP if:
 4. Draft the ECP with all required fields (see structure below).
 5. Confirm `approval.status` is `proposed` — never set it higher.
 6. Write the ECP to `foundry/self-evolution/ecp/proposed/{target_eou}-ecp-{YYYYMMDD}.yml`.
-7. Record the run in `runs/{run_id}/trace.yml`.
+7. Record the run in `foundry/runs/{eou_id}/{run_id}.yml`.
 
 ## Required ECP fields
 

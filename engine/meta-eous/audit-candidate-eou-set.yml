@@ -69,7 +69,7 @@ outputs:
   - foundry/audits/candidate-set-audits/{set_id}.audit.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - Audit includes keep/reject/defer/merge/convert recommendations (all four buckets populated or explicitly noted as empty with reason).
@@ -125,7 +125,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/audits/candidate-set-audits/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs

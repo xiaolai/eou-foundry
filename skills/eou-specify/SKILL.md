@@ -81,7 +81,7 @@ execution:
 outputs:
   primary:           # concrete file path(s) — no placeholder labels
   secondary:         # supplementary artifacts
-  trace:             # always: runs/{run_id}/trace.yml
+  trace:             # always: foundry/runs/{eou_id}/{run_id}.yml
 
 success_criteria:
   must_pass:         # binary, verifiable conditions

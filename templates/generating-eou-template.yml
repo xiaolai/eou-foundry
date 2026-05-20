@@ -52,7 +52,7 @@ execution:
   - Add operational value and arguments_against for each candidate.
   - Rank candidates and select the minimal subset.
   - Write candidate output to the path defined in outputs.primary.
-  - Record trace to runs/{run_id}/trace.yml.
+  - Record trace to foundry/runs/{eou_id}/{run_id}.yml.
   decision_points:
   - Reject candidates that are better expressed as a rule, validator, schema field, stop condition, regression case, or checklist.
   - FILL:additional branch conditions specific to this generating EOU
@@ -76,7 +76,7 @@ outputs:
   secondary:
   - FILL:supplementary artifacts (e.g. open_questions.md, decomposition_rationale.md)
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - No generated artifact has active or approved status.
@@ -126,7 +126,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - FILL:output directories only (e.g. foundry/self-evolution/ecp/proposed/)
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs

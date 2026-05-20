@@ -114,7 +114,7 @@ open_questions: []
 registry_diff_notes: []
 ```
 
-Record the run in `foundry/runs/{run_id}/trace.yml`. The `run_id` is `generate-eou-candidates-{YYYYMMDD}-{HHmmss}` using the current UTC time.
+Record the run in `foundry/runs/{eou_id}/{run_id}.yml`. The `run_id` is `generate-eou-candidates-{YYYYMMDD}-{HHmmss}` using the current UTC time.
 
 ## Constraints
 

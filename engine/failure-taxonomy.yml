@@ -35,7 +35,7 @@ failure_taxonomy:
   F9_TRACE_FAILURE:
     definition: Run cannot be reconstructed; trace is missing, incomplete, or contradicts
       the declared execution steps.
-    repair: Improve trace capture; ensure every step writes to runs/{run_id}/trace.yml.
+    repair: Improve trace capture; ensure every step writes to foundry/runs/{eou_id}/{run_id}.yml.
   F10_RESPONSIBILITY_FAILURE:
     definition: No clear owner, approval gate, or escalation path; or the same party
       both executes and approves.

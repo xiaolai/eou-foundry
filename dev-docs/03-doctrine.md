@@ -134,7 +134,7 @@ outputs:
   primary: []
   secondary: []
   trace:
-    - runs/{eou_id}/{run_id}.yml
+    - foundry/runs/{eou_id}/{run_id}.yml
 
 success_criteria:
   must_pass: []
@@ -242,7 +242,7 @@ Do not jump from messy workflow directly to automation.
 
 ### D3.1 — Trace is mandatory
 
-Every meaningful EOU run must produce a trace at `runs/{eou_id}/{run_id}.yml`:
+Every meaningful EOU run must produce a trace at `foundry/runs/{eou_id}/{run_id}.yml`:
 
 ```yaml
 run_trace:

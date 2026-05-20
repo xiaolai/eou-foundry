@@ -69,7 +69,7 @@ outputs:
   - foundry/self-evolution/refactor-options/{eou_id}-refactor-{YYYYMMDD}.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - Candidate set includes a no-change baseline option.
@@ -126,7 +126,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/self-evolution/refactor-options/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs

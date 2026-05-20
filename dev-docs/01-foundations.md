@@ -528,7 +528,7 @@ outputs:
   primary: []                # concrete file path(s)
   secondary: []
   trace:
-    - runs/{run_id}/trace.yml
+    - foundry/runs/{eou_id}/{run_id}.yml
 
 success_criteria:
   must_pass: []              # binary, verifiable conditions
@@ -724,7 +724,7 @@ open issues
 human approval
 ```
 
-The canonical trace path is: `runs/{run_id}/trace.yml`
+The canonical trace path is: `foundry/runs/{eou_id}/{run_id}.yml`
 
 If the system cannot reconstruct how the output was produced, the EOU is not mature.
 

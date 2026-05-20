@@ -59,7 +59,7 @@ activation_status:    # candidate — never active without human approval
 
 Write each case to `foundry/self-evolution/regression/cases/{case_id}.regression.yml`.
 Create the fixture directory at `foundry/self-evolution/regression/fixtures/{case_id}/`.
-Record the run in `runs/{run_id}/trace.yml`.
+Record the run in `foundry/runs/{eou_id}/{run_id}.yml`.
 
 ## Constraints
 

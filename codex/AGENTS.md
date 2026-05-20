@@ -44,7 +44,7 @@ Skills reference these foundry artifacts (scaffolded by `$eou-foundry-init` into
 
 - `templates/eou-template/` — starter EOU directory layout
 - `templates/generating-eou-template.yml` — starter generating-EOU shape
-- `templates/meta-eous/*.yml` — pre-authored meta-EOUs that the skills reference for required-reading
+- `engine/meta-eous/*.yml` — canonical meta-EOUs (plugin-owned, app-inherited) that skills reference for required-reading
 
 ## Schemas
 

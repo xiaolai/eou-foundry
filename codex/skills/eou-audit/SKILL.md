@@ -68,7 +68,7 @@ Finding: violation → severity `high`.
 
 ### Step 6 — Trace preservation
 
-- `outputs` must include `trace: runs/{run_id}/trace.yml`.
+- `outputs` must include `trace: foundry/runs/{eou_id}/{run_id}.yml`.
 - `execution.steps` must be specific enough to reconstruct what ran.
 
 Finding: absent trace output → severity `medium`.

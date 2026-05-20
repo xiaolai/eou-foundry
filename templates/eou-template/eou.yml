@@ -40,7 +40,7 @@ execution:
   - FILL:Step 2 — perform first bounded action (be specific, not "perform bounded operation")
   - FILL:Step 3 — perform second bounded action
   - FILL:Step N — write output to the concrete path defined in outputs.primary
-  - FILL:Last step — record trace to runs/{run_id}/trace.yml
+  - FILL:Last step — record trace to foundry/runs/{eou_id}/{run_id}.yml
   decision_points:
   - FILL:Name of branch condition: what triggers it and how it resolves (or remove if none)
   stop_conditions:
@@ -58,7 +58,7 @@ outputs:
   - FILL:concrete/file/path/{id}.yml  # no placeholder labels; must be a real path pattern
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - FILL:Binary, verifiable condition (at least one)

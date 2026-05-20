@@ -64,7 +64,7 @@ outputs:
   - foundry/self-evolution/regression/fixtures/{case_id}/  # fixture directory
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - Each generated case has a concrete fixture_path (not a placeholder).
@@ -122,7 +122,7 @@ blast_radius:
   allowed_scope:
   - foundry/self-evolution/regression/cases/
   - foundry/self-evolution/regression/fixtures/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - approved ECPs

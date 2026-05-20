@@ -76,7 +76,7 @@ outputs:
   - foundry/audits/foundry-audits/{YYYYMMDD}.foundry-audit.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - All 10 check categories are executed or recorded as skipped with reason.
@@ -131,7 +131,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/audits/foundry-audits/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - foundry/eous/

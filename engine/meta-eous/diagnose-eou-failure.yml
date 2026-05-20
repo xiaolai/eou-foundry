@@ -64,7 +64,7 @@ outputs:
   - foundry/audits/incidents/{incident_id}.diagnosis.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - At least one F-code is assigned with documented observable evidence.
@@ -121,7 +121,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/audits/incidents/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - foundry/eous/  # read-only during diagnosis

@@ -70,7 +70,7 @@ outputs:
   - foundry/audits/eou-audits/{eou_id}.audit.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - Audit identifies at least one finding (even a strength) — zero findings is suspicious.
@@ -124,7 +124,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/audits/eou-audits/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - foundry/eous/  # read-only during audit

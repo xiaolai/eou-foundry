@@ -67,7 +67,7 @@ outputs:
   - foundry/self-evolution/ecp/proposed/{eou_id}-ecp-{YYYYMMDD}.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - approval.status is "proposed" in the written ECP.
@@ -124,7 +124,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/self-evolution/ecp/proposed/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - foundry/eous/  # ECP proposes changes; it does not apply them

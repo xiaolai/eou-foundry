@@ -74,7 +74,7 @@ outputs:
   - foundry/governance/lifecycle/{eou_id}.recommendation.yml
   secondary: []
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - Recommendation file is written with gate_results for every required gate.
@@ -131,7 +131,7 @@ versioning:
 blast_radius:
   allowed_scope:
   - foundry/governance/lifecycle/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - foundry/eous/  # read-only; spec changes require ECP

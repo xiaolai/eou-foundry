@@ -17,7 +17,7 @@ purpose:
 operating_hypothesis: Given an approved candidate and the Foundry schema, this EOU can produce a complete EOU spec with all fields populated and no placeholder strings.
 inputs:
   required:
-  - approved_candidate  # path to the approved candidate file (candidate_eou_set entry, or standalone candidate file)
+  - approved_candidate  # path to the approved candidate file (entry in a candidate-set under foundry/self-evolution/candidate-sets/, or a standalone candidate file)
   - schemas/eou.schema.yml
   - foundry/constitution.yml
   optional:
@@ -72,7 +72,7 @@ outputs:
   secondary:
   - open_questions.md  # only if TBD fields are present
   trace:
-  - runs/{run_id}/trace.yml
+  - foundry/runs/{eou_id}/{run_id}.yml
 success_criteria:
   must_pass:
   - All required schema fields are present and non-placeholder.
@@ -130,7 +130,7 @@ blast_radius:
   allowed_scope:
   - foundry/eous/
   - foundry/meta-eous/
-  - runs/
+  - foundry/runs/
   forbidden_scope:
   - foundry/constitution.yml
   - foundry/registry.yml  # registry updates require a separate ECP
