@@ -14,10 +14,11 @@ engine that governs consuming applications.
 | 03 | `03-doctrine.md` | Design and maintenance doctrine for EOUs, organized under D1–D7 |
 | 04 | `04-vocabulary-principles.md` | Vocabulary discipline (P1–P6), precedence rules, V-01 through V-12 self-audit |
 | 05 | `05-v6-design-pulls.md` | Log of what we absorbed / deferred / rejected from the V6 architecture proposal, with rot-watch conditions for deferred items |
+| 06 | `06-values-over-rules.md` | Constitutional value layer (V1–V8) — interpretation authority for the rules below. Read first when rules collide |
 
 ## Reading order
 
-For a new contributor, read in order: `01` (concepts) → `02` (architecture, especially Part 4 engine/app split) → `03` (doctrine D1–D7) → `04` (vocabulary). Read `05` when you encounter a design question that looks like "should we adopt X from V6?" — the answer is probably already logged there.
+For a new contributor, read in order: `01` (concepts) → `02` (architecture, especially Part 4 engine/app split) → `03` (doctrine D1–D7) → `04` (vocabulary). Read `05` when you encounter a design question that looks like "should we adopt X from V6?" — the answer is probably already logged there. Read `06` when two rules point in different directions and you need to know which one wins — the value priority order is the deciding authority.
 
 ## historical/
 

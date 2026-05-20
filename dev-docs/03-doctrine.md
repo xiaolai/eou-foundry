@@ -2,6 +2,8 @@
 
 The current practical doctrine for designing, maintaining, and governing EOUs. Organized under seven categories (D1–D7), each protecting a distinct architectural obligation — removing any one leaves a major failure path uncovered.
 
+> **Values over rules.** The doctrine below tells the Foundry **what to do**. The eight constitutional values in `06-values-over-rules.md` tell the Foundry **why each rule exists and how to act when rules collide**. When two doctrine items in this file point in different directions, the value priority order (V1 epistemic integrity → V8 semantic integrity) decides which wins. Read the value layer first when interpreting any doctrine item.
+
 ## Smallest memorable form
 
 ```text
