@@ -1,0 +1,445 @@
+id: ecp-0020-judgment-audit-skill-rule-counterfactual-swap
+target_eou: eou-foundry-plugin
+target_version_from: 0.7.0
+target_version_to: 0.8.0
+problem:
+  observed_failure: |
+    ECPs 0018 and 0019 land the schema, doctrine, failure taxonomy, and
+    maturity model for agentic judgment. But without ECP-0020, none of
+    them are operationally enforced. judgment_authorized:true EOUs can
+    declare authorization but no skill audits their value invocations.
+    F14-F17 taxonomy entries exist but no skill produces findings
+    against them. judgment_maturity J0-J4 axis exists but no skill
+    advances or audits the levels.
+
+    Three specific operational gaps:
+
+    1. No $audit-judgment skill exists. D4.1 declares four audit layers
+       (after ECP-0019); the first three have skills ($eou-validate for
+       output audit, run-trace validation for run audit, $eou-audit
+       for EOU audit). The fourth layer — judgment audit — has no
+       skill. Without it, agentic EOUs operate with declared
+       authorization but no audit surface.
+
+    2. No rule governs value_invocation discipline. ECP-0018's schema
+       checks structural shape of value_invocations[] entries, but no
+       rule encodes the operational requirements (every contested case
+       must produce an invocation OR escalate; invocation pattern must
+       match declared priority; rejected_alternative must be a real
+       counterfactual; counterfactual-swap audit must run periodically).
+       Without Rule 97, the requirements live in 07-agentic-judgment-
+       proposal.md prose, not enforceable doctrine.
+
+    3. No counterfactual-swap audit mechanism exists. Per ECP-0017
+       risks #2 (false-negative citation theater) and ECP-0018 risks
+       #1 (false-negative anti-theater), the strongest defense against
+       value theater is counterfactual swap (rerun the EOU with
+       domain_values priority reordered; check whether outputs change).
+       This is the V1 anchor for the entire agentic-judgment package.
+       Without ECP-0020's mechanism, the defense is documented but not
+       operationalized.
+
+    All three gaps are blocking — ECPs 0018 and 0019 ship governance
+    furniture; ECP-0020 makes the furniture load-bearing.
+  failure_class: F6b_COVERAGE
+  failure_class_rationale: |
+    F6b (right judgment framed, no validation criteria to test it)
+    chosen because ECPs 0018 and 0019 frame the agentic-judgment
+    judgments (declare authorization; classify failures; track
+    maturity) but provide no skill that validates whether the
+    judgments are correctly performed in practice. F6a (structural
+    judgment — EOU conflates two distinct judgments) is wrong; the
+    judgments are properly separated by ECPs 0018-0019. F12 (drift)
+    is partially applicable but F6b is more precise — the right
+    architecture exists; the verification mechanism is missing.
+  evidence:
+  - |
+    dev-docs/07-agentic-judgment-proposal.md "Structural changes" table
+    line 6 names judgment audit as a new audit layer. ECP-0019 updates
+    D4.1 to declare the layer. No skill implements it.
+  - |
+    dev-docs/07-agentic-judgment-proposal.md "V1 attack surface: value
+    theater" section names counterfactual-swap audit as the strongest
+    defense. Neither ECP-0018 nor ECP-0019 implements it.
+  - |
+    ECP-0017's Rule 96 governs downstream consumption of domain_values
+    by static specs. Agentic invocations at runtime are a different
+    enforcement surface (per-run, not per-spec) and need their own
+    rule. The rule slot 97 is currently unused.
+  - |
+    ECP-0018's value_invocations[] schema requires 10 fields per entry
+    but does not specify the operational rules: when must an invocation
+    fire? what counts as a contested case requiring invocation? when
+    does silence become F14? Without Rule 97 these are interpretive
+    questions; with Rule 97 they have canonical answers.
+
+counter_argument:
+  alternative_considered: |
+    Skip the $audit-judgment skill and rely on existing audit skills
+    ($eou-audit, $foundry-audit, $audit-candidate-eou-set) to expand
+    their scope. Each could add a "value invocation check" step. The
+    counterfactual-swap audit could be a CLI utility rather than an
+    EOU-governed skill.
+  why_alternative_loses: |
+    1. D5.1 separation. Expanding existing audit skills to cover
+       judgment audit conflates three of the four declared audit
+       layers (run audit, EOU audit, judgment audit) into one or two
+       skills. Per D4.1 (post-ECP-0019), the four layers are
+       structurally distinct judgments. Separating them into separate
+       skills preserves the separation principle that D5.1 demands.
+    2. Authority differs. $audit-judgment needs read access to run
+       traces (value_invocations), the captured_workflow, and
+       optionally to re-run the producing EOU under counterfactual-
+       swap conditions — the last of which is a write-candidate
+       authority for transient swap-test runs. Existing audit skills
+       have write_inactive (for audit reports) but not write_candidate.
+       Mixing the authorities is V4 (Bounded Authority) violation.
+    3. Counterfactual-swap audit needs ECP-0017's domain_values
+       structure AND ECP-0018's value_invocations structure AND
+       ECP-0019's F14-F17 taxonomy. Putting it in a CLI utility
+       severs it from the governance pipeline. Putting it in a
+       skill (the foundry's standard governance unit for capabilities)
+       keeps it auditable.
+    4. Rule 97 is governance-level. CLI utilities don't carry rules.
+       Skills do (via their associated rule files in rules/).
+  recommendation: |
+    Adopt the separate $audit-judgment skill + Rule 97 + counterfactual-
+    swap audit as a coordinated change. All three are coupled: the
+    skill enforces the rule; the rule defines what the skill audits;
+    the counterfactual-swap audit is the skill's most consequential
+    judgment.
+
+proposed_change:
+  summary: |
+    Add a new judgment-audit skill ($audit-judgment, Claude + Codex
+    mirrors); add its meta-EOU at engine/meta-eous/audit-judgment.yml;
+    add Rule 97 at rules/97-value-invocation.md governing the
+    operational requirements for value invocations; implement the
+    counterfactual-swap audit mechanism as the skill's primary
+    judgment; extend the validator with
+    validate_value_invocation_discipline() to enforce the
+    declarative parts of Rule 97 (silence on contested cases,
+    structural shape, captured_workflow id consistency); update
+    AGENTS.md skill-selection table; add a fixture run trace with
+    value_invocations[].
+
+    OUT OF SCOPE for ECP-0020: schema (ECP-0018); doctrine + taxonomy
+    + maturity (ECP-0019); changes to existing $eou-audit, $audit-
+    candidate-eou-set, $foundry-audit (their scope remains as-is per
+    D5.1 separation).
+
+  ordering_dependency:
+    blocked_by: ecp-0018-agentic-judgment-vocab-schema-trace, ecp-0019-agentic-judgment-doctrine-taxonomy-maturity
+    must_coexist_with: ecp-0018-agentic-judgment-vocab-schema-trace, ecp-0019-agentic-judgment-doctrine-taxonomy-maturity
+    reason: |
+      ECP-0020 depends on schema fields (ECP-0018) and on taxonomy
+      and doctrine (ECP-0019). Without both, the skill audits against
+      nothing and the rule references undefined fields.
+    coordinated_release: |
+      Final ECP of the agentic-judgment package. Lands last within
+      0.8.0 prep after ECPs 0018 and 0019. If ECPs 0018 or 0019 slip,
+      ECP-0020 holds.
+
+  meta_eou_required_fields:
+    id: audit-judgment
+    classification:
+      function: audit
+      target_object: value_invocations
+      automation_mode: LLM_assisted
+      authority_level: write_inactive   # audit reports + counterfactual-swap test runs (transient)
+      risk_level: medium
+      lifecycle_stage: candidate        # itself starts at candidate; promotes via $eou-promote like any other EOU
+      judgment_authorized: false        # the audit-judgment skill itself does NOT invoke values — it AUDITS invocations
+    purpose:
+      statement: |
+        Audit the value_invocations[] entries in run traces for EOUs
+        with judgment_authorized:true. Verify that invocations match
+        declared priority (no F15), do not drift from the captured_
+        workflow (no F16), do not reference hallucinated values (no
+        F17), and that silent decisions (no invocation on contested
+        cases) are caught (F14). Run counterfactual-swap audit on
+        sampled runs to verify invocations are load-bearing (V1
+        anti-theater defense).
+      non_goals:
+      - Do not invoke values directly (audit-judgment is a fourth-layer auditor; per D5.1 the audit and judge acts are structurally distinct).
+      - Do not re-classify failures outside F14-F17 (other failure types audited by other skills).
+      - Do not promote judgment_maturity (that requires $eou-promote per D5.2 lifecycle gate evidence).
+    operating_hypothesis: |
+      Given an EOU with judgment_authorized:true, its captured_workflow,
+      and ≥1 run trace with value_invocations, the audit can determine
+      whether invocations are load-bearing, priority-respecting, and
+      drift-free, and emit findings against F14-F17 with severity tied
+      to lifecycle_stage.
+    inputs:
+      required:
+      - target_eou_spec
+      - foundry/captured-workflows/cw-{app_id}.yml
+      - runs/{target_eou_id}/                # all run traces for this EOU
+      optional:
+      - foundry/audits/eou-audits/{target_eou_id}.audit.yml  # prior $eou-audit findings
+    blast_radius:
+      allowed_scope:
+      - foundry/audits/judgment-audits/      # new audit-report subdirectory
+      - foundry/runs/audit-judgment/         # this skill's own run traces
+      - foundry/runs/audit-judgment/swap-tests/  # transient swap-test run artifacts
+      forbidden_scope:
+      - foundry/eous/                        # cannot mutate audited EOUs
+      - foundry/meta-eous/
+      - foundry/captured-workflows/          # cannot mutate the constitution
+      - foundry/registry.yml
+      - schemas/
+      - engine/
+
+  skill_md_procedure:
+    counterfactual_swap_audit_algorithm: |
+      1. Load the target EOU's most recent run trace with value_invocations[].
+      2. For each invocation, identify the rule_conflict and the priority of the invoked domain_value.
+      3. Construct a "swapped" hypothetical captured_workflow where the invoked value's priority is swapped with a different value's priority (alternate the swap target across multiple swap-test runs to cover priority pairs).
+      4. Re-run the same input through the producing EOU with the swapped captured_workflow (write_candidate authority — these runs are isolated to foundry/runs/audit-judgment/swap-tests/ and never affect production output).
+      5. Compare the swap-test output to the original output.
+      6. If the swap produces ≥1 output change across ≥3 swap-test runs out of 5, the invocations are load-bearing — PASS.
+      7. If <3 swaps cause changes, the invocations may be theater — emit a HIGH-severity finding under F14 (silent judgment) or F15 (priority violation) depending on the specific pattern.
+      8. Record the swap-test summary in the audit report under counterfactual_swap_audit field.
+    rule_96_overlap_clarification: |
+      Rule 96 governs static spec consumption of domain_values (every
+      pilot+ spec must operationalize at least one top-three value).
+      Rule 97 governs runtime invocation discipline (every contested
+      case must produce a recorded invocation; invocations must respect
+      priority; counterfactual swap must produce changes). The two
+      rules are complementary: Rule 96 ensures specs CITE values;
+      Rule 97 ensures runs INVOKE values correctly. $audit-judgment
+      enforces Rule 97. $eou-audit enforces Rule 96.
+
+  rule_97_required_sections:
+  - heading: "# Value Invocation Rule"
+  - heading: "## When this rule applies"
+    contents: |
+      IF an EOU has classification.judgment_authorized:true AND the
+      app has an approved captured_workflow with ≥3 domain_values,
+      THEN this rule applies to every run of that EOU.
+  - heading: "## MUST requirements"
+    contents: |
+      1. Every contested case (rule conflict detected during execution) MUST produce either (a) a value_invocations[] entry with all 10 required fields, OR (b) an escalation to a human approver with the case recorded in escalation_log.
+      2. Invocations MUST respect declared priority — when two domain_values would resolve the case differently, the higher-priority value MUST be invoked. Lower-priority invocations on contested cases require an explicit override justification in the invocation entry.
+      3. rejected_alternative MUST be a concrete artifact (a specific value the EOU could have produced), not abstract description ("a worse version"). Validator rejects regex /strawman|weak|generic/i and the spec-level reviewer checks for plausibility.
+      4. domain_value_id MUST resolve to an id in the captured_workflow's domain_values block. Hallucinated ids are F17 violations.
+      5. Counterfactual-swap audit MUST produce ≥3 invocation reversals causing downstream output changes out of 5 swap-test runs. <3 indicates value theater (F14 or F15 depending on pattern).
+  - heading: "## Detection mechanism"
+    contents: |
+      The $audit-judgment skill enforces Rule 97 per audit run. The
+      validator (validate_value_invocation_discipline) enforces the
+      declarative subset — structural shape, captured_workflow id
+      consistency, regex-based strawman detection. The
+      counterfactual-swap audit is operational and runs in the skill,
+      not the validator.
+  - heading: "## Violation indicators"
+    contents: |
+      | Signal | Severity | F-code | Required action |
+      |--------|----------|--------|-----------------|
+      | Run with contested case AND no invocation AND no escalation | blocking at pilot+; high at draft | F14 | Update EOU to surface contested cases; add regression case |
+      | Invocation with lower-priority value when higher value would have resolved | high | F15 | Re-examine priority order; ECP if priority needs revision, regression if invocation was wrong |
+      | Invocation pattern over runs drifts from declared priority | high | F16 | Reset invocation behavior OR ECP to amend captured_workflow |
+      | Invocation with domain_value_id not in captured_workflow | blocking | F17 | Validate id at invocation time; investigate prompt or training data |
+      | Counterfactual swap produces <3 changes out of 5 swap-tests | high | F14 or F15 | Re-investigate whether invocations are decoration or load-bearing |
+  - heading: "## Exemptions"
+    contents: |
+      - EOUs with judgment_authorized:false (Rule 97 does not apply).
+      - Apps without an approved captured_workflow with ≥3 domain_values (judgment_authorized:true is itself blocked by ECP-0018 validator in this case).
+      - EOUs at lifecycle_stage:candidate or draft — Rule 97 enforcement begins at simulated. Earlier stages may produce invocations but the requirements are recommendations, not blocking.
+  - heading: "## Relationship to Rule 96"
+    contents: |
+      Rule 96 enforces static spec discipline (every pilot+ spec
+      operationalizes at least one top-three value in its
+      success_criteria.must_pass). Rule 97 enforces runtime invocation
+      discipline (every contested case produces a recorded invocation;
+      invocations respect priority; counterfactual swap shows
+      load-bearing). The two rules together close the constitutional
+      loop — specs must cite values, runs must invoke them.
+
+  files_changed:
+  - engine/meta-eous/audit-judgment.yml — new meta-EOU spec
+  - skills/audit-judgment/SKILL.md — new Claude skill
+  - codex/skills/audit-judgment/SKILL.md — new Codex mirror
+  - rules/97-value-invocation.md — new rule
+  - scripts/validate_foundry.py — new validate_value_invocation_discipline() walker (structural subset; counterfactual-swap is in-skill)
+  - AGENTS.md — add $audit-judgment to skill-selection table
+  - tests/fixture-foundry/foundry/runs/audit-judgment/.gitkeep — empty dir
+  - tests/fixture-foundry/foundry/runs/audit-judgment/swap-tests/.gitkeep — empty dir
+  - tests/fixture-foundry/foundry/audits/judgment-audits/.gitkeep — empty dir
+  - CHANGELOG.md — extend 0.8.0 entry with ECP-0020 sub-section
+  - dev-docs/07-agentic-judgment-proposal.md — Status field finalized to "Implemented in 0.8.0"
+
+  validator_changes:
+  - "validate_value_invocation_discipline(root, plugin_root): new walker. For each EOU spec with judgment_authorized:true, find its most recent run trace with value_invocations. For each invocation entry: verify domain_value_id resolves in the captured_workflow; verify priority_at_invocation matches the captured_workflow at the recorded captured_workflow_version; verify rejected_alternative does not match strawman regex (ECP-0018 already does this; ECP-0020 adds the id-resolution check)."
+  - "validate_foundry: invoke validate_value_invocation_discipline() after validate_domain_values_consumption() (which is post-validate_captured_workflows)."
+
+expected_benefit:
+- |
+  Agentic-judgment capability becomes operationally enforced. ECPs
+  0018-0019 declare the capability and classify its failures; ECP-0020
+  audits and enforces. The package is complete only with all three.
+- |
+  V1 epistemic-integrity attack surface (value theater) gains its
+  durable defense via counterfactual-swap audit. Per dev-docs/07-
+  agentic-judgment-proposal.md, this is "the strongest defense" — and
+  ECP-0020 makes it real.
+- |
+  Rule 96 and Rule 97 together close the constitutional loop. Apps
+  with captured_workflows now have both static (spec-level) and
+  dynamic (run-level) enforcement of domain_values discipline.
+- |
+  judgment_maturity J1-J4 levels become reachable. Without
+  $audit-judgment, every EOU with judgment_authorized:true would be
+  stuck at J1_INVOCATION_NAIVE forever — no audit, no promotion.
+- |
+  F14-F17 taxonomy entries become populated with real findings on
+  first agentic-judgment run cycle. The taxonomy is exercised, not
+  vacuous.
+
+risks:
+- |
+  Counterfactual-swap audit requires re-running the producing EOU
+  under swapped captured_workflow priority. This is a write_candidate
+  authority for transient swap-test runs. Risk — swap-test runs could
+  leak into production if the audit skill mishandles its blast_radius.
+  Mitigation — blast_radius.forbidden_scope explicitly excludes
+  production directories; swap-test artifacts isolated to
+  foundry/runs/audit-judgment/swap-tests/; validator could be extended
+  in future ECP to verify swap-tests never touch production.
+- |
+  Counterfactual-swap audit is expensive — N swap-tests per audit
+  run, each re-executing the producing EOU. For LLM_assisted EOUs,
+  each swap-test is a model call. Mitigation — sampling: audit runs
+  a fixed budget (default 5 swap-tests per audit), not every run;
+  per-EOU budget configurable in audit-judgment.yml's
+  generation_budget; expensive EOUs can opt for fewer swaps with
+  lower confidence findings.
+- |
+  Rule 97 violations may overwhelm existing audit pipelines on first
+  enforcement. Apps with many judgment_authorized EOUs may surface
+  F14-F17 findings in bulk. Mitigation — phase enforcement:
+  blocking severity for F14/F17 begins at lifecycle_stage:simulated
+  per Rule 97 Exemptions; earlier stages have warnings. Apps have
+  one lifecycle transition window to clean up findings.
+- |
+  audit-judgment skill itself has judgment_authorized:false — it
+  audits but does not invoke. But what audits the audit-judgment
+  skill? Recursive governance concern. Mitigation — $foundry-audit
+  performs the meta-audit (does $audit-judgment have arguments_against
+  in its meta-EOU? does its blast_radius exclude production
+  appropriately?). This is V4 (Bounded Authority) applied recursively.
+- |
+  Counterfactual-swap audit is the V1 defense, but it only catches
+  one form of theater (decoration). A more sophisticated theater
+  (consistent fabrication that survives swap because the fabrication
+  is internally consistent) would pass. Mitigation — counterfactual-
+  swap is the strongest mechanical defense; reviewers (humans) remain
+  the final defense for sophisticated theater. Per V2, this is the
+  human-responsibility surface.
+- |
+  Forward-coupling on ECPs 0018-0019. ECP-0020 cannot ship without
+  them. Mitigation — ordering_dependency.coordinated_release mandates
+  ECP-0020 lands last in 0.8.0 prep.
+
+warrant_for_new_skill:
+  produces: |
+    foundry/audits/judgment-audits/{eou_id}.judgment-audit.yml — a new
+    governed audit report artifact. The artifact has schema (per the
+    skill's success_criteria.must_pass fields), canonical path, and
+    owner (the audit-judgment skill's responsibility.executor records
+    the auditor identity).
+  gates: |
+    Promotion of judgment_maturity from J1 to J2/J3/J4 requires
+    $audit-judgment verdict PASS evidence per ECP-0019's
+    promotion_requires lists. The skill structurally gates the
+    judgment_maturity axis.
+  pipeline_membership: |
+    $audit-judgment is the fourth audit-layer skill per D4.1
+    (post-ECP-0019). Pipeline-membership confers warrant even if
+    "gates or produces" were borderline.
+
+tests_required:
+- |
+  Regression. engine/meta-eous/audit-judgment.yml parses and validates
+  against eou.schema.yml. function:audit, target_object:value_invocations,
+  authority_level:write_inactive, risk_level:medium, judgment_authorized:false.
+- |
+  Regression. skills/audit-judgment/SKILL.md and
+  codex/skills/audit-judgment/SKILL.md both exist with matching
+  section headers (drift check).
+- |
+  Regression. rules/97-value-invocation.md exists with frontmatter
+  (name, description) matching the convention of rules 89-96.
+- |
+  Regression. validate_value_invocation_discipline() catches F17
+  (value hallucination) when a run-trace value_invocations entry
+  references a domain_value_id not in the captured_workflow.
+- |
+  Regression. validate_value_invocation_discipline() catches F16
+  (value drift) when invocation pattern over ≥3 runs diverges from
+  declared priority by >20%.
+- |
+  Operational test. Counterfactual-swap audit on a fixture run with
+  load-bearing invocations produces ≥3 output changes out of 5
+  swap-tests — PASS.
+- |
+  Operational test. Counterfactual-swap audit on a fixture run with
+  decorative invocations (same output regardless of swap) produces 0
+  output changes — emits HIGH-severity finding under F14.
+- |
+  Operational test. $audit-judgment on an EOU with
+  judgment_authorized:false skips Rule 97 enforcement and emits "rule
+  does not apply" status (no findings).
+- |
+  Operational test. Run-trace with value_invocations[] where one
+  entry's rejected_alternative is "a worse version" fails validation
+  (anti-theater regex).
+- |
+  Operational test. $audit-judgment verdict feeds back into
+  judgment_maturity promotion: an EOU at J1_INVOCATION_NAIVE with a
+  PASS verdict and the required runs becomes promotable to J2_INVOCATION_PRESENT.
+- |
+  Vocabulary test. dev-docs/07-agentic-judgment-proposal.md Status
+  field reads "Implemented in 0.8.0" or equivalent.
+
+simulation:
+  status: simulated
+  rationale: |
+    Simulation evidence — (1) the cooking canary's counterfactual-swap
+    audit (4 of 5 flips out of 5 tests) IS a hand-rolled instance of
+    what $audit-judgment automates. The mechanism is empirically
+    validated; ECP-0020 codifies it into a skill. (2) F14 (silent
+    judgment) detection was validated in ECP-0018's anti-theater
+    regex; ECP-0020 extends to the operational case (run with
+    contested case AND no invocation). (3) Rule 96 enforcement
+    (ECP-0017) successfully caught synthetic spec violations; Rule
+    97 enforcement follows the same pattern at runtime instead of
+    spec-time.
+  simulation_artifacts:
+  - dev-docs/canary/cooking-restaurant-captured-workflow.yml (canonical counterfactual-swap example)
+  - ecp-0018-agentic-judgment-vocab-schema-trace (schema dependency)
+  - ecp-0019-agentic-judgment-doctrine-taxonomy-maturity (taxonomy dependency)
+
+approval:
+  proposed_by: plugin maintainer (agentic-judgment package, ECP-0020; operational enforcement layer)
+  audited_by: plugin maintainer (adversarial review applied in same session as drafting)
+  approver: xiaolai
+  approved_at: 2026-05-21T00:00:00Z
+  status: implemented
+  implemented_in: 0.8.0
+  implemented_at: 2026-05-21T00:00:00Z
+  rollback_considerations: |
+    Revert — remove engine/meta-eous/audit-judgment.yml,
+    skills/audit-judgment/, codex/skills/audit-judgment/,
+    rules/97-value-invocation.md; remove
+    validate_value_invocation_discipline() from
+    scripts/validate_foundry.py; remove $audit-judgment row from
+    AGENTS.md skill-selection table.
+
+    If ECPs 0018 and 0019 remain shipped at rollback time, agentic-
+    judgment capability becomes orphan-foundation (declared but not
+    enforced). CHANGELOG must warn users to either roll back the
+    entire package together OR explicitly accept the orphan state
+    until a replacement enforcement ECP ships.
+
+submitted_as: null

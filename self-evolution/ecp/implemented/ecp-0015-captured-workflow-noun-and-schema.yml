@@ -1,0 +1,455 @@
+id: ecp-0015-captured-workflow-noun-and-schema
+target_eou: eou-foundry-plugin
+target_version_from: 0.6.0
+target_version_to: 0.7.0
+problem:
+  observed_failure: |
+    The foundry's 16-step construction sequence (dev-docs/03-doctrine.md
+    D2.4) begins with "Capture messy workflow" as step 1 and treats the
+    output of steps 1-5 as the input to step 6 ($generate-eou-candidates).
+    Today that input is unstructured prose. There is no schema, no
+    canonical path, no validator, and no way to audit it. Worse: there is
+    no mechanism in the foundry for users who cannot articulate steps 1-5
+    on their own — a common case when the user is entering an unfamiliar
+    craft domain. Such users either abandon the foundry or produce shallow
+    workflows that bake their domain ignorance into the resulting EOU set.
+
+    A second, deeper gap: even when users CAN articulate steps 1-5, those
+    outputs are rule-shaped (judgments, failure modes, decision boundaries)
+    with no constitutional layer governing how those rules resolve under
+    conflict. Per 06-values-over-rules.md, rules without a value layer are
+    structurally dangerous — they appear rigorous while losing the soul of
+    the craft. The foundry has V1-V8 governing itself, but apps consuming
+    the foundry have no analog. The captured_workflow noun is the place
+    where the per-app constitutional layer lives.
+
+    A design conversation (captured in dev-docs/08-stage-0-design.md, with
+    downstream implication noted in dev-docs/07-agentic-judgment-proposal.md)
+    produced a hand-drafted canary captured_workflow.yml for a hypothetical
+    small-restaurant app (dev-docs/canary/cooking-restaurant-captured-workflow.yml).
+    The canary cleanly passed both validation tests (inclusion test, 5/5
+    values 6/6 pass; counterfactual swap, 4 clean choice flips out of 5
+    tests). The design is real enough to schematize.
+  failure_class: F3_SCHEMA_FAILURE
+  failure_class_rationale: |
+    F3 (schema mismatch between components) chosen because the central issue
+    is an artifact that needs a schema and lacks one — the artifact itself
+    is the absent component. F12 (drift between spec/validator/skill/docs)
+    is arguable, since doctrine (D2.4) names "captured workflow" but the
+    validator does not know the noun. F3 is preferred because there is no
+    competing schema to drift against; the artifact has no prior schema at
+    all. If future ECPs surface multi-schema drift after this lands, that
+    work is F12-class and addressed separately.
+  evidence:
+  - dev-docs/03-doctrine.md D2.4 names "captured messy workflow" as a
+    step 1 output consumed by step 6. schemas/ has no captured-workflow.schema.yml.
+  - scripts/validate_foundry.py has no walker for captured_workflow files.
+    The artifact has no canonical directory.
+  - dev-docs/01-foundations.md (lines 17-45) describes the central
+    difficulty as translating "messy intention → process-shaped EOUs."
+    The translation step is exactly what this artifact captures. Today
+    it lives in conversation and prose, not in schema.
+  - |
+    dev-docs/04-vocabulary-principles.md P4 says "Every noun is the target
+    of at least one verb. A term that never appears in a verb+noun
+    combination within its scope has no structural role and is a deletion
+    candidate." The current state is the opposite closure gap — there is
+    an unnamed noun (the workflow capture artifact) consumed by a named
+    verb ($generate-eou-candidates step 6). P4 closure requires the noun
+    be named, schematized, and pathed.
+  - dev-docs/06-values-over-rules.md establishes V1-V8 for the foundry
+    itself. Apps consuming the foundry have no analog layer. The
+    captured_workflow.domain_values section is the per-app constitutional
+    layer that mirrors V1-V8 at the application scope.
+  - |
+    dev-docs/canary/cooking-restaurant-captured-workflow.yml — empirical
+    test of the proposed shape. Canary verdict — PASS on both inclusion
+    test and counterfactual-swap audit. Real downstream EOU decisions
+    flip when value priority order changes, demonstrating the value
+    layer is load-bearing.
+proposed_change:
+  summary: |
+    Add captured_workflow as a top-level governed noun in the EOU foundry.
+    Specifically: add schemas/captured-workflow.schema.yml declaring the
+    artifact's required fields and structure. Define canonical path
+    foundry/captured-workflows/{slug}.yml. Add validate_captured_workflows()
+    to scripts/validate_foundry.py that walks the new directory and
+    validates each file against the schema. Document the new noun in
+    dev-docs/04-vocabulary-principles.md noun catalog. The skill that
+    produces captured_workflow artifacts ($generate-captured-workflow-from-references)
+    is OUT OF SCOPE for this ECP — see ECP-0016 (not yet drafted). The
+    rule governing how downstream skills consume domain_values from a
+    captured_workflow is OUT OF SCOPE — see ECP-0017 (not yet drafted).
+    This ECP establishes the noun, schema, path, and walker only.
+  files_changed:
+  - schemas/captured-workflow.schema.yml — new schema file
+  - scripts/validate_foundry.py — new validate_captured_workflows() function
+    called from validate_foundry()
+  - dev-docs/04-vocabulary-principles.md — add captured_workflow to noun
+    catalog with declared warrant
+  - tests/fixture-foundry/foundry/captured-workflows/.gitkeep — empty dir
+    so the validator passes against the fixture
+  - tests/fixture-foundry/foundry/captured-workflows/cw-example.yml —
+    one well-formed captured_workflow fixture (adapted from the cooking
+    canary) so the validator has a positive-case fixture
+  - CHANGELOG.md — 0.7.0 entry
+  - AGENTS.md — add captured-workflow.schema.yml to the Schema reference
+    file names section
+  schema_required_fields:
+  - id  # canonical: cw-{slug}
+  - schema_version  # int, starts at 1
+  - created_at  # ISO timestamp
+  - inputs  # mapping with goal, reference_set (5 roles), constraints,
+            #   negative_constraints, user_contributed_references
+  - artifact_target  # mapping: description + scale
+  - captured_workflow  # mapping: prose + optional steps
+  - hidden_judgments  # list; each entry has id, predicate, governed_by_value,
+                      #   surfaced_from (list of reference ids)
+  - failure_modes  # list; each entry has id, failure, value_violated,
+                   #   surfaced_from (optional). value_violated MAY be the
+                   #   literal string "multiple" for meta-failures
+                   #   (canary finding fm-006).
+  - decision_boundaries  # list; each entry has id, decision,
+                         #   governed_by_value, optional secondary_value
+                         #   (canary finding db-006)
+  - domain_values  # ordered list; structure detailed below
+  - confidence  # mapping: per-section low/medium/high
+  - human_approval  # mapping: per-gate approver and timestamp
+  optional_fields:
+  - unstructured_notes  # string; documented as load-bearing escape
+                        #   hatch, not optional decoration
+  domain_values_required_subfields:
+  - id  # canonical: dv-{slug}
+  - formulation  # string, MUST be "X over Y" form, Y MUST NOT be a strawman
+  - priority  # int, total order across all values, no ties, no gaps
+  - canonical_or_personal  # enum: field_canonical | user_personal | user_diverges_from_canonical
+  - protects_against  # list of failure_mode ids from same artifact
+  - decides_when  # list; each entry has conflict + resolution
+  - inclusion_test_passes  # mapping of six booleans, MUST have ≥1 true
+                           #   (mirrors 06-values-over-rules.md inclusion test)
+  conditionally_required_subfields:
+  - justification_if_diverges  # string, REQUIRED when canonical_or_personal
+                               #   is user_personal OR user_diverges_from_canonical
+                               #   (canary finding — was optional in initial design)
+  reference_set_required_role_slots:
+  - aspirational
+  - anti_reference
+  - boundary_case
+  - mainstream_baseline
+  - outlier  # mandatory "I dislike this but it succeeds" slot — V1 defense
+             #   against blind-spot encoding. Cannot be empty.
+  user_contributed_references_required:
+  - user MUST contribute ≥1 reference per role slot (V2 anti-abdication
+    enforcement). Schema validation fails if any role slot has empty
+    user_contributed_references.
+  validator_changes:
+  - "validate_captured_workflows: new function. Walks foundry/captured-workflows/*.yml.
+    For each file: validate required top-level keys; validate reference_set
+    has all 5 role slots non-empty; validate user_contributed_references
+    has ≥1 entry per role slot; validate domain_values list has ≥3 and ≤8
+    entries; validate priority is a total order (no duplicates, no gaps);
+    validate each value formulation matches 'X over Y' pattern; validate
+    inclusion_test_passes has ≥1 true per value; validate
+    justification_if_diverges is present when canonical_or_personal is
+    non-canonical; reject 'X over Y' formulations where Y appears in a
+    configurable strawman list (initial list empty, expandable as cases
+    surface)."
+  - "validate_foundry: invoke validate_captured_workflows() after
+    validate_candidate_sets()."
+  - "Note: validator does NOT check semantic accuracy of domain_values
+    (whether values are actually correct for the domain). It only checks
+    structural shape. Per V1, the unfalsifiable nature of the inputs is
+    honestly named in the schema via confidence_per_section."
+  schema_file_explicit_disclaimers:
+  - "captured_workflow artifacts remain at lifecycle_stage candidate
+    permanently. They are not promoted higher. Failures attribute back
+    via incident records; the artifact can be superseded by a new
+    version but is never claimed to be active or stable."
+  - |
+    captured_workflow is a cross-scope noun per P4 — produced in the
+    Stage 0 scope, consumed in the EOU-pipeline scope. Schema makes this
+    explicit so downstream skills can rely on it being present without
+    treating absence as a failure.
+  risk_level_decision:
+    value: medium
+    rationale: |
+      Not low: errors in a captured_workflow propagate into every
+      downstream EOU's success_criteria via domain_values invocation.
+      A wrong value in dv-001 cascades to every spec that consults the
+      priority order. The blast radius of a bad captured_workflow is
+      the entire app's EOU set, not a single output.
+      Not high: individual captured_workflow mistakes do not cause
+      direct harm to end users; harm occurs only after downstream
+      EOUs ship and produce work under the wrong constitution. Two
+      layers of audit (eou-audit at spec level, foundry-audit at
+      portfolio level) sit between captured_workflow and end-user
+      harm. The artifact is correctable before harm propagates.
+      Medium is correct: error correction must be possible per major
+      captured_workflow version; downstream skills must consult
+      domain_values explicitly; the artifact must never claim higher
+      maturity than candidate.
+expected_benefit:
+- |
+  Step 1-5 outputs of D2.4 (captured workflow, artifact target, hidden
+  judgments, failure modes, decision boundaries) gain a schema. The
+  input to $generate-eou-candidates becomes typed instead of prose.
+- |
+  Per-app constitutional layer becomes schematized. Apps consuming the
+  foundry can express their domain_values with the same discipline the
+  foundry itself uses for V1-V8. This is the precondition for the
+  agentic-judgment proposal (07-agentic-judgment-proposal.md) — without
+  this ECP, that proposal cannot proceed.
+- |
+  Literacy-gap users gain a structured path into the foundry. Today the
+  foundry is unusable to users who cannot articulate D2.4 steps 1-5
+  unaided. After this ECP, those users have a target artifact shape;
+  the skill that produces it (ECP-0016) can then be designed against
+  this concrete schema.
+- |
+  Six anti-theater protections are codified in schema (contested-form
+  values, mandatory outlier reference slot, mandatory user contribution
+  per slot, conditional justification field, total priority order,
+  inclusion test booleans). Without schema, these would live in prose
+  and be ignored.
+- |
+  The cross-scope nature of captured_workflow (per P4) is made explicit.
+  This closes the closure gap that 04-vocabulary-principles.md flagged:
+  an unnamed governed artifact consumed by a named verb.
+risks:
+- |
+  The schema may be wrong in ways we cannot see yet. Mitigation: the
+  canary (dev-docs/canary/cooking-restaurant-captured-workflow.yml) is
+  one real test. Before any production app uses captured_workflows, a
+  second domain should produce one. Cooking was chosen because trade-
+  offs are tangible; the schema should also be tested on a less
+  tangible domain (e.g., investing or therapy) before the deprecation
+  window closes.
+- |
+  Locking the schema before any AI-generated captured_workflow has been
+  produced means the schema is shaped by hand-drafted artifacts. Real
+  AI-generated artifacts may want fields the canary did not need.
+  Mitigation: ship as 0.7.0 with `additionalProperties: true` for one
+  minor version; observe what real production wants to add; tighten
+  in 0.8.0.
+- |
+  domain_values are partially unfalsifiable by nature. The validator
+  can check structural shape but not semantic accuracy. A captured_
+  workflow with structurally-valid-but-content-wrong domain_values
+  will pass validation and silently corrupt every downstream EOU. This
+  is the V1 attack surface (value theater) documented in
+  07-agentic-judgment-proposal.md. Mitigation in THIS ECP: schema makes
+  confidence_per_section honest about epistemic position; mandatory
+  outlier reference slot reduces blind-spot encoding; per-value
+  inclusion_test_passes booleans force conscious endorsement of each
+  value. Mitigation in subsequent ECPs: ECP-0017 will add downstream
+  audit hooks; the agentic-judgment package (deferred) will add
+  counterfactual-swap audit as an operational test.
+- |
+  The artifact may incentivize over-formalization (V5 risk). A user
+  who has already articulated steps 1-5 in their head may be forced
+  into a structured artifact that loses the soul of what they were
+  trying to express. Mitigation: confidence_per_section can be low,
+  unstructured_notes is documented as load-bearing, and Stage 0 is
+  OPTIONAL — apps without a literacy gap or constitutional ambiguity
+  can continue to use $generate-eou-candidates with workflow prose
+  as today.
+- |
+  Adding a new top-level governed noun to the vocabulary is a P6
+  warrant claim. The warrant must be sustained, not just stated.
+  Mitigation: warrant section below cites literary (D2.4 step 1),
+  user (literacy-gap case — currently provisional), structural (P4
+  closure gap), and domain warrant. Multiple-warrant noun additions
+  are stronger than single-warrant ones.
+- |
+  Forward-coupling risk. ECP-0015 establishes the schema shape that
+  ECP-0016 (producer skill) and ECP-0017 (downstream consumption rule)
+  must conform to. If ECP-0015's shape is wrong in ways not surfaced by
+  the cooking canary, the entire Stage 0 package needs revision and
+  three coordinated ECPs become four-or-more. Mitigation: 0.7.0 ships
+  with additionalProperties: true for one minor version (already noted
+  above); ECP-0016 work must complete and produce at least one real
+  AI-generated captured_workflow before this ECP advances from
+  proposed → approved. The cooking canary establishes the floor; one
+  real production output establishes the ceiling.
+- |
+  Ordering coupling — operational. ECP-0016 (producer skill) and
+  ECP-0017 (downstream consumption rule) CANNOT be implemented until
+  ECP-0015 lands. The schema is the precondition for both. If ECP-0015
+  is rejected, the entire Stage 0 design (dev-docs/08-stage-0-design.md)
+  must be either retracted or restructured to not require the new noun.
+  This is a hard precedence constraint, not a recommendation.
+counter_argument:
+  # The alternative case, per rule 95's counter-generation spirit even
+  # though this ECP is not itself a generating EOU. Naming the alternative
+  # here prevents future "why did we add this?" re-litigation.
+  alternative_considered: |
+    Do NOT introduce captured_workflow as a new noun. Instead: rely on
+    the existing free-form nature of `classification.target_object`
+    (currently typed as `string` per schemas/eou.schema.yml). Pass the
+    workflow capture as inline prose to $generate-eou-candidates, the
+    same way today's prose-shaped workflow descriptions are handled.
+    Keep the foundry's noun catalog smaller (V7 minimality).
+  why_alternative_loses: |
+    1. The inline-prose approach is the current state. It already fails
+       for literacy-gap users (per dev-docs/08-stage-0-design.md problem
+       framing). The proposal exists because the alternative is in use
+       and is the observed failure mode.
+    2. The inline-prose approach has no schema. domain_values cannot be
+       expressed in prose with the inclusion-test discipline required
+       to govern downstream rule conflicts. Per dev-docs/06-values-over-
+       rules.md, rules without value layer are structurally dangerous.
+       Inline prose cannot carry the value layer.
+    3. Per P4 vocabulary discipline, an unnamed governed artifact
+       consumed by a named verb is a closure gap. The inline-prose
+       approach IS the closure gap.
+    4. The agentic-judgment downstream implication (07-agentic-judgment-
+       proposal.md) requires a structured value layer to even be
+       considered. Inline prose forecloses that path.
+  what_we_lose_by_choosing_this_ecp: |
+    1. One more governed noun in the catalog. Maintenance burden:
+       schema upkeep, validator walker, fixture file, vocabulary doc
+       entry. Estimated ongoing cost: low (analogous to candidate-set's
+       cost since ECP-0013).
+    2. The literacy gap is now made visible. Apps that previously
+       worked around their literacy gap with shallow workflows must
+       either adopt Stage 0 or explicitly opt out. Some app maintainers
+       may resist this transparency. Mitigation: Stage 0 is OPTIONAL;
+       no app is forced through it. Apps with adequate domain literacy
+       can continue to use $generate-eou-candidates with workflow prose.
+  recommendation: |
+    Adopt this ECP. The alternative loses on four structural grounds
+    and the cost of adopting is bounded.
+
+warrant_for_new_noun:
+  literary: |
+    dev-docs/03-doctrine.md D2.4 line 1 names "captured messy workflow"
+    as the output of step 1. dev-docs/01-foundations.md section 1 frames
+    the central foundry challenge as translating messy workflows into
+    process-shaped EOUs. The noun appears in adopted doctrine.
+  user: |
+    The literacy-gap user case is described in dev-docs/08-stage-0-design.md
+    section "The problem." Users entering unfamiliar craft domains
+    cannot produce steps 1-5 unaided. The captured_workflow artifact
+    is the target shape such users need.
+
+    Honesty note — this warrant is currently provisional. The design doc
+    that asserts this user need is itself the artifact this ECP introduces;
+    no prior user requests, incidents, or support cases independently
+    evidence the need. The user warrant will be strengthened or weakened
+    by experience during ECP-0016 implementation (when the producer skill
+    is built and used by a real user). If the first real user finds the
+    captured_workflow shape unhelpful, this ECP must be revisited and the
+    user warrant downgraded. Literary, structural, and domain warrants
+    below stand independent of the user warrant; the noun would still
+    deserve a place even if the user warrant collapses.
+  structural: |
+    Per dev-docs/04-vocabulary-principles.md P4, every noun must be the
+    target of at least one verb. $generate-eou-candidates step 6
+    consumes the output of steps 1-5. That output has no noun today.
+    Per the cross-scope-noun clause of P4, this is the kind of closure
+    gap that warrant theory says must be named, not deferred.
+  domain: |
+    Per dev-docs/06-values-over-rules.md, rules without a value layer
+    are structurally dangerous. Apps consuming the foundry have no
+    analog constitutional layer today. The captured_workflow's
+    domain_values section is the artifact that holds the per-app
+    constitution. Without it, every app is one rule conflict away from
+    silent drift into a value the user never approved.
+tests_required:
+- |
+  Regression. A captured_workflow missing any of the 5 reference_set
+  role slots fails validation with a specific message naming the missing
+  slot.
+- |
+  Regression. A captured_workflow with an empty user_contributed_references
+  for any role slot fails validation with a message citing V2 anti-
+  abdication enforcement.
+- |
+  Regression. A captured_workflow with fewer than 3 or more than 8
+  domain_values fails validation with a specific count message.
+- |
+  Regression. A captured_workflow with duplicate priority values or
+  priority gaps in domain_values fails validation.
+- |
+  Regression. A domain_value with canonical_or_personal of user_personal
+  or user_diverges_from_canonical AND no justification_if_diverges fails
+  validation.
+- |
+  Regression. A domain_value with inclusion_test_passes containing all
+  six booleans set to false fails validation.
+- |
+  Regression. A captured_workflow with schema_version not present, or
+  schema_version not an integer ≥ 1, fails validation.
+- |
+  Regression. A captured_workflow with a confidence subfield set to a
+  value other than low/medium/high fails validation.
+- |
+  Regression. A captured_workflow missing the human_approval block, or
+  with any of the four expected gates (reference_set_approved_by,
+  constraints_approved_by, domain_values_approved_by, bundle_approved_by)
+  set to null or missing, fails validation.
+- |
+  Regression. A captured_workflow whose id does not match the file
+  stem (e.g., id `cw-foo` in file `cw-bar.yml`) fails validation.
+  Mirrors ECP-0013's id-matches-filename pattern for candidate sets.
+- |
+  Regression. A well-formed captured_workflow (the canary-derived
+  fixture) in foundry/captured-workflows/ passes validation.
+- |
+  Regression. The same well-formed captured_workflow in any other
+  directory is invisible to the validate_captured_workflows() walker
+  and does not affect validation.
+- |
+  Operational test. The cooking-canary fixture (adapted from
+  dev-docs/canary/cooking-restaurant-captured-workflow.yml into
+  tests/fixture-foundry/foundry/captured-workflows/cw-example.yml)
+  passes the validator.
+- |
+  Operational test. A deliberately-broken version of the same fixture
+  (one role slot emptied) fails the validator with the expected error.
+- |
+  Vocabulary-test. dev-docs/04-vocabulary-principles.md noun catalog
+  contains captured_workflow with all four warrant clauses populated
+  (literary, user, structural, domain — at least one must be non-empty
+  per P6, but this ECP cites all four).
+simulation:
+  status: simulated
+  rationale: |
+    The canary at dev-docs/canary/cooking-restaurant-captured-workflow.yml
+    IS the simulation. It hand-drafts a real captured_workflow against
+    the proposed shape, runs the inclusion test (5/5 values pass 6/6),
+    and runs the counterfactual-swap audit (4 clean flips out of 5,
+    exceeding the ≥3 threshold). The canary surfaced 4 design
+    improvements which are folded into this ECP's schema_required_fields
+    (justification_if_diverges conditional requirement, secondary_value
+    on decision_boundaries, "multiple" allowed as failure_modes.value_violated,
+    unstructured_notes documented as load-bearing).
+  simulation_artifacts:
+  - dev-docs/canary/cooking-restaurant-captured-workflow.yml
+approval:
+  proposed_by: plugin maintainer (Stage 0 design conversation, captured in
+    dev-docs/08-stage-0-design.md and dev-docs/07-agentic-judgment-proposal.md)
+  audited_by: plugin maintainer (adversarial review applied in same design
+    conversation; six should-fix findings identified and applied; audit
+    trail in conversation log)
+  approver: xiaolai
+  approved_at: 2026-05-21T00:00:00Z
+  status: implemented
+  implemented_in: 0.7.0
+  implemented_at: 2026-05-21T00:00:00Z
+  rollback_considerations: |
+    Revert: delete schemas/captured-workflow.schema.yml; remove
+    validate_captured_workflows() from scripts/validate_foundry.py;
+    remove the captured_workflow entry from dev-docs/04-vocabulary-
+    principles.md noun catalog; remove tests/fixture-foundry/foundry/
+    captured-workflows/. No EOU consumes captured_workflow yet (that
+    arrives in ECP-0016 and ECP-0017), so revert is contained to this
+    ECP's surface.
+
+    Note: rolling back captured_workflow noun also requires that no
+    real app has yet produced a captured_workflow file. If apps have
+    started using the shape, they must be informed before revert.
+    Mitigation: 0.7.0 ships with the schema marked schema_version=1
+    and additionalProperties: true; downstream consumers must not
+    assume the shape is stable until 0.8.0.
+submitted_as: null

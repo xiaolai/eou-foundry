@@ -1,0 +1,124 @@
+# End-to-end agentic-judgment fixture EOU.
+#
+# Purpose: exercise the full chain — Stage 0 captured_workflow +
+# domain_values + judgment_authorized:true classification +
+# value_invocations[] in run trace + Rule 96/97 validators.
+#
+# Lifecycle: simulated (below pilot — Rule 96 doesn't fire; per-EOU ECP
+# for judgment_authorized:true is not required at this stage).
+#
+# Companion run trace: foundry/runs/sample-judgment-eou/run-001.yml
+
+id: sample-judgment-eou
+name: Sample Judgment-Authorized EOU
+version: 0.1.0
+classification:
+  function: specify
+  target_object: dish
+  automation_mode: LLM_assisted
+  authority_level: write_inactive
+  risk_level: medium
+  lifecycle_stage: simulated
+  judgment_authorized: true
+purpose:
+  statement: |
+    Demonstrate end-to-end exercise of the agentic-judgment package
+    (ECPs 0018, 0019, 0020) against the cooking captured_workflow.
+    Fixture-only EOU; not a real cooking specification.
+  non_goals:
+  - Do not represent a complete dish-specification skill (real specs would have far more domain content).
+  - Do not run in production foundries (fixture only).
+operating_hypothesis: |
+  Given the cooking captured_workflow and a contested-case input,
+  this EOU produces a value_invocations[] entry that respects the
+  declared domain_values priority order and survives the validator's
+  F17 + strawman-regex checks.
+inputs:
+  required:
+  - foundry/captured-workflows/cw-example.yml
+  - dish_request
+  optional: []
+  forbidden_assumptions:
+  - Do not assume a domain_value can be invoked that is not in the captured_workflow's domain_values list.
+context_manifest:
+  source_of_truth:
+  - foundry/captured-workflows/cw-example.yml
+  supporting: []
+  forbidden:
+  - foundry/registry.yml mutation
+execution:
+  steps:
+  - Load captured_workflow.
+  - Identify contested case in dish_request (e.g., ingredient choice that triggers a domain_value).
+  - Invoke top-priority applicable domain_value; record value_invocations entry with all 10 required fields.
+  - Produce dish specification operationalizing the invoked value.
+  decision_points:
+  - Which domain_value is highest-priority applicable to this contested case.
+  stop_conditions:
+  - dish_request is unclear.
+  - No applicable domain_value found in captured_workflow.
+  allowed_tools:
+  - Read
+  - Write
+  prohibited_actions:
+  - Mutating foundry/captured-workflows/.
+  - Producing value_invocations entries with domain_value_id not in captured_workflow.
+outputs:
+  primary:
+  - foundry/audits/dish-specs/{run_id}.yml
+  secondary:
+  - decomposition_rationale.md
+  trace:
+  - foundry/runs/sample-judgment-eou/{run_id}.yml
+success_criteria:
+  must_pass:
+  - dish specification operationalizes dv-001 (ingredient over technique) per Rule 96 top-three coverage
+  - value_invocations entry resolves a contested case with concrete rejected_alternative (not strawman)
+  - all 10 value_invocations required fields populated
+  should_pass:
+  - rejected_alternative is plausibly something a real cook could have produced
+validation:
+  deterministic:
+  - schema check via validate_foundry.py
+  - validate_value_invocations_in_trace check
+  - validate_value_invocation_discipline check (F17 id resolution)
+  judgment:
+  - whether the invoked domain_value is genuinely the highest-priority applicable
+  red_team:
+  - what if the dish_request implicates two equal-priority values?
+failure_modes:
+  known:
+  - F14_SILENT_JUDGMENT_FAILURE — invocation skipped on a contested case
+  - F17_VALUE_HALLUCINATION_FAILURE — invocation cites unknown dv id
+  warning_signs:
+  - All invocations cite dv-001 across multiple runs (suggests over-reliance on one value)
+  repair_actions:
+  - Add regression case per failure mode; update execution to surface contested cases
+escalation:
+  require_human_when:
+  - dish_request implicates a domain_value of priority > 3 (not in top-three; outside Rule 96 coverage)
+  - more than one stop_condition fires
+  require_approval_for:
+  - promotion past simulated (would activate Rule 96 / Rule 97 enforcement)
+responsibility:
+  executor: LLM (Claude or Codex)
+  reviewer: fixture-author
+  approver: human owner (named on promotion ECP)
+  cannot_delegate:
+  - approval of promotion past simulated
+  - acceptance of value_invocation as load-bearing without counterfactual swap
+versioning:
+  supersedes: []
+  changelog:
+  - "0.1.0 — initial fixture (ECP-0020 end-to-end verification)"
+blast_radius:
+  allowed_scope:
+  - foundry/audits/dish-specs/
+  - foundry/runs/sample-judgment-eou/
+  forbidden_scope:
+  - foundry/eous/
+  - foundry/meta-eous/
+  - foundry/captured-workflows/
+  - foundry/registry.yml
+  - schemas/
+  - engine/

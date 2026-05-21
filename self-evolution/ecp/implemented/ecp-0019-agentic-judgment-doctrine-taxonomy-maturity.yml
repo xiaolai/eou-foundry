@@ -1,0 +1,428 @@
+id: ecp-0019-agentic-judgment-doctrine-taxonomy-maturity
+target_eou: eou-foundry-plugin
+target_version_from: 0.7.0
+target_version_to: 0.8.0
+problem:
+  observed_failure: |
+    ECP-0018 lands the schema foundation for agentic judgment
+    (judgment_authorized classification facet, value_invocations[] in
+    run-trace). But without ECP-0019, the foundry has no doctrinal
+    framework for thinking about agentic judgment, no failure taxonomy
+    for naming agentic failures, and no maturity model for tracking how
+    well an EOU's judgment authorization is exercised over time.
+
+    Concretely, four gaps:
+
+    1. dev-docs/03-doctrine.md D4.1 declares three audit layers (output,
+       run, EOU). Agentic execution introduces a fourth — judgment audit
+       (do invocations match declared priority? are they load-bearing or
+       theater?). Without D4.1 updated, audit skills have no doctrine
+       to ground a fourth layer in.
+
+    2. dev-docs/03-doctrine.md D5.1 declares a four-step separation
+       chain (generate → audit → revise → approve). Agentic judgment
+       inserts a fifth step (generate → audit → judge → revise →
+       approve), because judgment is structurally different from audit
+       (audit detects; judge resolves) and from revise (revise mutates;
+       judge decides which way to mutate). Without D5.1 updated, the
+       separation principle does not extend to the new capability.
+
+    3. engine/failure-taxonomy.yml has 13 F-codes (F1-F13). Agentic
+       failures are not captured — F14 (silent judgment), F15 (value
+       hierarchy violation), F16 (value drift), F17 (value hallucination)
+       are named in dev-docs/07-agentic-judgment-proposal.md but have no
+       taxonomy entries. Without taxonomy entries, audits cannot
+       classify agentic failures consistently.
+
+    4. engine/maturity-model.yml has L0-L6 axis tied to lifecycle_stage.
+       Judgment maturity is orthogonal — an EOU at lifecycle_stage
+       active (L4_AUDITABLE) may have judgment_authorized:true but
+       only be at L1 of judgment maturity (invocation-naive — has
+       declared authorization but not yet produced invocation traces
+       that survive judgment audit). Without a separate axis, the
+       foundry conflates rule-following maturity with judgment maturity.
+
+    All four gaps are blocking — without ECP-0019, ECP-0020's
+    $audit-judgment skill has nothing to audit against, no failure
+    taxonomy to classify findings, and no maturity scale to score
+    against.
+  failure_class: F12_DRIFT_FAILURE
+  failure_class_rationale: |
+    F12 (drift between spec, validator, skill, and docs) chosen because
+    ECP-0018 introduces schema fields that doctrine, taxonomy, and
+    maturity model do not yet recognize. The layers will silently
+    diverge — schema declares judgment_authorized; doctrine has no
+    audit layer for it; taxonomy has no failure codes for it; maturity
+    model has no axis for it. The exact F12 anti-pattern documented
+    in dev-docs/03-doctrine.md.
+  evidence:
+  - |
+    ECP-0018 adds classification.judgment_authorized and
+    run-trace.value_invocations[]. Neither field is referenced in
+    dev-docs/03-doctrine.md, engine/failure-taxonomy.yml, or
+    engine/maturity-model.yml. The schema is live; the interpretive
+    layer is silent.
+  - |
+    dev-docs/07-agentic-judgment-proposal.md "New failure taxonomy
+    entries" table specifies F14-F17. The table is in a proposal doc;
+    the codes are not in engine/failure-taxonomy.yml.
+  - |
+    dev-docs/07-agentic-judgment-proposal.md "Structural changes to the
+    foundry" table line 6 (D4.1 audit layers — three becomes four) and
+    line 7 (D5.1 separation chain — five steps) name the doctrine
+    updates. The 07-doc names them; dev-docs/03-doctrine.md does not
+    yet contain them.
+  - |
+    dev-docs/07-agentic-judgment-proposal.md "Structural changes" table
+    line 8 names judgment_maturity as a new orthogonal axis. The
+    engine/maturity-model.yml file is single-axis (L0-L6 tied to
+    lifecycle_stage).
+
+counter_argument:
+  alternative_considered: |
+    Bundle the doctrine, taxonomy, and maturity changes into ECP-0018
+    rather than splitting them into a separate ECP. One bigger ECP,
+    fewer governance artifacts.
+  why_alternative_loses: |
+    1. Cohesion. ECP-0018 is schema and vocabulary — the noun-level
+       changes. ECP-0019 is doctrine and taxonomy — the verb-level
+       changes (how the foundry interprets and classifies). They are
+       different kinds of change with different review focus
+       (validator vs. auditor; structural vs. interpretive).
+    2. Reviewer fatigue. ECP-0018 already touches 5 files and adds 12
+       tests. Bundling ECP-0019's doctrine + taxonomy + maturity adds
+       4 more files and 9 more tests. The combined ECP would be too
+       large to audit cleanly. ECP-0013 precedent — smaller ECPs with
+       coordinated release outperform one mega-ECP.
+    3. Selective rollback. If ECP-0019's taxonomy entries turn out
+       wrong (e.g., F14 needs reformulation), reverting them
+       independently keeps ECP-0018's schema layer intact. Bundling
+       would force schema rollback for a taxonomy issue.
+    4. Coordinated release still required either way. Per
+       ordering_dependency, ECPs 0018-0020 must ship together. The
+       count of ECPs in the package does not change the release
+       discipline; it changes review granularity.
+  recommendation: |
+    Keep ECP-0019 separate. Coordinated release with ECPs 0018 and 0020
+    targeting 0.8.0. ECP-0018 first (schema foundation), ECP-0019 next
+    (doctrine + taxonomy + maturity), ECP-0020 last (audit skill + rule
+    + counterfactual-swap). Selective rollback preserved.
+
+proposed_change:
+  summary: |
+    Update doctrine, failure taxonomy, and maturity model to reflect
+    the agentic-judgment capability introduced by ECP-0018. Specifically:
+    update dev-docs/03-doctrine.md D4.1 from three audit layers to four
+    (add judgment audit); update dev-docs/03-doctrine.md D5.1 from
+    four-step separation to five-step (insert judge between audit and
+    revise); add F14-F17 to engine/failure-taxonomy.yml; add
+    judgment_maturity orthogonal axis to engine/maturity-model.yml.
+
+    OUT OF SCOPE for ECP-0019: the schema foundation (ECP-0018); the
+    judgment-audit skill that implements D4.1's fourth layer (ECP-0020);
+    Rule 97 value-invocation rule (ECP-0020); counterfactual-swap audit
+    mechanism (ECP-0020).
+
+  ordering_dependency:
+    blocked_by: ecp-0018-agentic-judgment-vocab-schema-trace
+    must_coexist_with: ecp-0020-judgment-audit-skill-rule-counterfactual-swap
+    reason: |
+      ECP-0018's schema fields (judgment_authorized, value_invocations)
+      must exist before doctrine and taxonomy can reference them. If
+      ECP-0019 lands without ECP-0018, doctrine references fields that
+      don't exist — vacuous doctrine.
+    coordinated_release: |
+      Per ECP-0018 ordering_dependency.coordinated_release: ECP-0018 →
+      ECP-0019 → ECP-0020 in that order within 0.8.0 prep. ECP-0019
+      MAY land simultaneously with ECP-0018 (same release commit) if
+      the implementation work fits in one PR; ECP-0019 MUST NOT land
+      after ECP-0020.
+
+  doctrine_changes:
+    d4_1_audit_layers:
+      current: |
+        D4.1 — Three audit layers — Output audit (is the artifact valid?);
+        Run audit (was the EOU executed correctly?); EOU audit (is the
+        EOU itself well designed?).
+      proposed: |
+        D4.1 — Four audit layers — Output audit; Run audit; EOU audit;
+        Judgment audit (for EOUs with judgment_authorized:true — do
+        value invocations across runs match declared priority? are
+        invocations load-bearing or post-hoc? are rejected_alternatives
+        concrete or strawmen?).
+      rationale: |
+        Without a fourth layer, agentic execution would be audited only
+        for output validity, run correctness, and design soundness —
+        none of which catches value theater, value hierarchy violations,
+        or invocation drift. Per V1 (Epistemic Integrity), an EOU that
+        passes the three existing layers while silently corrupting its
+        value invocations is the precise epistemic theater pattern V1
+        is meant to prevent.
+    d5_1_separation_chain:
+      current: |
+        D5.1 — Separation chain — generate → audit → revise → approve.
+        Each step is structurally distinct; no single EOU does multiple.
+      proposed: |
+        D5.1 — Separation chain — generate → audit → judge → revise →
+        approve. Insertion of `judge` step between audit (detects
+        contested cases) and revise (mutates artifacts). EOUs with
+        judgment_authorized:true may perform the judge step within
+        their declared function (audit, specify, refactor, etc.) but
+        the judge act is structurally distinct from the surrounding
+        function.
+      rationale: |
+        Without the judge step, the separation chain collapses agentic
+        judgment into either audit (which detects but does not resolve)
+        or revise (which mutates but does not decide direction). Per
+        D5.1 spirit, structurally distinct acts should be separately
+        named so governance can address them separately. The judge act
+        is structurally distinct from audit (resolves contested cases
+        rather than identifying them) and from revise (decides which
+        path to take rather than executing one).
+
+  failure_taxonomy_additions:
+    F14_SILENT_JUDGMENT_FAILURE:
+      definition: |
+        EOU made a contested choice without invoking any value from
+        the captured_workflow's domain_values block. The choice may
+        have been correct, but it is unaccountable — no trace records
+        what reasoning resolved the conflict.
+      repair: |
+        Require value_invocations[] entry for every contested case
+        detected in the run. Update the EOU's execution to surface
+        contested cases explicitly and require invocation or escalation.
+        Add a regression case for the specific contested pattern.
+      severity: highest_in_taxonomy
+      severity_rationale: |
+        F14 is the most dangerous agentic-judgment failure because it
+        looks like normal rule-following but is actually unaccountable
+        judgment. Per V1, opaque agency is worse than visible error.
+    F15_VALUE_HIERARCHY_FAILURE:
+      definition: |
+        EOU invoked a lower-priority domain_value over a higher-priority
+        one for the same contested case. The priority order in the
+        captured_workflow was violated by the invocation.
+      repair: |
+        Examine the rule_conflict in the value_invocations entry;
+        determine whether the priority order needs revision (ECP
+        amending the captured_workflow) or the invocation was wrong
+        (regression case for the EOU). Most often the latter.
+    F16_VALUE_DRIFT_FAILURE:
+      definition: |
+        EOU's invocation pattern over multiple runs has diverged from
+        the captured_workflow's declared priority order — without any
+        captured_workflow amendment ECP. The system is silently
+        rewriting its own constitution by precedent.
+      repair: |
+        Triage the drift — either reset the EOU's invocation behavior
+        (regression suite), or formalize the drift as a captured_workflow
+        amendment (ECP). Never let drift continue undocumented per
+        D5.5 (constitution).
+    F17_VALUE_HALLUCINATION_FAILURE:
+      definition: |
+        EOU invoked a value not declared in the captured_workflow's
+        domain_values block. The invocation cites a value_id that does
+        not resolve.
+      repair: |
+        Validate domain_value_id against the captured_workflow at
+        invocation time; reject invocations with unknown ids. Add a
+        regression case for the specific hallucinated id pattern.
+        Investigate whether the EOU's prompt or training data introduced
+        the fabricated value.
+
+  maturity_model_additions:
+    judgment_maturity_axis:
+      orthogonal_to: lifecycle_stage
+      rationale: |
+        An EOU at lifecycle_stage:active (L4_AUDITABLE on the
+        rule-following axis) may have judgment_authorized:true but no
+        runtime evidence yet of how well its invocations align with
+        declared priorities. Conflating the two axes would let an
+        active EOU silently claim "judgment-mature" by virtue of being
+        rule-mature.
+      levels:
+        J0_NO_AUTHORIZATION:
+          definition: judgment_authorized:false (or absent). EOU is
+            non-agentic; this axis is N/A.
+        J1_INVOCATION_NAIVE:
+          definition: judgment_authorized:true; no runs have produced
+            value_invocations yet, OR runs have produced invocations
+            but they have not been audited.
+          promotion_requires:
+          - at least one run with non-empty value_invocations[] in trace
+          - approved captured_workflow exists with ≥3 domain_values
+        J2_INVOCATION_PRESENT:
+          definition: At least one run has produced value_invocations[]
+            with all 10 required fields and rejected_alternative is not
+            strawman.
+          promotion_requires:
+          - ≥3 runs with value_invocations across distinct contested cases
+          - $audit-judgment skill (when introduced by ECP-0020) has run
+            and produced no F14 or F17 findings
+        J3_AUDIT_VERIFIED:
+          definition: $audit-judgment has verified that invocation
+            patterns match declared priority (no F15) and no drift
+            (no F16). Invocations are load-bearing per counterfactual-
+            swap audit (ECP-0020).
+          promotion_requires:
+          - $audit-judgment verdict PASS on at least one full audit cycle
+          - counterfactual-swap audit shows ≥3 invocation reversals
+            cause downstream output changes
+        J4_DRIFT_MONITORED:
+          definition: Continuous judgment-audit produces no findings
+            over governance cycle; drift signal is monitored and any
+            divergence triggers $audit-judgment re-run.
+          promotion_requires:
+          - drift monitoring infrastructure (introduced by ECP-0020)
+            shows clean trend over governance cycle
+          - no F16 findings since last $audit-judgment verdict
+      rule: |
+        judgment_maturity is independent of lifecycle_stage. An EOU
+        may be at lifecycle_stage:active AND judgment_maturity:J1 —
+        the EOU is rule-mature but invocation-naive. Promotion of
+        either axis does not promote the other. The $audit-judgment
+        skill (ECP-0020) reads both axes and reports verdicts against
+        each.
+
+  files_changed:
+  - dev-docs/03-doctrine.md — D4.1 updated from 3 to 4 audit layers; D5.1 updated from 4 to 5 step separation chain
+  - engine/failure-taxonomy.yml — add F14_SILENT_JUDGMENT_FAILURE, F15_VALUE_HIERARCHY_FAILURE, F16_VALUE_DRIFT_FAILURE, F17_VALUE_HALLUCINATION_FAILURE
+  - engine/maturity-model.yml — add judgment_maturity axis (J0-J4) orthogonal to lifecycle_stage
+  - dev-docs/07-agentic-judgment-proposal.md — update Status field from "Deferred" to "Adopted in 0.8.0 via ECPs 0018-0020"
+  - CHANGELOG.md — extend 0.8.0 entry with ECP-0019 sub-section
+
+  validator_changes:
+  - "Update validate_foundry.py to detect known failure_class strings in F14_SILENT_JUDGMENT_FAILURE | F15_VALUE_HIERARCHY_FAILURE | F16_VALUE_DRIFT_FAILURE | F17_VALUE_HALLUCINATION_FAILURE as valid failure_class values in ECP problem blocks (mirrors existing F1-F13 acceptance)."
+  - "Validator does NOT enforce judgment_maturity progression in this ECP — that's $audit-judgment skill territory (ECP-0020). Validator structurally accepts judgment_maturity as a registry-entry field if present; absence is treated as J0 (no judgment authorization)."
+
+expected_benefit:
+- |
+  D4.1 and D5.1 doctrine becomes complete for agentic execution.
+  Audit skills (current and future) have a fourth layer to ground
+  judgment audits in. The separation principle extends to agentic
+  capability via the explicit judge step.
+- |
+  Failure taxonomy gains four entries that classify agentic failures
+  consistently. Without F14-F17, audit findings about agentic
+  invocations would be ad-hoc prose; with them, findings have
+  canonical names that link to canonical repair actions.
+- |
+  Judgment maturity becomes trackable orthogonally to rule-following
+  maturity. An app can know its EOUs are J3_AUDIT_VERIFIED on the
+  judgment axis even while still at L3_EXECUTABLE on the lifecycle
+  axis. The two axes are independent capability tiers.
+- |
+  ECP-0020 ($audit-judgment skill) becomes implementable. Without
+  ECP-0019's doctrine and taxonomy, the skill would have no canonical
+  vocabulary for its findings.
+
+risks:
+- |
+  J4_DRIFT_MONITORED requires drift-monitoring infrastructure that
+  ECP-0019 does not introduce. The level is defined but unreachable
+  until ECP-0020 lands. Mitigation — J4 is named for completeness;
+  apps default to J3 as the achievable ceiling until ECP-0020 is
+  implemented. CHANGELOG notes this explicitly.
+- |
+  J0-J4 levels are an inherited pattern from L0-L6, but with only 5
+  levels vs 7. Maturity-model.yml will have two scales with different
+  lengths, which may confuse readers. Mitigation — judgment_maturity
+  is orthogonal axis with explicit rationale ("agentic capability is
+  a smaller-surface concept than full operational maturity; 5 levels
+  suffice"). Document the asymmetry in maturity-model.yml comments.
+- |
+  D4.1 update from 3 to 4 audit layers ripples through every skill
+  that audits anything. Existing audit skills ($eou-audit,
+  $foundry-audit, $audit-candidate-eou-set) gain an implicit fourth
+  layer they do not yet implement. Mitigation — ECP-0020 introduces
+  $audit-judgment as the dedicated skill for the fourth layer.
+  Existing audit skills do not need to expand their scope; they
+  remain at their declared layer. Doctrine is honest about which
+  skill performs which layer.
+- |
+  D5.1 update from 4 to 5 steps could be misread as requiring every
+  app to have a separate $judge EOU. The intent is that the judge
+  STEP is a structurally distinct act, not that a separate judge EOU
+  is required. EOUs with judgment_authorized:true perform the judge
+  step within their existing function. Mitigation — D5.1 prose makes
+  this explicit (the step is named; the EOU performing it may also
+  perform adjacent steps).
+- |
+  Failure taxonomy additions create regression-case obligations.
+  Any new failure code SHOULD have at least one regression case
+  per dev-docs/03-doctrine.md D4.4 (failure memory). ECP-0019 does
+  not introduce regression cases for F14-F17. Mitigation — ECP-0020
+  introduces $audit-judgment which produces the cases on first
+  empirical agentic-judgment run; pre-emptive regression fixtures
+  would be vacuous. Risk acknowledged; deferred to ECP-0020.
+
+tests_required:
+- |
+  Regression. validate_foundry.py accepts failure_class:F14_SILENT_JUDGMENT_FAILURE,
+  F15_VALUE_HIERARCHY_FAILURE, F16_VALUE_DRIFT_FAILURE,
+  F17_VALUE_HALLUCINATION_FAILURE in ECP problem blocks without error
+  (mirrors F1-F13 acceptance).
+- |
+  Regression. engine/failure-taxonomy.yml parses with the four new
+  entries present; each has definition and repair fields.
+- |
+  Regression. engine/maturity-model.yml parses with the new
+  judgment_maturity section; J0-J4 levels each have definition and
+  (for J1-J4) promotion_requires.
+- |
+  Regression. dev-docs/03-doctrine.md D4.1 section text contains
+  "judgment audit" as a fourth named layer; D5.1 section text contains
+  "judge" as a step between audit and revise.
+- |
+  Vocabulary test. dev-docs/07-agentic-judgment-proposal.md Status
+  field reads "Adopted in 0.8.0" or equivalent post-implementation.
+- |
+  Doctrine test. The four new failure codes do not collide with any
+  existing code in engine/failure-taxonomy.yml (no F14 already exists,
+  etc.).
+- |
+  Doctrine test. judgment_maturity axis is documented as orthogonal
+  to lifecycle_stage; existing lifecycle_stage_to_maturity_mapping
+  table is preserved unchanged (the new axis is additional, not
+  replacement).
+
+simulation:
+  status: simulated
+  rationale: |
+    Simulation evidence — (1) ECP-0018's regex-based anti-theater
+    check on rejected_alternative empirically detected strawman
+    patterns when tested. F14 (silent judgment) emerges naturally
+    when this check fails for an entire run — no value_invocations
+    despite contested cases. (2) The cooking canary's
+    counterfactual-swap audit demonstrated that value invocations
+    are load-bearing — flipping priority order produces 4 of 5
+    decision changes. F15 (priority violation) and F16 (drift) are
+    detectable by comparing actual invocation pattern against the
+    declared priority. (3) F17 (hallucination) is detectable
+    structurally — string-match domain_value_id against the
+    captured_workflow's id list.
+  simulation_artifacts:
+  - dev-docs/canary/cooking-restaurant-captured-workflow.yml
+  - ecp-0018-agentic-judgment-vocab-schema-trace (sibling ECP)
+
+approval:
+  proposed_by: plugin maintainer (agentic-judgment package, ECP-0019; doctrine + taxonomy + maturity layer)
+  audited_by: plugin maintainer (adversarial review applied in same session as drafting)
+  approver: xiaolai
+  approved_at: 2026-05-21T00:00:00Z
+  status: implemented
+  implemented_in: 0.8.0
+  implemented_at: 2026-05-21T00:00:00Z
+  rollback_considerations: |
+    Revert — revert dev-docs/03-doctrine.md D4.1 to 3 audit layers
+    and D5.1 to 4-step separation chain; remove F14-F17 from
+    engine/failure-taxonomy.yml; remove judgment_maturity axis from
+    engine/maturity-model.yml; revert
+    dev-docs/07-agentic-judgment-proposal.md Status field.
+
+    If ECP-0020 has shipped at rollback time, it depends structurally
+    on ECP-0019's taxonomy and doctrine — must roll back in lockstep.
+    Apps that have audit findings classified as F14-F17 must reclassify
+    or remove the findings; CHANGELOG warns.
+
+submitted_as: null

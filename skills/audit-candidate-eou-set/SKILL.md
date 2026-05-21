@@ -28,6 +28,7 @@ Audit `$path` (a candidate-set artifact under `foundry/self-evolution/candidate-
 ## Inputs
 
 - `$path` (required) — path to a candidate-set file at `foundry/self-evolution/candidate-sets/cs-{generating_eou}-{YYYYMMDD}-{hhmm}.yml`, produced by `$generate-eou-candidates`. Schema: `schemas/candidate-set.schema.yml` (ECP-0013).
+- `captured_workflow` (optional, ECP-0017 / Rule 96) — when `foundry/captured-workflows/cw-{app_id}.yml` exists with all four `human_approval` gates populated, load it. The Set Value Coverage Test runs against its `domain_values` block.
 
 ## Required reading
 
@@ -81,6 +82,16 @@ If the candidate set includes EOUs that generate outputs, it must also include E
 
 ### High-Stakes Test
 Candidates touching finance, health, legal, safety, content about minors, public claims, publication, or active governance must have `responsibility.approver` set to a named human role and `escalation.require_human_when` non-empty. Flag candidates in these domains missing human ownership.
+
+### Set Value Coverage Test (ECP-0017 / Rule 96)
+**Skip if `captured_workflow` is not present or `human_approval` is incomplete.**
+
+For each `domain_value` of priority ≤ 3 in the loaded captured_workflow, verify that at least one candidate in `minimal_recommended_subset` operationalizes the value via its `distinct_success_criterion`. A value is operationalized when its `id` appears in the candidate's `distinct_success_criterion` text. Domain values that no surviving candidate operationalizes are unserved.
+
+Emit findings in `audit_outcome.notes` of the form:
+- "Rule 96 — domain_value `dv-001` (priority 1, 'Ingredient over technique') is unserved by minimal_recommended_subset; either add a candidate operationalizing it or revise the captured_workflow priority order."
+
+Unserved priority-1 values escalate the verdict to FAIL. Unserved priority-2 or priority-3 values escalate to REVISE.
 
 ## Verdict thresholds
 

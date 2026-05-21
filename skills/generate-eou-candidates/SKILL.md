@@ -29,6 +29,7 @@ Generate candidate EOUs from `$workflow`.
 
 - `$workflow` (required) — the workflow to analyze; may be a file path (YAML or Markdown) or a free-text description. If a file path, read it; if text, treat it as the workflow description.
 - `workflow_slug` — derived from the workflow name or file stem, normalized to lowercase alphanumeric + hyphens (e.g., `code-review-workflow`). Used in the output filename.
+- `captured_workflow` (optional, ECP-0017 / Rule 96) — when `foundry/captured-workflows/cw-{app_id}.yml` exists with all four `human_approval` gates populated, load it. Its `domain_values` block is consulted during candidate scoring per Step 6.5.
 
 ## Required reading
 
@@ -95,6 +96,16 @@ Also fill: `purpose`, `non_goals`, `distinct_success_criterion`, `failure_modes`
 ### Step 6 — Operational value test (per candidate)
 
 Reject any candidate whose only value is completeness, or that duplicates an existing EOU, or that has no distinct success criterion. Each kept candidate must answer at least one: prevents_failure, improves_decision, exposes_hidden_judgment, improves_traceability.
+
+### Step 6.5 — Domain-value scoring (ECP-0017 / Rule 96)
+
+**Skip if `captured_workflow` is not present or `human_approval` is incomplete.**
+
+For each surviving candidate, score its `arguments_against` against the top-three priority `domain_values` from the captured_workflow:
+
+1. Would executing this candidate clearly violate a priority-1 `domain_value`? → Reject the candidate; emit `arguments_against` citing the violated value id.
+2. Does this candidate's `distinct_success_criterion` operationalize at least one top-three `domain_value`? → If not, revise the criterion to reference the value id explicitly OR demote the candidate.
+3. Record the operationalized `domain_value.id` entries in the candidate's `distinct_success_criterion` text so Rule 96's validator can detect them.
 
 ### Step 7 — Rank and select minimal set
 

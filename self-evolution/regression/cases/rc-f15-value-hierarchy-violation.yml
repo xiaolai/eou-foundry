@@ -1,0 +1,31 @@
+id: rc-f15-value-hierarchy-violation
+target_eou: audit-judgment
+failure_class: F15_VALUE_HIERARCHY_FAILURE
+failure_observed: |
+  A run's value_invocations[] entry invoked a lower-priority
+  domain_value over a higher-priority one for the same contested case.
+  The captured_workflow's priority order was violated by the invocation,
+  and no override justification was recorded in the entry. Per ECP-0019
+  / Rule 97, this is a high-severity F15 violation.
+fixture: self-evolution/regression/fixtures/f15-hierarchy-violation/
+expected_behavior:
+  audit_judgment_skill_must_emit: |
+    F15_VALUE_HIERARCHY_FAILURE finding citing the specific invocation,
+    the priority of the invoked value, the priority of the value that
+    should have governed, and the captured_workflow's decides_when
+    block that establishes the conflict.
+  severity: high
+  remediation: |
+    Two paths — (a) the priority order is correct, the invocation was
+    wrong; add a regression case for the EOU, fix the execution. Or
+    (b) the priority order is wrong; open a captured_workflow amendment
+    ECP to re-rank the values. Most often (a) per ECP-0019 doctrine.
+activation_status: candidate
+requires_approval: false
+introduced_in_ecp: ecp-0019-agentic-judgment-doctrine-taxonomy-maturity
+introduced_at: 2026-05-21
+notes: |
+  Status is `candidate` for the same reason as rc-f14: $audit-judgment
+  has not yet run against a real agentic EOU. F15 detection requires
+  the skill's judgment-layer comparison of invocation against
+  captured_workflow.decides_when, which is not a validator-level check.

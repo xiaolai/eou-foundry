@@ -1,16 +1,16 @@
 ---
 name: eou-audit
 description: |
-  Audit a single EOU spec against Foundry V2 faceted classification, authority limits, validator schemas, failure modes, trace declaration, blast radius, and responsibility ownership.
+  Audit an EOU spec — classification, authority, validators, failure modes, trace, blast radius, responsibility.
   <example>
-  Context: User wants to audit an EOU before promoting it to active.
+  Context: Auditing an EOU before promoting it to active.
   user: "$eou-audit eou-diagnose"
-  assistant: "I'll load the spec, registry entry, governance.yml, and the engine maturity model, then produce an audit report under foundry/audits/eou-audits/ with severity-categorized findings."
+  assistant: "Loading spec + governance + maturity model; report goes to foundry/audits/eou-audits/."
   </example>
   <example>
-  Context: User wants to re-audit after applying an ECP.
+  Context: Re-audit after applying an ECP.
   user: "$eou-audit foundry/eous/audit-foundry.yml"
-  assistant: "I'll re-run the audit. If responsibility.executor equals responsibility.approver, the rule 94 hard check fails immediately."
+  assistant: "Re-running. Rule 94 (executor != approver) is hard-checked first."
   </example>
 argument-hint: EOU_ID_OR_PATH
 arguments:
@@ -29,6 +29,7 @@ Audit an EOU spec at `$target`, or all specs in `foundry/eous/` and `foundry/met
 ## Inputs
 
 - `$target` (optional) — EOU ID resolved to `foundry/eous/{id}.yml` or `foundry/meta-eous/{id}.yml`, or a direct file path. When omitted, audits all specs in both directories.
+- `captured_workflow` (optional, ECP-0017 / Rule 96) — auto-discovered from `foundry/captured-workflows/cw-*.yml`. When present with all four `human_approval` gates populated AND the audited spec's `target_object` is not in `rule_96_exempt_target_objects`, the Value Operationalization Test runs.
 
 ## Required reading
 
@@ -68,7 +69,7 @@ Verify all six classification facets are present and use schema-allowed values:
 
 Finding: any missing or out-of-vocabulary value → severity `high`.
 
-### Step 3 — Authority and blast-radius appropriateness
+### Step 3 — Authority and blast-radius consistency
 
 - `mutate_active` or higher requires `risk_level: high` or `critical`.
 - `blast_radius.forbidden_scope` must be declared for `mutate_active` or higher.
@@ -114,6 +115,21 @@ Finding: any violation → severity `high`.
 - `responsibility.cannot_delegate` must list at least one item for EOUs with `authority_level: mutate_active` or higher.
 
 Finding: absent escalation on high-stakes EOU → severity `high`.
+
+### Step 9 — Value Operationalization Test (ECP-0017 / Rule 96)
+
+**Skip if no captured_workflow exists with complete `human_approval`, OR if the spec's `target_object` is in `rule_96_exempt_target_objects` (declared in `engine/governance.yml`).**
+
+Otherwise, verify that `success_criteria.must_pass` contains at least one entry whose text references at least one `domain_value.id` of priority ≤ 3 from the loaded captured_workflow.
+
+Severity escalation by `lifecycle_stage`:
+- `active`, `monitored`, `stable` → `blocking` finding (must repair before promotion)
+- `pilot` → `high`
+- `draft` or `candidate` → `medium`
+
+Record the operationalized `domain_value.id` entries in the audit report under a new `operationalized_values` field so future audits can detect drift (a spec that operationalized `dv-001` at v1.0 but no longer does at v2.0 is suspect).
+
+**Limit:** the test is string-match based. A spec could cite an id without actually operationalizing the value (citation theater). Reviewers SHOULD spot-check value invocations for decorative pattern. The counterfactual-swap defense lands in the deferred agentic-judgment ECP package (see `dev-docs/07-agentic-judgment-proposal.md`).
 
 ## Output
 

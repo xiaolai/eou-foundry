@@ -58,3 +58,48 @@ lifecycle_stage_to_maturity_mapping:
   deprecated: any (deprecation is a governance decision, not a maturity regression)
   retired: any
 rule: Do not allow an EOU to self-declare maturity; promotion requires evidence.
+
+# ECP-0019 (0.8.0-pending): judgment_maturity axis (J0-J4), orthogonal to
+# lifecycle_stage. An EOU at lifecycle_stage:active (L4_AUDITABLE on the
+# rule-following axis) may have judgment_authorized:true but still be at
+# J1 of judgment maturity (invocation-naive — has declared authorization
+# but not yet produced invocation traces that survive judgment audit).
+# Conflating the two axes would let an active EOU silently claim
+# "judgment-mature" by virtue of being rule-mature. The audit-judgment
+# skill (ECP-0020) reads both axes and reports verdicts against each.
+judgment_maturity:
+  J0_NO_AUTHORIZATION:
+    definition: classification.judgment_authorized:false (or absent). EOU is non-agentic;
+      this axis is N/A.
+  J1_INVOCATION_NAIVE:
+    definition: classification.judgment_authorized:true; no runs have produced
+      value_invocations yet, OR runs have produced invocations but they have not
+      been audited by $audit-judgment.
+    promotion_requires:
+    - at least one run with non-empty value_invocations[] in trace
+    - approved captured_workflow exists with ≥3 domain_values
+  J2_INVOCATION_PRESENT:
+    definition: At least one run has produced value_invocations[] with all 10 required
+      fields and rejected_alternative is not strawman (per ECP-0018 validator).
+    promotion_requires:
+    - ≥3 runs with value_invocations across distinct contested cases
+    - $audit-judgment skill has run and produced no F14 or F17 findings
+  J3_AUDIT_VERIFIED:
+    definition: $audit-judgment has verified that invocation patterns match declared
+      priority (no F15) and no drift (no F16). Invocations are load-bearing per
+      counterfactual-swap audit (ECP-0020).
+    promotion_requires:
+    - $audit-judgment verdict PASS on at least one full audit cycle
+    - counterfactual-swap audit shows ≥3 invocation reversals cause downstream output changes
+  J4_DRIFT_MONITORED:
+    definition: Continuous judgment-audit produces no findings over governance cycle;
+      drift signal is monitored and any divergence triggers $audit-judgment re-run.
+    promotion_requires:
+    - drift monitoring infrastructure (introduced by ECP-0020) shows clean trend over governance cycle
+    - no F16 findings since last $audit-judgment verdict
+judgment_maturity_rule: |
+  judgment_maturity is independent of lifecycle_stage. An EOU may be at
+  lifecycle_stage:active AND judgment_maturity:J1 — rule-mature but
+  invocation-naive. Promotion of either axis does not promote the other.
+  J4 is the ceiling once ECP-0020's drift-monitoring is implemented; until
+  then J3 is the achievable ceiling.

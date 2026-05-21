@@ -1,0 +1,47 @@
+# F17_VALUE_HALLUCINATION_FAILURE regression fixture.
+#
+# This run trace deliberately references domain_value_id `dv-999`,
+# which does NOT exist in the cooking captured_workflow's
+# domain_values block (which only declares dv-001, dv-002, dv-003).
+#
+# Expected: validate_value_invocation_discipline() must emit an F17
+# finding citing dv-999 and listing the known ids. Running
+# validate_foundry.py against this fixture's foundry/ root must
+# return nonzero.
+#
+# See: self-evolution/regression/cases/rc-f17-value-hallucination.yml
+
+run_id: run-001
+eou_id: sample-eou
+eou_version: 0.1.0
+status: success
+started_at: 2026-05-21T00:00:00Z
+ended_at: 2026-05-21T00:01:00Z
+executor_identity: regression-fixture-author
+inputs:
+  goal: "compose a dish that honors the captured_workflow"
+context_loaded:
+- foundry/captured-workflows/cw-example.yml
+steps_completed:
+- step_id: 1
+  outcome: success
+warnings: []
+outputs:
+- description: "sample dish artifact (placeholder for regression fixture)"
+validation:
+  passed: true
+human_approval: null
+
+# The defective invocation — domain_value_id `dv-999` does not resolve
+# in the captured_workflow's domain_values list (dv-001, dv-002, dv-003).
+value_invocations:
+- invocation_id: vi-run-001-001
+  timestamp: 2026-05-21T00:00:30Z
+  captured_workflow_id: cw-example
+  captured_workflow_version: 1
+  domain_value_id: dv-999                            # FABRICATED — does not exist
+  priority_at_invocation: 1
+  rule_conflict: "use seasonal vegetable A vs. out-of-region vegetable B"
+  chosen_path: "use seasonal vegetable A"
+  rejected_alternative: "a 5-component plate using vegetable B with a beurre-blanc reduction"
+  justification_against_rejected: "violates seasonal-honesty principle when in-region option exists"

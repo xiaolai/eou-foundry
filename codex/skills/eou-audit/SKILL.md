@@ -7,6 +7,10 @@ description: Audit EOU specs for Foundry V2 faceted classification, authority li
 
 Audit an EOU spec at `$target`, or all specs in `foundry/eous/` and `foundry/meta-eous/` when no target is given.
 
+## Optional input (ECP-0017 / Rule 96)
+
+Auto-discover any `foundry/captured-workflows/cw-*.yml` with all four `human_approval` gates populated. When found AND the audited spec's `target_object` is not in `engine/governance.yml` `rule_96_exempt_target_objects`, Step 9 (Value Operationalization Test) runs.
+
 ## Required reading
 
 1. `foundry/constitution.yml`
@@ -45,7 +49,7 @@ Verify all six classification facets are present and use schema-allowed values:
 
 Finding: any missing or out-of-vocabulary value → severity `high`.
 
-### Step 3 — Authority and blast-radius appropriateness
+### Step 3 — Authority and blast-radius consistency
 
 - `mutate_active` or higher requires `risk_level: high` or `critical`.
 - `blast_radius.forbidden_scope` must be declared for `mutate_active` or higher.
@@ -91,6 +95,19 @@ Finding: any violation → severity `high`.
 - `responsibility.cannot_delegate` must list at least one item for EOUs with `authority_level: mutate_active` or higher.
 
 Finding: absent escalation on high-stakes EOU → severity `high`.
+
+### Step 9 — Value Operationalization Test (ECP-0017 / Rule 96)
+
+**Skip if no captured_workflow exists with complete `human_approval`, OR if the spec's `target_object` is in `rule_96_exempt_target_objects`.**
+
+Verify that `success_criteria.must_pass` contains at least one entry whose text references at least one `domain_value.id` of priority ≤ 3 from the loaded captured_workflow.
+
+Severity by `lifecycle_stage`:
+- `active`, `monitored`, `stable` → `blocking`
+- `pilot` → `high`
+- `draft` or `candidate` → `medium`
+
+Record operationalized `domain_value.id` entries in the audit report under `operationalized_values` so future audits can detect drift. The test is string-match based; reviewers should spot-check value invocations for citation theater per the deferred counterfactual-swap defense (`dev-docs/07-agentic-judgment-proposal.md`).
 
 ## Output
 

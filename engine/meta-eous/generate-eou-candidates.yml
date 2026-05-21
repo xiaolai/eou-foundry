@@ -30,6 +30,7 @@ inputs:
   - existing_checklists
   - existing_prompts
   - existing_scripts
+  - foundry/captured-workflows/cw-{app_id}.yml   # ECP-0017 / Rule 96: when present and approved, scoring consults domain_values
   forbidden_assumptions:
   - Do not assume every step deserves its own EOU.
   - Do not assume automation is desirable.
@@ -55,6 +56,7 @@ execution:
   - Generate a minimal candidate set plus rejected candidates.
   - Run registry-diff and minimality checks.
   - Add operational value and arguments against each candidate.
+  - "ECP-0017 / Rule 96 — IF captured_workflow is present AND human_approval is complete at all four gates, THEN for each proposed candidate, score its arguments_against against the top-three priority domain_values; reject candidates whose execution would clearly violate a priority-1 domain_value; require each candidate's distinct_success_criterion to name at least one operationalized domain_value id."
   - Rank candidates and recommend a minimal subset.
   - Write the candidate-set artifact to foundry/self-evolution/candidate-sets/cs-generate-eou-candidates-{YYYYMMDD}-{hhmm}.yml per schemas/candidate-set.schema.yml (ECP-0013).
   decision_points:

@@ -1,0 +1,41 @@
+id: rc-f14-silent-judgment
+target_eou: audit-judgment
+failure_class: F14_SILENT_JUDGMENT_FAILURE
+failure_observed: |
+  A run of an EOU with classification.judgment_authorized:true
+  encountered a contested case (rule conflict) during execution but
+  produced neither a value_invocations[] entry resolving it nor an
+  escalations_triggered[] entry deferring to a human approver. The
+  contested case was resolved silently — the run's outcome appears
+  correct but no trace records what reasoning resolved the conflict.
+  Per ECP-0019 / Rule 97, this is the highest-severity agentic-judgment
+  failure (opaque agency masquerading as rule-following).
+fixture: self-evolution/regression/fixtures/f14-silent-judgment/
+expected_behavior:
+  audit_judgment_skill_must_emit: |
+    F14_SILENT_JUDGMENT_FAILURE finding in
+    foundry/audits/judgment-audits/{target}.judgment-audit.yml,
+    citing the specific step in the run trace where a contested case
+    occurred without invocation or escalation.
+  severity: blocking (at lifecycle_stage pilot+); high (at simulated);
+            medium (at draft/candidate)
+  remediation: |
+    Update the EOU's execution to surface contested cases explicitly
+    via decision_points; require either an invocation or an escalation
+    for each. Add this case to the foundry's regression set.
+activation_status: candidate
+requires_approval: false
+introduced_in_ecp: ecp-0019-agentic-judgment-doctrine-taxonomy-maturity
+introduced_at: 2026-05-21
+notes: |
+  Status is `candidate` because the $audit-judgment skill has not yet
+  been exercised against a real agentic-judgment EOU in production.
+  Activation requires:
+    1. At least one EOU with judgment_authorized:true reaches
+       lifecycle_stage simulated or higher.
+    2. $audit-judgment runs against it and produces a F14 finding (or
+       no finding, exonerating the EOU).
+    3. The skill's interpretation matches the rubric in
+       rules/97-value-invocation.md.
+  Until then, this case documents the expected behavior and serves as
+  the contract $audit-judgment must satisfy on first run.

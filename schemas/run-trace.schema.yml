@@ -21,6 +21,22 @@ optional:
 - inputs_hash
 - outputs_summary
 - validator_invocations
+- value_invocations  # ECP-0018: runtime invocations of domain_values by EOUs with
+                     # classification.judgment_authorized:true. Required (non-empty)
+                     # when producing EOU has judgment_authorized:true AND the run
+                     # encountered at least one contested case; optional (may be empty)
+                     # otherwise.
+value_invocations_entry_required_fields:
+- invocation_id                       # canonical: vi-{run_id}-{seq}
+- timestamp                           # ISO-8601 UTC
+- captured_workflow_id                # which captured_workflow was in effect
+- captured_workflow_version           # which version of that captured_workflow
+- domain_value_id                     # the value invoked
+- priority_at_invocation              # priority of that value at this moment
+- rule_conflict                       # the contested case description
+- chosen_path                         # what the EOU did
+- rejected_alternative                # what was rejected; MUST be concrete artifact, not strawman
+- justification_against_rejected      # why the rejected alternative would have been worse
 status_values:
 - success
 - partial

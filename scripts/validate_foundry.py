@@ -16,6 +16,19 @@ VALID_AUTOMATION = {"deterministic", "LLM_assisted", "human_executed", "hybrid"}
 VALID_AUTHORITY = {"suggest_only", "draft_only", "write_candidate", "write_inactive", "mutate_active", "approve", "publish"}
 VALID_RISK = {"low", "medium", "high", "critical"}
 VALID_STAGE = {"candidate", "draft", "simulated", "pilot", "active", "monitored", "stable", "deprecated", "retired"}
+
+# ECP-0018: agentic-judgment package
+JUDGMENT_AUTHORIZED_STAGES_REQUIRING_PER_EOU_ECP = {"pilot", "active", "monitored", "stable"}
+VALUE_INVOCATION_REQUIRED_FIELDS = ["invocation_id", "timestamp", "captured_workflow_id",
+                                    "captured_workflow_version", "domain_value_id",
+                                    "priority_at_invocation", "rule_conflict",
+                                    "chosen_path", "rejected_alternative",
+                                    "justification_against_rejected"]
+VALUE_INVOCATION_STRAWMAN_REGEX = re.compile(r"\b(strawman|a\s+weak(er)?|a\s+worse|generic)\b", re.IGNORECASE)
+
+# ECP-0019: agentic-judgment failure codes (taxonomy entries live in engine/failure-taxonomy.yml)
+VALID_FAILURE_CLASSES_AGENTIC = {"F14_SILENT_JUDGMENT_FAILURE", "F15_VALUE_HIERARCHY_FAILURE",
+                                 "F16_VALUE_DRIFT_FAILURE", "F17_VALUE_HALLUCINATION_FAILURE"}
 SAFE_GENERATING_AUTHORITY = {"suggest_only", "draft_only", "write_candidate", "write_inactive"}
 ACTIVE_STAGES = {"active", "monitored", "stable"}
 REQUIRED_TOP = [
@@ -55,6 +68,31 @@ CANDIDATE_SET_REQUIRED = ["id", "generated_by", "generated_at", "target_class", 
 CANDIDATE_SET_AUDIT_OUTCOME_KEYS = ["accepted", "merged", "demoted_to_rule", "demoted_to_validator", "demoted_to_stop_condition", "rejected", "minimal_recommended_subset"]
 CANDIDATE_SET_VALID_STATUS = {"pending_audit", "audited", "rejected_in_full"}
 CANDIDATE_SET_VALID_TARGET_CLASS = {"eou_spec", "ecp", "regression_case", "refactor_option"}
+
+# ECP-0015: captured_workflow noun + schema
+CAPTURED_WORKFLOW_REQUIRED = ["id", "schema_version", "created_at", "inputs", "artifact_target",
+                              "captured_workflow", "hidden_judgments", "failure_modes",
+                              "decision_boundaries", "domain_values", "confidence", "human_approval"]
+CAPTURED_WORKFLOW_INPUTS_REQUIRED = ["goal", "reference_set", "constraints",
+                                     "negative_constraints", "user_contributed_references"]
+CAPTURED_WORKFLOW_ROLE_SLOTS = ["aspirational", "anti_reference", "boundary_case",
+                                "mainstream_baseline", "outlier"]
+CAPTURED_WORKFLOW_DV_REQUIRED = ["id", "formulation", "priority", "canonical_or_personal",
+                                 "protects_against", "decides_when", "inclusion_test_passes"]
+CAPTURED_WORKFLOW_DV_CANONICAL_ENUM = {"field_canonical", "user_personal", "user_diverges_from_canonical"}
+CAPTURED_WORKFLOW_INCLUSION_TEST_KEYS = ["prevents_domain_failure", "resolves_rule_conflict",
+                                         "exposes_hidden_judgment", "resists_false_success",
+                                         "protects_invariant", "removal_makes_practice_dangerous"]
+CAPTURED_WORKFLOW_CONFIDENCE_KEYS = ["artifact_target", "hidden_judgments", "failure_modes",
+                                     "decision_boundaries", "domain_values"]
+CAPTURED_WORKFLOW_CONFIDENCE_ENUM = {"low", "medium", "high"}
+CAPTURED_WORKFLOW_APPROVAL_GATES = ["reference_set_approved_by", "constraints_approved_by",
+                                    "domain_values_approved_by", "bundle_approved_by",
+                                    "approved_at"]
+CAPTURED_WORKFLOW_DV_MIN = 3
+CAPTURED_WORKFLOW_DV_MAX = 8
+CAPTURED_WORKFLOW_FORMULATION_PATTERN = re.compile(r"^\s*\S.*\s+over\s+\S.*$", re.IGNORECASE)
+CAPTURED_WORKFLOW_STRAWMAN_LIST: set[str] = set()   # empty initially; expand as cases surface
 LIFECYCLE_TO_MATURITY = {
     "candidate":  "L1_NARRATIVE",
     "draft":      "L2_STRUCTURED",
@@ -324,6 +362,131 @@ def validate_eou_card(path: Path, root: Path) -> list[str]:
     if not isinstance(blast, dict) or empty(blast.get("allowed_scope")) or empty(blast.get("forbidden_scope")):
         problems.append(f"{path}: missing blast_radius.allowed_scope/forbidden_scope")
 
+    # ECP-0018: judgment_authorized validation
+    ja = c.get("judgment_authorized")
+    if ja is not None:
+        if not isinstance(ja, bool):
+            problems.append(f"{path}: classification.judgment_authorized must be a boolean (got {ja!r})")
+        elif ja is True:
+            # Forbidden on function:generate per D6.1
+            if c.get("function") == "generate":
+                problems.append(
+                    f"{path}: F4_SCOPE_FAILURE — classification.judgment_authorized:true "
+                    f"forbidden on function:generate (D6.1: generators may not create authority; ECP-0018)"
+                )
+            # captured_workflow precondition + risk-tier authorization checks
+            problems.extend(_validate_judgment_authorization_precondition(path, c, root))
+
+    return problems
+
+
+def _validate_judgment_authorization_precondition(spec_path: Path, classification: dict, root: Path) -> list[str]:
+    """ECP-0018: judgment_authorized:true requires (a) app has an approved
+    captured_workflow with ≥3 domain_values; (b) at risk_level high|critical
+    at pilot+, per-EOU ECP approval is required."""
+    problems: list[str] = []
+    cw_dir = root / "foundry" / "captured-workflows"
+    has_qualifying_cw = False
+    if cw_dir.exists():
+        for cw_path in cw_dir.glob("*.yml"):
+            if cw_path.name == ".gitkeep":
+                continue
+            cw = load_yaml(cw_path)
+            if not isinstance(cw, dict):
+                continue
+            ha = cw.get("human_approval") or {}
+            all_gates_filled = all(ha.get(g) for g in CAPTURED_WORKFLOW_APPROVAL_GATES)
+            dvs = cw.get("domain_values") or []
+            if all_gates_filled and isinstance(dvs, list) and len(dvs) >= CAPTURED_WORKFLOW_DV_MIN:
+                has_qualifying_cw = True
+                break
+    if not has_qualifying_cw:
+        problems.append(
+            f"{spec_path}: classification.judgment_authorized:true requires an "
+            f"approved captured_workflow with ≥{CAPTURED_WORKFLOW_DV_MIN} "
+            f"domain_values in {cw_dir} (ECP-0018 precondition)"
+        )
+
+    risk = classification.get("risk_level")
+    stage = classification.get("lifecycle_stage")
+    if risk in {"high", "critical"} and stage in JUDGMENT_AUTHORIZED_STAGES_REQUIRING_PER_EOU_ECP:
+        # Per-EOU ECP is required. Look for blanket-authorization override OR per-EOU ECP.
+        gov_path = root / "foundry" / "governance.yml"
+        blanket_ok = False
+        if gov_path.exists():
+            gov = load_yaml(gov_path)
+            if isinstance(gov, dict):
+                blanket = gov.get("judgment_blanket_authorization") or {}
+                if (
+                    isinstance(blanket, dict)
+                    and blanket.get("enabled") is True
+                    and blanket.get("max_risk_level") in {"low", "medium", "high", "critical"}
+                ):
+                    # Per ECP-0018: high/critical NEVER blanket-authorized.
+                    # max_risk_level cap is checked here.
+                    cap = blanket.get("max_risk_level")
+                    cap_ok = (risk == "medium" and cap == "medium") or (risk == "low")
+                    blanket_ok = cap_ok
+        if not blanket_ok:
+            # Per-EOU ECP is required. Check approved/ and implemented/ ECPs for
+            # one targeting this EOU's id with judgment_authorized intent.
+            ecp_dirs = [root / "foundry" / "self-evolution" / "ecp" / d
+                        for d in ("approved", "implemented")]
+            spec_id = spec_path.stem
+            per_eou_ecp_found = False
+            for ecp_dir in ecp_dirs:
+                if not ecp_dir.exists():
+                    continue
+                for ecp_path in ecp_dir.glob("*.yml"):
+                    ecp = load_yaml(ecp_path)
+                    if not isinstance(ecp, dict):
+                        continue
+                    target = ecp.get("target_eou", "")
+                    summary = (ecp.get("proposed_change") or {}).get("summary", "") if isinstance(ecp.get("proposed_change"), dict) else ""
+                    if target == spec_id and "judgment_authorized" in str(summary).lower():
+                        per_eou_ecp_found = True
+                        break
+                if per_eou_ecp_found:
+                    break
+            if not per_eou_ecp_found:
+                problems.append(
+                    f"{spec_path}: classification.judgment_authorized:true at "
+                    f"risk_level:{risk} lifecycle_stage:{stage} requires per-EOU "
+                    f"ECP approval (ECP-0018; no qualifying ECP found in "
+                    f"approved/ or implemented/)"
+                )
+    return problems
+
+
+def validate_value_invocations_in_trace(trace_path: Path, trace: dict) -> list[str]:
+    """ECP-0018: validate value_invocations[] entry shape in run traces.
+    Each entry must have all 10 required fields; rejected_alternative
+    must not match strawman regex; domain_value_id resolution against
+    captured_workflow happens in ECP-0020's
+    validate_value_invocation_discipline()."""
+    problems: list[str] = []
+    invocations = trace.get("value_invocations")
+    if invocations is None:
+        return problems
+    if not isinstance(invocations, list):
+        problems.append(f"{trace_path}: value_invocations must be a list")
+        return problems
+    for idx, inv in enumerate(invocations):
+        if not isinstance(inv, dict):
+            problems.append(f"{trace_path}: value_invocations[{idx}] must be a mapping")
+            continue
+        inv_id = inv.get("invocation_id", f"value_invocations[{idx}]")
+        for field in VALUE_INVOCATION_REQUIRED_FIELDS:
+            if not inv.get(field):
+                problems.append(
+                    f"{trace_path}: value_invocation `{inv_id}` missing required field `{field}` (ECP-0018)"
+                )
+        rej = inv.get("rejected_alternative")
+        if isinstance(rej, str) and (not rej.strip() or VALUE_INVOCATION_STRAWMAN_REGEX.search(rej)):
+            problems.append(
+                f"{trace_path}: value_invocation `{inv_id}` rejected_alternative "
+                f"is empty or matches strawman pattern (ECP-0018 anti-theater check)"
+            )
     return problems
 
 
@@ -875,6 +1038,8 @@ def validate_run_traces(root: Path) -> list[str]:
             problems.append(
                 f"{path}: status `{data['status']}` not in {sorted(RUN_TRACE_VALID_STATUS)}"
             )
+        # ECP-0018: value_invocations entry-shape validation
+        problems.extend(validate_value_invocations_in_trace(path, data))
     return problems
 
 
@@ -1029,6 +1194,365 @@ def validate_candidate_sets(root: Path) -> list[str]:
                         f"an audited set must record either what passed or "
                         f"explicit rejection (rejected_in_full status if all rejected)"
                     )
+    return problems
+
+
+def validate_captured_workflows(root: Path) -> list[str]:
+    """ECP-0015: captured_workflow artifacts are the Stage 0 output —
+    reference-grounded workflow capture plus the per-app constitutional
+    layer (domain_values). They live at foundry/captured-workflows/{slug}.yml.
+    Schema enforced by this walker.
+
+    Validation checks (in order):
+    - required top-level fields present
+    - inputs.reference_set has all 5 role slots; each slot non-empty;
+      each entry has {ref, why}
+    - inputs.user_contributed_references has ≥1 per role slot (V2)
+    - domain_values count in [3, 8]
+    - domain_values priority is a total order (no ties, no gaps)
+    - each domain_value has required subfields
+    - each domain_value formulation matches "X over Y" pattern; Y not strawman
+    - canonical_or_personal in enum; justification required when non-canonical
+    - inclusion_test_passes has all 6 keys; ≥1 true
+    - confidence has all 5 subfields; each in {low, medium, high}
+    - human_approval has all 4 gates + approved_at; all non-null
+    - id matches filename stem
+    """
+    problems: list[str] = []
+    base = root / "foundry" / "captured-workflows"
+    if not base.exists():
+        return problems
+    for path in sorted(base.glob("*.yml")):
+        if path.name == ".gitkeep":
+            continue
+        data = load_yaml(path)
+        if not isinstance(data, dict):
+            problems.append(f"{path}: captured_workflow must be a mapping")
+            continue
+        problems.extend(validate_required(path, data, CAPTURED_WORKFLOW_REQUIRED))
+
+        # id matches filename stem
+        if data.get("id") and data.get("id") != path.stem:
+            problems.append(
+                f"{path}: captured_workflow id `{data.get('id')}` does not match "
+                f"filename `{path.stem}`"
+            )
+
+        # schema_version is an int ≥ 1
+        sv = data.get("schema_version")
+        if sv is not None and (not isinstance(sv, int) or sv < 1):
+            problems.append(
+                f"{path}: schema_version must be an integer ≥ 1 (got {sv!r})"
+            )
+
+        # inputs structure
+        inputs = data.get("inputs")
+        if isinstance(inputs, dict):
+            for key in CAPTURED_WORKFLOW_INPUTS_REQUIRED:
+                if key not in inputs:
+                    problems.append(f"{path}: inputs missing required key `{key}`")
+            # reference_set role slots
+            rs = inputs.get("reference_set")
+            if isinstance(rs, dict):
+                for slot in CAPTURED_WORKFLOW_ROLE_SLOTS:
+                    entries = rs.get(slot)
+                    if not entries:
+                        problems.append(
+                            f"{path}: reference_set.{slot} is empty; "
+                            f"all 5 role slots required (outlier mandatory per V1 defense)"
+                        )
+                    elif isinstance(entries, list):
+                        for idx, entry in enumerate(entries):
+                            if isinstance(entry, dict):
+                                if "ref" not in entry:
+                                    problems.append(
+                                        f"{path}: reference_set.{slot}[{idx}] missing `ref`"
+                                    )
+                                if "why" not in entry:
+                                    problems.append(
+                                        f"{path}: reference_set.{slot}[{idx}] missing `why` "
+                                        f"(per-slot justification — V5 enforcement)"
+                                    )
+            # user_contributed_references per slot
+            ucr = inputs.get("user_contributed_references")
+            if isinstance(ucr, dict):
+                for slot in CAPTURED_WORKFLOW_ROLE_SLOTS:
+                    if not ucr.get(slot):
+                        problems.append(
+                            f"{path}: user_contributed_references.{slot} is empty; "
+                            f"≥1 user-contributed reference required per slot "
+                            f"(V2 anti-abdication enforcement)"
+                        )
+
+        # domain_values block
+        dvs = data.get("domain_values")
+        if isinstance(dvs, list):
+            if len(dvs) < CAPTURED_WORKFLOW_DV_MIN:
+                problems.append(
+                    f"{path}: domain_values has {len(dvs)} entries; "
+                    f"minimum {CAPTURED_WORKFLOW_DV_MIN} required"
+                )
+            if len(dvs) > CAPTURED_WORKFLOW_DV_MAX:
+                problems.append(
+                    f"{path}: domain_values has {len(dvs)} entries; "
+                    f"maximum {CAPTURED_WORKFLOW_DV_MAX} permitted "
+                    f"(mirrors foundry V1-V8 sizing)"
+                )
+            # Priority is a total order: exactly {1, ..., N}
+            priorities = [dv.get("priority") for dv in dvs if isinstance(dv, dict)]
+            if all(isinstance(p, int) for p in priorities):
+                expected = set(range(1, len(dvs) + 1))
+                actual = set(priorities)
+                if actual != expected:
+                    problems.append(
+                        f"{path}: domain_values priorities must be exactly "
+                        f"{{1, ..., {len(dvs)}}}; got {sorted(actual)}"
+                    )
+            # Per-value validation
+            for idx, dv in enumerate(dvs):
+                if not isinstance(dv, dict):
+                    problems.append(f"{path}: domain_values[{idx}] must be a mapping")
+                    continue
+                dv_id = dv.get("id", f"domain_values[{idx}]")
+                for key in CAPTURED_WORKFLOW_DV_REQUIRED:
+                    if key not in dv:
+                        problems.append(
+                            f"{path}: domain_value `{dv_id}` missing required field `{key}`"
+                        )
+                # canonical_or_personal enum
+                cop = dv.get("canonical_or_personal")
+                if cop and cop not in CAPTURED_WORKFLOW_DV_CANONICAL_ENUM:
+                    problems.append(
+                        f"{path}: domain_value `{dv_id}` canonical_or_personal "
+                        f"`{cop}` not in {sorted(CAPTURED_WORKFLOW_DV_CANONICAL_ENUM)}"
+                    )
+                if cop in {"user_personal", "user_diverges_from_canonical"}:
+                    if not dv.get("justification_if_diverges"):
+                        problems.append(
+                            f"{path}: domain_value `{dv_id}` is `{cop}` but "
+                            f"justification_if_diverges is missing"
+                        )
+                # Formulation: "X over Y" pattern, Y not strawman
+                form = dv.get("formulation")
+                if form:
+                    if not CAPTURED_WORKFLOW_FORMULATION_PATTERN.match(form):
+                        problems.append(
+                            f"{path}: domain_value `{dv_id}` formulation `{form}` "
+                            f"does not match required pattern `X over Y` "
+                            f"(contested form per V1 defense)"
+                        )
+                    else:
+                        # Extract Y for strawman check
+                        m = re.match(r"^(.+?)\s+over\s+(.+)$", form, re.IGNORECASE)
+                        if m:
+                            y_term = m.group(2).strip().lower().rstrip(".")
+                            if y_term in CAPTURED_WORKFLOW_STRAWMAN_LIST:
+                                problems.append(
+                                    f"{path}: domain_value `{dv_id}` formulation Y term "
+                                    f"`{y_term}` is in strawman list — pick a real "
+                                    f"opposing value"
+                                )
+                # inclusion_test_passes: all 6 keys present; ≥1 true
+                itp = dv.get("inclusion_test_passes")
+                if isinstance(itp, dict):
+                    for key in CAPTURED_WORKFLOW_INCLUSION_TEST_KEYS:
+                        if key not in itp:
+                            problems.append(
+                                f"{path}: domain_value `{dv_id}` inclusion_test_passes "
+                                f"missing key `{key}`"
+                            )
+                    truthy = [k for k in CAPTURED_WORKFLOW_INCLUSION_TEST_KEYS
+                              if itp.get(k) is True]
+                    if not truthy:
+                        problems.append(
+                            f"{path}: domain_value `{dv_id}` inclusion_test_passes "
+                            f"has no true entries; ≥1 required (mirrors 06-values-"
+                            f"over-rules.md inclusion test)"
+                        )
+
+        # confidence: all 5 subfields; each in {low, medium, high}
+        conf = data.get("confidence")
+        if isinstance(conf, dict):
+            for key in CAPTURED_WORKFLOW_CONFIDENCE_KEYS:
+                if key not in conf:
+                    problems.append(f"{path}: confidence missing key `{key}`")
+                else:
+                    val = conf.get(key)
+                    if val not in CAPTURED_WORKFLOW_CONFIDENCE_ENUM:
+                        problems.append(
+                            f"{path}: confidence.{key} = `{val}` not in "
+                            f"{sorted(CAPTURED_WORKFLOW_CONFIDENCE_ENUM)}"
+                        )
+
+        # human_approval: all 4 gates + approved_at; all non-null
+        ha = data.get("human_approval")
+        if isinstance(ha, dict):
+            for gate in CAPTURED_WORKFLOW_APPROVAL_GATES:
+                if not ha.get(gate):
+                    problems.append(
+                        f"{path}: human_approval.{gate} is missing or null "
+                        f"(V2 multi-gate enforcement: all 4 gates + approved_at required)"
+                    )
+
+    return problems
+
+
+def _load_rule_96_exemptions(plugin_root: Path) -> set[str]:
+    """Read rule_96_exempt_target_objects from engine/governance.yml.
+    Returns an empty set if the field is absent (engine merge model
+    permits apps to extend the engine baseline)."""
+    gov_path = plugin_root / "engine" / "governance.yml"
+    if not gov_path.exists():
+        return set()
+    data = load_yaml(gov_path) or {}
+    exempt = data.get("rule_96_exempt_target_objects") or []
+    return set(exempt) if isinstance(exempt, list) else set()
+
+
+def validate_domain_values_consumption(root: Path, plugin_root: Path) -> list[str]:
+    """ECP-0017 / Rule 96: when an approved captured_workflow exists,
+    EOU specs MUST operationalize at least one top-three priority
+    domain_value in success_criteria.must_pass.
+
+    Detection — for each spec in foundry/eous/ and foundry/meta-eous/,
+    look up the parent app's captured_workflows; if any captured_workflow
+    has human_approval complete, scan the spec's success_criteria.must_pass
+    for references to top-three domain_value ids. If no reference found
+    AND the spec is at lifecycle_stage pilot or higher AND target_object
+    is not exempt, emit a Rule 96 violation.
+
+    Exemptions:
+    - No captured_workflow exists or none is approved (rule does not apply)
+    - target_object in rule_96_exempt_target_objects (governance.yml)
+    - lifecycle_stage in {candidate, draft} (rule applies only at pilot+)
+    """
+    problems: list[str] = []
+    cw_dir = root / "foundry" / "captured-workflows"
+    if not cw_dir.exists():
+        return problems
+
+    # Collect top-three domain_value ids from any approved captured_workflow
+    top_three_ids: set[str] = set()
+    for cw_path in sorted(cw_dir.glob("*.yml")):
+        if cw_path.name == ".gitkeep":
+            continue
+        cw = load_yaml(cw_path)
+        if not isinstance(cw, dict):
+            continue
+        # Check approval is complete (all 4 gates + approved_at non-null)
+        ha = cw.get("human_approval") or {}
+        if not all(ha.get(g) for g in CAPTURED_WORKFLOW_APPROVAL_GATES):
+            continue
+        dvs = cw.get("domain_values") or []
+        for dv in dvs:
+            if not isinstance(dv, dict):
+                continue
+            pri = dv.get("priority")
+            if isinstance(pri, int) and pri <= 3 and dv.get("id"):
+                top_three_ids.add(dv["id"])
+
+    if not top_three_ids:
+        # No approved captured_workflow with top-three values; rule does not apply
+        return problems
+
+    exempt_targets = _load_rule_96_exemptions(plugin_root)
+    rule_96_active_stages = {"pilot", "active", "monitored", "stable"}
+
+    # Walk EOU specs
+    for spec_dir in ("eous", "meta-eous"):
+        # meta-eous lives under the plugin's engine/, not under the app foundry
+        if spec_dir == "meta-eous":
+            base = plugin_root / "engine" / "meta-eous"
+        else:
+            base = root / "foundry" / spec_dir
+        if not base.exists():
+            continue
+        for spec_path in sorted(base.glob("*.yml")):
+            spec = load_yaml(spec_path)
+            if not isinstance(spec, dict):
+                continue
+            classification = spec.get("classification") or {}
+            stage = classification.get("lifecycle_stage")
+            if stage not in rule_96_active_stages:
+                continue
+            target_object = classification.get("target_object")
+            if target_object in exempt_targets:
+                continue
+            sc = spec.get("success_criteria") or {}
+            must_pass = sc.get("must_pass") or []
+            # Stringify and search for any top-three id
+            must_pass_text = "\n".join(str(x) for x in must_pass) if isinstance(must_pass, list) else str(must_pass)
+            if not any(dv_id in must_pass_text for dv_id in top_three_ids):
+                problems.append(
+                    f"{spec_path}: Rule 96 violation — spec at lifecycle_stage "
+                    f"`{stage}` in app with approved captured_workflow has no "
+                    f"reference to any top-three domain_value "
+                    f"({sorted(top_three_ids)}) in success_criteria.must_pass; "
+                    f"target_object `{target_object}` is not exempt"
+                )
+
+    return problems
+
+
+def validate_value_invocation_discipline(root: Path) -> list[str]:
+    """ECP-0020 / Rule 97: extends ECP-0018's structural value_invocations
+    validation with id-resolution against the captured_workflow.
+
+    For each run trace under foundry/runs/ that contains value_invocations,
+    verify each invocation's domain_value_id resolves to a current
+    domain_value.id in the app's approved captured_workflow. Mismatched
+    ids are F17_VALUE_HALLUCINATION_FAILURE violations.
+
+    This is the declarative subset of Rule 97 enforcement. The
+    judgment-heavy checks (F14 silent judgment, F15 priority violations,
+    F16 drift, counterfactual-swap audit) live in the $audit-judgment
+    skill, not the validator."""
+    problems: list[str] = []
+    runs_dir = root / "foundry" / "runs"
+    cw_dir = root / "foundry" / "captured-workflows"
+    if not runs_dir.exists() or not cw_dir.exists():
+        return problems
+
+    # Collect all domain_value ids from approved captured_workflows
+    valid_ids: set[str] = set()
+    for cw_path in cw_dir.glob("*.yml"):
+        if cw_path.name == ".gitkeep":
+            continue
+        cw = load_yaml(cw_path)
+        if not isinstance(cw, dict):
+            continue
+        ha = cw.get("human_approval") or {}
+        if not all(ha.get(g) for g in CAPTURED_WORKFLOW_APPROVAL_GATES):
+            continue
+        for dv in cw.get("domain_values") or []:
+            if isinstance(dv, dict) and dv.get("id"):
+                valid_ids.add(dv["id"])
+
+    if not valid_ids:
+        # No approved captured_workflow with values; rule 97 cannot apply
+        return problems
+
+    for trace_path in runs_dir.rglob("*.yml"):
+        if trace_path.name == ".gitkeep":
+            continue
+        trace = load_yaml(trace_path)
+        if not isinstance(trace, dict):
+            continue
+        invocations = trace.get("value_invocations") or []
+        if not isinstance(invocations, list):
+            continue
+        for idx, inv in enumerate(invocations):
+            if not isinstance(inv, dict):
+                continue
+            inv_id = inv.get("invocation_id", f"value_invocations[{idx}]")
+            dv_id = inv.get("domain_value_id")
+            if dv_id and dv_id not in valid_ids:
+                problems.append(
+                    f"{trace_path}: F17_VALUE_HALLUCINATION_FAILURE — invocation "
+                    f"`{inv_id}` references domain_value_id `{dv_id}` which "
+                    f"does not resolve in any approved captured_workflow "
+                    f"(known ids: {sorted(valid_ids)})"
+                )
     return problems
 
 
@@ -1253,6 +1777,9 @@ def validate_foundry(root: Path, plugin_root: Path) -> tuple[list[str], list[str
     problems.extend(validate_no_trace_justifications(root))
     problems.extend(validate_active_trace_obligation(root, app_eou_paths))
     problems.extend(validate_candidate_sets(root))
+    problems.extend(validate_captured_workflows(root))   # ECP-0015
+    problems.extend(validate_domain_values_consumption(root, plugin_root))  # ECP-0017 / Rule 96
+    problems.extend(validate_value_invocation_discipline(root))            # ECP-0020 / Rule 97
     problems.extend(validate_dependency_dag(root))
     problems.extend(validate_maturity_evidence(root))
     problems.extend(validate_activation_evidence(root))

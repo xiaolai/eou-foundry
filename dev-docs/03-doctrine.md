@@ -284,15 +284,16 @@ A single run should be bounded, DAG-like, and stop-condition-aware. The Foundry 
 
 > The system learns only when outputs are falsifiable, runs are traceable, failures are named, and incidents become memory.
 
-### D4.1 — Three audit layers
+### D4.1 — Four audit layers
 
-A mature EOU system needs three different audits, not one:
+A mature EOU system needs four different audits, not one:
 
 - **Output audit** — Is the produced artifact valid?
-- **Run audit** — Was the EOU executed correctly?
+- **Run audit** — Was the EOU executed per its declared steps and stop conditions?
 - **EOU audit** — Is the EOU itself well designed?
+- **Judgment audit** — For EOUs with `classification.judgment_authorized:true`, do `value_invocations` across runs match declared priority? Are invocations load-bearing or post-hoc? Are `rejected_alternative` entries concrete or strawmen? (Added by ECP-0019; performed by the `$audit-judgment` skill introduced in ECP-0020.)
 
-Most systems only audit outputs. That is insufficient. A perfectly compliant artifact can come from a broken run; a clean run can come from a poorly designed EOU.
+Most systems only audit outputs. That is insufficient. A perfectly compliant artifact can come from a broken run; a clean run can come from a poorly designed EOU; a well-designed agentic EOU can still corrupt its own value invocations.
 
 ```mermaid
 flowchart TD
@@ -305,12 +306,17 @@ flowchart TD
     subgraph L3["EOU Audit — Is the EOU well designed?"]
         EA["classification, blast radius\nresponsibility, failure modes"]
     end
+    subgraph L4["Judgment Audit — Are value invocations load-bearing?"]
+        JA["priority match, no drift\nrejected_alternative concrete\ncounterfactual-swap PASS"]
+    end
     L1 --> F1{findings?}
     L2 --> F2{findings?}
     L3 --> F3{findings?}
+    L4 --> F4{findings?}
     F1 -->|yes| INC[incident]
     F2 -->|yes| INC
     F3 -->|yes| INC
+    F4 -->|yes| INC
     INC --> GOV[governance pipeline]
 ```
 
@@ -336,7 +342,7 @@ F9   Trace Failure          — run trace absent, incomplete, or unfalsifiable
 F10  Responsibility Failure — no named owner, approver, or non-delegable authority
 F11  Lifecycle Failure      — lifecycle_stage inconsistent with actual maturity or gates
 F12  Drift Failure          — spec, validator, skill, and docs disagree silently
-F13  Performance Failure    — EOU runs correctly at small scale but degrades at operational scale
+F13  Performance Failure    — EOU runs within declared success criteria at small scale but degrades at operational scale
 ```
 
 Named failures lead to targeted repairs:
@@ -402,29 +408,33 @@ A no-change record is not failure of the diagnosis process. It is evidence that 
 
 > Evaluation may recommend. Only authorized governance may mutate. Humans retain approval responsibility for high-impact state change.
 
-### D5.1 — Separate generation, audit, revision, and approval
+### D5.1 — Separate generation, audit, judgment, revision, and approval
 
-Never let one unit do all four:
+Never let one unit do all five:
 
 ```text
 generate = produce candidate output
-audit    = detect failures
+audit    = detect failures (or, in the judgment audit layer, detect value-invocation failures)
+judge    = resolve a contested case by invoking a domain_value (ECP-0019; only for EOUs with judgment_authorized:true)
 revise   = repair specific failures
 approve  = accept responsibility
 ```
 
-Dangerous design: one EOU that generates → audits → revises → approves its own output. Better:
+Dangerous design: one EOU that generates → audits → judges → revises → approves its own output. Better:
 
 ```text
 generate-eou-candidates
 → audit-candidate-eou-set
+→ (judge step, if downstream EOU has judgment_authorized:true and a contested case arises)
 → eou-specify
-→ eou-audit
+→ eou-audit (also audits judgment when applicable)
 → human approval
 → promote
 ```
 
-Rule 94 enforces this structurally: `responsibility.executor` must not equal `responsibility.approver`. The validator checks the equality after normalization and refuses violations.
+The `judge` step is structurally distinct from `audit` (which detects but does not resolve) and from `revise` (which mutates but does not decide direction). EOUs with `judgment_authorized:true` perform the `judge` step within their declared function (an audit EOU with `judgment_authorized:true` may resolve contested audit cases; a specify EOU with `judgment_authorized:true` may resolve contested specification cases) — the step is named separately so governance can address it separately, but it is not required that a separate EOU exist solely to perform `judge`. The `$audit-judgment` skill (ECP-0020) audits the `judge` step's outputs (`value_invocations`).
+
+Rule 94 enforces the separation structurally: `responsibility.executor` must not equal `responsibility.approver`. The validator checks the equality after normalization and refuses violations.
 
 ### D5.2 — Lifecycle stages are evidence-gated trust states
 

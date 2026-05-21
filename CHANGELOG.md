@@ -1,5 +1,79 @@
 # EOU Foundry Plugin Changelog
 
+## 0.8.0 — Agentic judgment: domain_values become load-bearing at runtime (ECPs 0018, 0019, 0020)
+
+Minor release. Stage 0 (v0.7.0) made the per-app `domain_values` layer real and statically consumed (Rule 96). v0.8.0 makes it operationally enforced at runtime — EOUs with `classification.judgment_authorized:true` may invoke domain_values to resolve contested cases during execution, and a new fourth audit layer (`$audit-judgment`) checks invocation discipline including counterfactual-swap audit. The agentic-judgment package was previously documented as deferred in `dev-docs/07-agentic-judgment-proposal.md`; v0.8.0 implements it.
+
+Per the V2 (Human Responsibility) discipline, agentic judgment is opt-in per EOU and gated by app-level governance — high/critical risk requires per-EOU ECP; low/medium may use blanket authorization via `judgment_blanket_authorization` in `governance.yml`. Apps that do not opt in continue to operate exactly as today.
+
+ECP-0018 — Vocabulary + schema + trace foundation:
+- `schemas/eou.schema.yml` adds optional `classification.judgment_authorized` (boolean, default false). Validator enforces three new invariants: forbidden on `function:generate` (D6.1 — generators may not create authority); requires the app to have an approved `captured_workflow` with ≥3 `domain_values`; at risk_level high|critical at lifecycle_stage pilot+ requires per-EOU ECP approval.
+- `schemas/run-trace.schema.yml` adds optional `value_invocations[]`. Each entry has 10 required fields — invocation_id, timestamp, captured_workflow_id, captured_workflow_version, domain_value_id, priority_at_invocation, rule_conflict, chosen_path, rejected_alternative, justification_against_rejected.
+- `validate_value_invocations_in_trace()` enforces entry shape and a strawman regex against `rejected_alternative` (anti-theater first-line defense).
+- `engine/governance.yml` documents the optional `judgment_blanket_authorization` block (apps may declare to grant blanket judgment_authorized at risk_level ≤ medium without per-EOU ECP; high/critical never blanket-authorized).
+- `dev-docs/04-vocabulary-principles.md` self-audit gains V-10 entry — `judgment_authorized` is a classification facet (not noun, not verb), four-warrant entry documented.
+
+ECP-0019 — Doctrine + failure taxonomy + maturity axis:
+- `dev-docs/03-doctrine.md` D4.1 updated from three audit layers to four (adds judgment audit). D5.1 separation chain updated from four steps to five (insertion of `judge` between audit and revise; the judge step is structurally distinct from audit and revise but composes with existing functions via the `judgment_authorized` flag rather than partitioning the verb space).
+- `engine/failure-taxonomy.yml` adds F14_SILENT_JUDGMENT_FAILURE (most dangerous agentic-judgment failure — opaque agency), F15_VALUE_HIERARCHY_FAILURE (lower-priority value invoked when higher would have governed), F16_VALUE_DRIFT_FAILURE (invocation pattern diverges from declared priority without amendment ECP), F17_VALUE_HALLUCINATION_FAILURE (domain_value_id not in captured_workflow).
+- `engine/maturity-model.yml` adds `judgment_maturity` axis (J0_NO_AUTHORIZATION → J1_INVOCATION_NAIVE → J2_INVOCATION_PRESENT → J3_AUDIT_VERIFIED → J4_DRIFT_MONITORED) — orthogonal to lifecycle_stage. An EOU may be `lifecycle_stage:active` (L4_AUDITABLE on rule-following axis) but `judgment_maturity:J1` (invocation-naive). The axes are independent capability tiers.
+
+ECP-0020 — Audit-judgment skill + Rule 97 + counterfactual-swap mechanism:
+- `engine/meta-eous/audit-judgment.yml` new — function:audit, target_object:value_invocations, authority_level:write_inactive, risk_level:medium, lifecycle_stage:candidate, `judgment_authorized:false` (audit-judgment AUDITS invocations; it does not invoke).
+- `skills/audit-judgment/SKILL.md` + Codex mirror new. 7-step procedure: load + verify preconditions; F17 id-resolution check; F15 hierarchy check; F16 drift analysis (≥3 runs required); F14 silent-judgment check; counterfactual-swap audit (up to 5 sampled swap-tests; ≥3 output changes = load-bearing PASS, <3 = HIGH-severity F14 theater pattern); compose judgment-audit report at `foundry/audits/judgment-audits/{eou_id}.judgment-audit.yml`.
+- `rules/97-value-invocation.md` new. 5 MUST requirements — every contested case produces invocation OR escalation; invocations respect declared priority; rejected_alternative is concrete (not strawman); domain_value_id resolves; counterfactual swap produces ≥3 changes out of 5. Complements Rule 96 — Rule 96 governs static spec consumption; Rule 97 governs runtime invocation discipline.
+- `scripts/validate_foundry.py` gains `validate_value_invocation_discipline()` walker enforcing the declarative subset of Rule 97 — domain_value_id resolution against captured_workflow at every value_invocations entry. The judgment-heavy checks (F14 silent, F15 hierarchy, F16 drift, counterfactual swap) live in the skill, not the validator.
+- `AGENTS.md` skill table gains `$audit-judgment` row + behavioral constraints note.
+
+Quality and V-discipline:
+- Vocabulary correction — `F17_VALUE_HALLUCINATION` renamed to `F17_VALUE_HALLUCINATION_FAILURE` for P1 uniform-granularity with F1–F16 (initial draft omitted the `_FAILURE` suffix; renamed across all 6 vocab layers).
+- Closure correction — `rule_98_judgment_blanket_authorization` renamed to `judgment_blanket_authorization` (P4 closure — the original name referenced a non-existent Rule 98; the blanket-authorization block is ECP-0018 validator apparatus, not a separately-numbered governance rule).
+- Regression fixtures — `self-evolution/regression/cases/` gains rc-f14, rc-f15, rc-f16, rc-f17 (V3+V6 gap closed). rc-f17 is active (validator catches it via the f17-hallucinated-dv-id fixture); rc-f14/15/16 are candidate (await `$audit-judgment` first-run activation).
+- End-to-end fixture — `tests/fixture-foundry/foundry/eous/sample-judgment-eou.yml` + run trace exercise the full agentic-judgment chain (judgment_authorized:true → value_invocations with valid dv-001 invocation → all 4 walkers pass). V1 empty-cage risk closed.
+- NLPM score — every NL artifact in the plugin at 100/100 under strict mode (50 artifacts assessed). Vague-quantifier sweep removed 20+ findings across the plugin, including in historical dev-docs.
+
+Optionality: agentic judgment is opt-in per EOU. EOUs with `judgment_authorized:false` (or absent) behave exactly as today. Rule 97 enforcement only fires when an EOU has `judgment_authorized:true` AND the app has an approved captured_workflow. No retroactive burden on existing apps or existing EOUs.
+
+Forward-looking dev-docs updated:
+- `dev-docs/07-agentic-judgment-proposal.md` Status flipped from "Deferred" to "Implemented in 0.8.0 via ECPs 0018-0020."
+
+## 0.7.0 — Stage 0: reference-grounded workflow capture + per-app constitutional layer (ECPs 0015, 0016, 0017)
+
+Minor release. Introduces Stage 0 — the literacy-bridge and constitutional-bootstrap layer that synthesizes the inputs to `$generate-eou-candidates` from a user goal, structured reference set, and constraints. Optional for every app (apps without a `captured_workflow` continue unchanged); when adopted, the new `domain_values` constitutional layer governs downstream EOU candidate scoring, set audit, and per-spec audit per the new Rule 96.
+
+ECP-0015 — Captured-workflow noun + schema + validator walker:
+- `schemas/captured-workflow.schema.yml` new. Required: id, schema_version, created_at, inputs (with 5-role reference_set + user_contributed_references ≥1 per slot), artifact_target, captured_workflow prose, hidden_judgments, failure_modes, decision_boundaries, domain_values (3–8 in priority total order with inclusion test, contested-form "X over Y" formulation, canonical_or_personal marker, conditional justification_if_diverges), confidence, human_approval (4-gate).
+- Canonical storage path: `foundry/captured-workflows/cw-{slug}.yml`. Lifecycle constraint — artifact remains at `lifecycle_stage: candidate` permanently; never promoted.
+- `validate_captured_workflows()` new walker enforces structural shape including: all 5 reference role slots non-empty (outlier slot mandatory per V1 defense), user contribution ≥1 per slot (V2 anti-abdication), domain_values count in [3,8], priority total order, inclusion-test booleans (≥1 true), contested-form pattern with strawman-list check, confidence enum, all 4 human_approval gates + approved_at, id-matches-filename.
+- `dev-docs/04-vocabulary-principles.md` noun catalog updated with four-warrant entry (literary D2.4 step 1; user literacy-gap case; structural P4 closure; domain V1-V8 analog).
+- Fixture at `tests/fixture-foundry/foundry/captured-workflows/cw-example.yml`.
+
+ECP-0016 — Producer skill `$generate-captured-workflow-from-references`:
+- `engine/meta-eous/generate-captured-workflow-from-references.yml` new — function:generate, target_object:captured_workflow, authority_level:write_candidate, risk_level:medium, lifecycle_stage:candidate. Full rule-95 declaration: generation_envelope (allowed_outputs:[captured_workflow], forbidden_outputs explicitly includes eou_candidate and candidate_set for D5.1 separation), generation_budget (max_candidates:1 — single-output specialization documented), registry_diff, minimality_test, operational_value_test (5 reject_if conditions including "user can articulate workflow unaided"), counter_generation (per-bundle arguments_against template), blast_radius (forbids touching everything outside foundry/captured-workflows/ and its run-trace directory).
+- `skills/generate-captured-workflow-from-references/SKILL.md` new + Codex mirror. 11-step procedure (validate → per-reference justification → counterfactual deconstruction → negative-space analysis → comparative analysis → convergence → synthesis → pattern detection → priority ordering → confidence calibration → bundle + 4-gate approval). Five explicit refusals documented. Mechanism-only — zero domain assertions.
+- Separate-skill-vs-mode counter-generation argument resolved in favor of separate skill on 7 structural grounds (D5.1 separation, D2.4 step boundary, F12 drift prevention, lifecycle reuse, risk_level distinction, V4 bounded authority, optionality clarity).
+- AGENTS.md skill-selection table updated.
+
+ECP-0017 — Downstream consumption rule (Rule 96) + meta-EOU updates:
+- `rules/96-domain-values-consumption.md` new. When an approved captured_workflow exists, downstream EOU-pipeline skills MUST consult its domain_values; specs at `lifecycle_stage: pilot` or higher MUST operationalize at least one top-three priority domain_value for the spec's target_object.
+- `engine/meta-eous/generate-eou-candidates.yml` adds captured_workflow to inputs.optional + new execution step for domain-value scoring of candidate `arguments_against`.
+- `engine/meta-eous/audit-candidate-eou-set.yml` adds captured_workflow to inputs.optional + new Set Value Coverage Test (verifies recommended subset operationalizes priority≤3 values).
+- `engine/meta-eous/audit-eou.yml` adds captured_workflow auto-discovery + new Value Operationalization Test (severity by lifecycle_stage: blocking at active+, high at pilot, medium at draft/candidate).
+- Six SKILL.md files updated (3 Claude + 3 Codex mirrors).
+- `validate_domain_values_consumption()` new walker — for each spec at pilot+, if approved captured_workflow exists and target_object is not exempt, string-match success_criteria.must_pass for any top-three domain_value id; flag violations.
+- `engine/governance.yml` adds `rule_96_exempt_target_objects` (registry, ECP, candidate_set, run_trace, incident, regression_case, no_trace_justification, captured_workflow, foundry governance object) — exempt target_objects governed by foundry V1–V8, not by app domain_values.
+- Multi-tenant resolution: spec belongs to captured_workflow with longest common path prefix; per-instance scopes (e.g., book-workshop's BOOK_PATH) supported.
+- Bootstrap exemption: specs predating captured_workflow approval exempt for one minor version (detection via versioning.changelog timestamps or git commit date fallback).
+- AGENTS.md Behavioral constraints adds Rule 96 enforcement clause.
+- Citation-theater defense (counterfactual-swap audit) explicitly deferred to the agentic-judgment ECP package; until then, $eou-audit reviewers spot-check value invocations.
+
+Forward-looking dev-docs (proposals only, deferred):
+- `dev-docs/07-agentic-judgment-proposal.md` — agentic-EOU capability tier (`judge` verb, `judgment_authorized` flag, F14–F17 failure codes, judgment-audit layer, value theater + counterfactual-swap defense). Status — deferred; requires Stage 0 to land and survive empirical counterfactual-swap testing.
+- `dev-docs/08-stage-0-design.md` — full Stage 0 design including universality across 8 craft domains, V-discipline mapping, open questions, and ECP package shape.
+- `dev-docs/canary/cooking-restaurant-captured-workflow.yml` — hand-drafted canary that validated the design pre-implementation. Inclusion test: 5/5 values × 6/6 criteria pass. Counterfactual swap: 4 clean choice flips out of 5 tests (threshold ≥3). Verdict — PASS.
+
+Optionality: Stage 0 is optional. Apps without a captured_workflow continue to use `$generate-eou-candidates` with workflow prose exactly as before. Rule 96 enforcement only fires when an approved captured_workflow exists. No retroactive burden on existing apps.
+
 ## 0.6.0 — Lifecycle/evidence triangle + closure gaps (ECPs 0007, 0009, 0010, 0013, 0014)
 
 Minor release. Implements the three coupled ECPs from the audit

@@ -1,0 +1,566 @@
+id: ecp-0017-domain-values-consumption-rule
+target_eou: eou-foundry-plugin
+target_version_from: 0.6.0
+target_version_to: 0.7.0
+problem:
+  observed_failure: |
+    ECP-0015 introduces the captured_workflow noun with its domain_values
+    constitutional layer. ECP-0016 introduces the producer skill that
+    creates such artifacts. Without ECP-0017, the artifacts produced are
+    governance furniture — no downstream skill knows to consult them.
+    $generate-eou-candidates would happily generate candidates that
+    violate the user-approved domain_values block; $audit-candidate-eou-set
+    would approve sets that abandon the highest-priority values; $eou-audit
+    would pass spec audits whose success_criteria contain no operational
+    test of any domain value. This is the orphan-producer scenario named
+    in ECP-0016 risk #6 — captured_workflows would exist but nothing would
+    consume them, making the entire Stage 0 design decorative.
+
+    The deeper failure — without ECP-0017, the foundry would silently
+    permit V1 epistemic-integrity violations at the app level. The
+    captured_workflow's domain_values block is the per-app constitutional
+    layer (analogous to the foundry's own V1-V8). If downstream EOUs do
+    not consult it, the app ships dishes that look like cooking but
+    bury ingredients; code that looks like SaaS but is fragile; videos
+    that look like videos but have no story. The exact failure modes
+    domain_values were introduced to prevent.
+
+    ECP-0017 is the rule + meta-EOU updates that close the consumption
+    gap. It is the third leg of the Stage 0 tripod (schema, producer,
+    consumption). Without all three, the design fails.
+  failure_class: F12_DRIFT_FAILURE
+  failure_class_rationale: |
+    F12 (drift between spec, validator, skill, and docs) chosen because
+    captured_workflow lives in schema (ECP-0015), in producer skill
+    (ECP-0016), in doctrine (dev-docs/06-values-over-rules.md establishes
+    the value-layer discipline), and in the agentic-judgment proposal
+    (07-agentic-judgment-proposal.md). Without ECP-0017, the consumer
+    layer is silent — every other layer says "values govern" but the
+    skills that produce EOU specs do not consult them. The layers
+    disagree about whether domain_values are load-bearing or decorative.
+    F6b (coverage judgment — right judgment framed, no validation
+    criteria to test it) is also arguable since the rule itself adds
+    the validation criteria; F12 is preferred because the gap is
+    cross-layer, not within a single judgment.
+  evidence:
+  - |
+    ECP-0016 risks #6 names the orphan-producer scenario explicitly —
+    "if ECP-0016 lands first, captured_workflow files can be produced
+    but no downstream skill knows how to consume them." ECP-0017 is the
+    documented mitigation for that risk.
+  - |
+    dev-docs/08-stage-0-design.md "Architecture" section shows
+    domain_values flowing into $generate-eou-candidates, $audit-candidate-
+    eou-set, and $eou-audit. The flow is described; the implementation
+    is missing. ECP-0017 makes the flow real.
+  - |
+    dev-docs/06-values-over-rules.md establishes V1-V8 as load-bearing
+    for foundry-level governance — values decide rule conflicts. The
+    same discipline must apply to domain_values at app level, or the
+    foundry's own value layer is exemplary but not operationalized.
+  - |
+    engine/meta-eous/generate-eou-candidates.yml inputs.required has no
+    captured_workflow entry. The skill cannot consult what it does not
+    know to load.
+  - |
+    engine/meta-eous/audit-candidate-eou-set.yml execution.steps lists
+    Boundary, Non-Overlap, Minimality, Authority, Operational Value,
+    Counter-Generation, Set Composition, and High-Stakes tests. None of
+    them check whether the recommended subset serves the priority-ordered
+    domain_values block. The set-level value audit is missing.
+  - |
+    engine/meta-eous/audit-eou.yml execution.steps checks schema
+    completeness, authority, blast_radius, steps quality, stop_conditions,
+    escalation, self-approval, registry consistency, and regression
+    coverage. None of them check whether success_criteria.must_pass
+    operationalizes the top-priority domain values for the spec's
+    target_object. The per-spec value audit is missing.
+
+counter_argument:
+  alternative_considered: |
+    Make domain_values advisory only. Producer skill (ECP-0016) writes
+    captured_workflow files; downstream skills MAY consult domain_values
+    if they choose, but are not required to. The rule introduced by
+    ECP-0017 becomes a "should" not a "must."
+  why_alternative_loses: |
+    1. V1 epistemic integrity. Per dev-docs/06-values-over-rules.md V1,
+       a polished artifact that hides failure is the highest-danger
+       outcome. Advisory-only consumption means apps ship EOU sets
+       whose specs pass validation but silently violate the value layer
+       the user approved. This is exactly the V1 failure mode.
+    2. P4 closure. domain_values become an unnamed-consumer noun —
+       produced by ECP-0016, schematized by ECP-0015, consumed by
+       nobody required. Advisory-only consumption is structurally
+       identical to having no consumer at all.
+    3. Agentic-judgment precondition. Per 07-agentic-judgment-proposal.md,
+       agentic execution requires load-bearing domain_values. Advisory-
+       only consumption forecloses the agentic-judgment path. The
+       downstream implication of Stage 0 is killed before it can be
+       evaluated.
+    4. Six-layer sync degradation. dev-docs/06-values-over-rules.md says
+       values govern rules. Advisory-only consumption means the foundry
+       teaches that discipline but does not enforce it at app level.
+       The plugin would model V1-V8 then permit apps to ignore their
+       equivalent.
+    5. V7 minimality argument flips. Advisory-only saves no maintenance
+       cost since the consumption logic must still be implemented in
+       the skill prose (so users CAN opt in). Mandatory consumption
+       costs the same code but provides governance teeth. V7's
+       justification rule says new structure is justified when it
+       prevents concrete failure — advisory-only fails this test.
+  recommendation: |
+    Adopt this ECP as a mandatory consumption rule when a captured_workflow
+    exists. Apps without captured_workflows are unaffected (Stage 0 is
+    optional). Apps with captured_workflows MUST honor their own
+    constitutional layer.
+
+proposed_change:
+  summary: |
+    Add a new rule (rules/96-domain-values-consumption.md) requiring
+    downstream skills to consult domain_values when a captured_workflow
+    exists for the consuming app. Update three meta-EOUs
+    (generate-eou-candidates, audit-candidate-eou-set, audit-eou) to add
+    captured_workflow as an optional input and to extend their
+    execution.steps with value-aware consumption logic. Update the
+    corresponding skill files (Claude + Codex). Extend validate_foundry.py
+    to flag missing value invocation when a captured_workflow is present.
+    All changes are gated on captured_workflow PRESENCE — apps without
+    one continue to operate exactly as today, preserving optionality.
+
+  ordering_dependency:
+    blocked_by: ecp-0015-captured-workflow-noun-and-schema
+    must_coexist_with: ecp-0016-captured-workflow-producer-skill
+    reason: |
+      The captured_workflow schema (ECP-0015) must exist before this rule
+      can reference its domain_values structure. The producer skill
+      (ECP-0016) must coexist so apps can actually produce captured_workflow
+      artifacts to consume.
+    coordinated_release: |
+      ECP-0017 must land BEFORE OR SIMULTANEOUSLY WITH ECP-0016, never
+      after — per ECP-0016 ordering_dependency. Recommended sequence
+      within 0.7.0 prep — ECP-0015 (schema/validator) → ECP-0017
+      (consumption rule + downstream skill updates) → ECP-0016 (producer
+      skill activated last so its outputs immediately have consumers).
+
+  risk_level_decision:
+    rule_severity: blocking
+    rationale: |
+      The rule is blocking (a missing value invocation in a spec produced
+      under a captured_workflow constitutes a Rule 96 violation that
+      MUST be repaired before promotion). Below-blocking severity would
+      reduce the rule to advisory, which is exactly the alternative this
+      ECP rejects. Blocking severity matches Rule 92's MUST list pattern.
+
+  multi_tenant_resolution:
+    rule: |
+      A spec belongs to the captured_workflow whose path is closest
+      (longest common prefix) to the spec's path. Concretely — for a
+      spec at foundry/eous/{spec_id}.yml the validator searches
+      foundry/captured-workflows/ for cw-*.yml files; if exactly one
+      matches the app, that one governs. For multi-tenant apps with
+      per-instance scopes (e.g., book-workshop's per-book scope), the
+      spec inherits the instance's captured_workflow if one exists at
+      books/{book_id}/captured-workflows/, falling back to the
+      app-level captured_workflow at foundry/captured-workflows/ if
+      not. Apps that declare BOOK_PATH or similar per-instance
+      placeholders MUST also declare CAPTURED_WORKFLOW_PATH if
+      per-instance Stage 0 is in use.
+    rationale: |
+      Per the path-convention pattern already established in
+      engine/eou-contract.md "Path conventions inside an EOU spec"
+      (BOOK_PATH placeholder for workshop's book scope). The same
+      mechanism extends to captured_workflows. If no per-instance
+      placeholder is declared, the app-root captured_workflow governs
+      universally.
+
+  threshold_justification:
+    priority_le_3: |
+      The "top three" threshold (priority ≤ 3) is chosen because — (a)
+      it mirrors the foundry's own V1-V3 partition (epistemic integrity,
+      human responsibility, inspectable evidence) which functions as the
+      "non-negotiable core" of V1-V8; (b) it leaves the lower-priority
+      values (priority 4-8) as soft-coverage rather than hard-coverage
+      preventing rule-96 violations from cascading when a spec must
+      trade off between two lower-priority values; (c) it bounds the
+      operationalization burden — every spec must operationalize at
+      least one of three, not all of three, not all eight.
+    configurability: |
+      The threshold is hard-coded at priority ≤ 3 in this ECP. Future
+      ECPs may parameterize it (e.g., make it configurable per app in
+      foundry/governance.yml) if per-app needs surface. Until then,
+      three is the canonical number. Apps that want different coverage
+      file an ECP.
+
+  files_changed:
+  - rules/96-domain-values-consumption.md — new rule
+  - engine/meta-eous/generate-eou-candidates.yml — add captured_workflow
+    to inputs.optional; extend execution.steps; extend success_criteria
+  - engine/meta-eous/audit-candidate-eou-set.yml — add captured_workflow
+    to inputs.optional; new Set Value Coverage Test in execution.steps;
+    extend audit verdict to include value-coverage findings
+  - engine/meta-eous/audit-eou.yml — add captured_workflow lookup
+    (auto-discovered by app path); new Value Operationalization Test
+    in execution.steps
+  - skills/generate-eou-candidates/SKILL.md — document captured_workflow
+    as optional input and the value-aware scoring logic
+  - codex/skills/generate-eou-candidates/SKILL.md — mirror
+  - skills/audit-candidate-eou-set/SKILL.md — document Set Value Coverage
+    Test
+  - codex/skills/audit-candidate-eou-set/SKILL.md — mirror
+  - skills/eou-audit/SKILL.md — document Value Operationalization Test
+  - codex/skills/eou-audit/SKILL.md — mirror
+  - scripts/validate_foundry.py — new validate_domain_values_consumption()
+    walker that flags specs in apps with captured_workflows whose
+    success_criteria do not reference any value invocation
+  - tests/fixture-foundry/foundry/captured-workflows/cw-stage-0-fixture.yml —
+    extends the ECP-0016 fixture with downstream consumption traces
+  - tests/fixture-foundry/foundry/eous/ — add one fixture EOU that
+    correctly operationalizes a domain_value and one that does not
+    (for negative-case testing)
+  - CHANGELOG.md — 0.7.0 entry under "Stage 0 (downstream consumption)"
+  - AGENTS.md — note in Behavioral constraints — "When a captured_workflow
+    exists for the app, EOU specs MUST operationalize at least one of
+    the top-three domain_values for their target_object."
+
+  rule_required_sections:
+    - heading: "# Domain Values Consumption Rule"
+    - heading: "## When this rule applies"
+      contents: |
+        IF a captured_workflow exists for the consuming app at
+        foundry/captured-workflows/{slug}.yml AND that captured_workflow
+        has human_approval populated at all four gates, THEN this rule
+        applies. Apps without a captured_workflow are exempt.
+    - heading: "## MUST requirements"
+      contents: |
+        1. $generate-eou-candidates MUST load captured_workflow when
+           present; MUST score each candidate's arguments_against against
+           top-three domain_values; MUST flag candidates whose execution
+           would violate a domain_value of priority ≤ 3.
+        2. $audit-candidate-eou-set MUST run the Set Value Coverage Test —
+           does the minimal_recommended_subset of EOUs collectively serve
+           the priority-ordered domain_values, or does it serve some
+           and abandon others?
+        3. $eou-audit MUST run the Value Operationalization Test for
+           every spec in an app with a captured_workflow — at least one
+           success_criteria.must_pass entry must operationalize a
+           top-three domain_value for the spec's target_object.
+    - heading: "## Detection mechanism"
+      contents: |
+        validate_domain_values_consumption() walker — for each spec in
+        foundry/eous/ in an app whose foundry/captured-workflows/
+        contains an approved captured_workflow — verify that
+        success_criteria.must_pass contains at least one entry whose
+        text references at least one domain_value.id from the
+        captured_workflow.
+    - heading: "## Violation indicators"
+      contents: |
+        | Signal | Severity | Required action |
+        |--------|----------|-----------------|
+        | EOU spec in app with captured_workflow has no value invocation in success_criteria | blocking | Block promotion; require spec revision to operationalize a value |
+        | $generate-eou-candidates produces a candidate whose execution would clearly violate a domain_value of priority 1 | blocking | Reject candidate; emit arguments_against citing the violated value |
+        | $audit-candidate-eou-set recommends a subset that abandons a domain_value of priority ≤ 3 | high | Require explicit justification in the set's audit_outcome.notes |
+        | $eou-audit passes a spec without running Value Operationalization Test in an app with captured_workflow | medium | Flag the auditor for re-running the test |
+    - heading: "## Exemptions"
+      contents: |
+        - Apps with no captured_workflow are exempt (Stage 0 is optional).
+        - Specs whose target_object resolves to a "foundry-infrastructure
+          noun" are exempt. The exempt set is parameterized in
+          engine/governance.yml under
+          rule_96_exempt_target_objects (initial values — registry,
+          ECP, candidate_set, run_trace, incident, regression_case,
+          no_trace_justification, captured_workflow itself; future
+          additions land via vocabulary ECP). Exempt target_objects are
+          governed by foundry V1-V8, not by app domain_values.
+        - Bootstrap EOUs created BEFORE the app's captured_workflow was
+          approved are exempt for one minor version. Detection mechanism —
+          the validator compares the spec's versioning.changelog earliest
+          entry timestamp against captured_workflow.human_approval.
+          approved_at; if the spec predates approval, the bootstrap
+          exemption applies. Specs without changelog timestamps fall back
+          to git commit date of the spec file (whichever is earliest).
+          Bootstrap exemption expires at the next minor version after
+          captured_workflow approval; specs not updated by then become
+          Rule 96 violations.
+    - heading: "## Relationship to foundry V1-V8"
+      contents: |
+        Per D5.5, app-level domain_values can STRENGTHEN but cannot
+        WEAKEN foundry V1-V8 invariants. If a domain_value contradicts
+        a foundry-level value, the foundry value wins. The rule does
+        NOT permit downstream skills to invoke a domain_value as a way
+        of relaxing V1 epistemic integrity, V2 human responsibility,
+        V3 inspectable evidence, V4 bounded authority, V5 living judgment,
+        V6 failure memory, V7 minimality, or V8 semantic integrity.
+
+  meta_eou_changes:
+    generate-eou-candidates:
+      inputs_optional_additions:
+      - foundry/captured-workflows/cw-{app_id}.yml
+      execution_steps_additions:
+      - |
+        IF captured_workflow is present and human_approval is complete at
+        all four gates — THEN for each proposed candidate, score its
+        arguments_against against top-three domain_values; reject
+        candidates whose execution would clearly violate a domain_value
+        of priority 1.
+      - |
+        IF captured_workflow is present — THEN include domain_value
+        references in the candidate's distinct_success_criterion (each
+        candidate must name which value(s) it operationalizes).
+      success_criteria_additions:
+        must_pass:
+        - When captured_workflow is present, no surviving candidate has
+          arguments_against that cites a domain_value of priority 1
+          without an accompanying explicit justification field.
+    audit-candidate-eou-set:
+      inputs_optional_additions:
+      - foundry/captured-workflows/cw-{app_id}.yml
+      execution_steps_additions:
+      - |
+        IF captured_workflow is present — Run the Set Value Coverage
+        Test. For each domain_value of priority ≤ 3, verify that at
+        least one candidate in the minimal_recommended_subset
+        operationalizes the value via its distinct_success_criterion.
+        Flag domain_values that no surviving candidate operationalizes.
+      - |
+        IF captured_workflow is present and Set Value Coverage Test
+        finds unserved top-priority values — Emit a finding in
+        audit_outcome.notes naming each unserved value and its priority,
+        with a recommendation to either add a candidate or update the
+        captured_workflow's priority order.
+    audit-eou:
+      inputs_optional_additions:
+      - foundry/captured-workflows/cw-{app_id}.yml (auto-discovered from app root)
+      execution_steps_additions:
+      - |
+        IF the audited EOU is in an app whose foundry/captured-workflows/
+        contains an approved captured_workflow — Run the Value
+        Operationalization Test. Verify that success_criteria.must_pass
+        contains at least one entry whose text references at least one
+        domain_value of priority ≤ 3 for the spec's target_object. Flag
+        specs that fail this test with severity blocking when the spec is
+        at lifecycle_stage active or higher; severity high at pilot;
+        severity medium at draft or candidate.
+      - |
+        IF the audited EOU passes the Value Operationalization Test —
+        Record the operationalized domain_value ids in the audit report
+        so future audits can detect drift (an EOU that operationalized
+        value X at v1.0 but no longer does at v2.0 is suspect).
+
+  validator_changes:
+  - |
+    validate_domain_values_consumption(root) — new function. For each
+    captured_workflow file in root/foundry/captured-workflows/, load the
+    file; if human_approval is incomplete, skip (the file is not
+    consumption-ready). Otherwise, extract the list of domain_value.id
+    entries with priority ≤ 3. For each spec in root/foundry/eous/, scan
+    success_criteria.must_pass entries for references to those ids. If
+    a spec has no value reference AND the spec is at lifecycle_stage
+    pilot or higher, emit a Rule 96 violation.
+  - |
+    validate_foundry() — invoke validate_domain_values_consumption()
+    after validate_eous() and after validate_captured_workflows() (the
+    latter introduced in ECP-0015).
+
+expected_benefit:
+- |
+  Closes Stage 0 by making domain_values load-bearing. ECP-0015 + 0016
+  + 0017 together implement the design in dev-docs/08-stage-0-design.md.
+  Any one missing renders the others ineffective.
+- |
+  Per-app constitutional governance becomes enforceable. The foundry
+  models V1-V8 for itself and now enforces equivalent discipline at
+  app level. Apps cannot ship EOU sets that silently violate the
+  user-approved value layer.
+- |
+  The agentic-judgment proposal (07-agentic-judgment-proposal.md)
+  becomes evaluable. With load-bearing domain_values, the counterfactual-
+  swap audit (described in 07-doc) has somewhere to land — swap the
+  domain_values priority, re-run downstream skills, verify outputs
+  change. Without ECP-0017, the swap test is impossible because
+  nothing reads the values.
+- |
+  V1 epistemic-integrity protection at app level. Apps with
+  captured_workflows can no longer produce EOU sets that pass
+  validation but violate the soul of the craft. The "story over
+  spectacle" / "ingredient over technique" / "correctness over speed"
+  claims become enforced, not aspirational.
+- |
+  Optionality preserved. Apps without captured_workflows are
+  unaffected. The rule applies only when the app has opted into Stage 0
+  by producing a captured_workflow. No retroactive burden on existing
+  apps.
+
+risks:
+- |
+  False-positive risk. validate_domain_values_consumption() checks
+  whether success_criteria.must_pass entries reference domain_value
+  ids. A spec might operationalize a value through context or
+  judgment fields without referencing the id directly. Mitigation —
+  the rule MUST mechanism requires the value reference to be in
+  must_pass specifically (not just somewhere in the spec); spec
+  authors should be trained to cite the value id explicitly; SKILL.md
+  for $eou-audit should document the citation requirement; false
+  positives can be marked as acceptable in the audit report with
+  justification.
+- |
+  False-negative risk (citation theater). A spec could include a
+  domain_value id as a string match in must_pass without actually
+  operationalizing the value. Mitigation — this is the value theater
+  attack named in 07-agentic-judgment-proposal.md, applied at the spec
+  level. The durable defense is counterfactual-swap audit, which is
+  deferred until the agentic-judgment ECP package lands (see
+  07-agentic-judgment-proposal.md "Dependencies" section). Schedule —
+  counterfactual-swap audit becomes a Rule 96 enforcement mechanism in
+  the agentic-judgment package's first ECP, not in ECP-0017. Until
+  then, the audit layer's judgment-based predicates surface theater
+  (an experienced reviewer can tell when a value citation is
+  decorative); $eou-audit reviewers SHOULD spot-check value invocations
+  for decorative pattern. This deferral is explicit, not hand-wave.
+- |
+  Validator regex brittleness. validate_domain_values_consumption()
+  detects value references by string-matching domain_value.id entries
+  in success_criteria.must_pass text. Brittle to formatting changes
+  (a spec author who writes "operationalizes the ingredient-over-
+  technique value" instead of "dv-001" fails the regex). Mitigation —
+  the rule requires the id format (dv-XXX-YYY); spec authors are
+  trained to cite ids; SKILL.md for $eou-specify documents the
+  citation requirement; false negatives are auditable in the
+  $eou-audit judgment layer. A more robust mechanism (parsed YAML
+  references rather than text search) is a candidate for future ECP.
+- |
+  Rule-96 inflation. Every spec in a Stage 0 app must now operationalize
+  a top-three value. Some specs operate on foundry-infrastructure
+  nouns where this requirement is structurally inappropriate.
+  Mitigation — the Exemptions section explicitly carves out
+  foundry-infrastructure target_objects (registry, ECP, candidate_set,
+  run_trace).
+- |
+  Forward-coupling on ECP-0015 and ECP-0016. ECP-0017 cannot ship
+  unless ECP-0015's schema and ECP-0016's producer are also shipping
+  in the same release. Mitigation — ordering_dependency.coordinated_release
+  above mandates the ordering. ECP-0017 lands BEFORE ECP-0016 so
+  consumers are ready when producers are activated.
+- |
+  Existing-spec retroactive burden. Apps that adopt Stage 0 after
+  shipping EOU specs face a retrofit — all active specs must operationalize
+  top-three domain_values or be exempted. Mitigation — the Exemptions
+  section grants one-minor-version exemption for bootstrap EOUs created
+  before captured_workflow approval; teams must update those EOUs by
+  the next minor or mark them deprecated.
+- |
+  V5 over-formalization risk. Forcing every spec to cite a value id
+  may reduce judgment to keyword matching. Mitigation — the rule
+  requires operationalization (the must_pass entry must actually test
+  the value), not just citation; $eou-audit's Value Operationalization
+  Test includes a judgment predicate, not only a regex match.
+- |
+  Cross-cutting drift risk. ECP-0017 touches three meta-EOUs, six
+  skill files (Claude + Codex), one rule file, one validator function,
+  and one fixture. Drift between any of these breaks the rule.
+  Mitigation — ECP-0017 is intentionally large because the consumption
+  pattern must be coherent across all three downstream skills.
+  Splitting would create staggered partial coverage. Recommendation —
+  during 0.7.0 prep, hold ECP-0017 implementation in one PR not three.
+
+tests_required:
+- |
+  Regression. validate_domain_values_consumption() flags an active-stage
+  spec with no top-three value reference in success_criteria.must_pass
+  when the app has an approved captured_workflow. Severity reported
+  as blocking.
+- |
+  Regression. validate_domain_values_consumption() does NOT flag a spec
+  when the app has no captured_workflow. Optionality preserved.
+- |
+  Regression. validate_domain_values_consumption() does NOT flag a spec
+  whose target_object is a foundry-infrastructure noun (registry,
+  ECP, candidate_set, run_trace). Exemption respected.
+- |
+  Regression. validate_domain_values_consumption() does NOT flag a
+  bootstrap EOU whose creation predates the captured_workflow approval
+  date, for one minor version. Bootstrap exemption respected.
+- |
+  Regression. validate_domain_values_consumption() DOES flag a
+  bootstrap EOU whose creation predates the captured_workflow approval
+  date by more than one minor version. Bootstrap exemption expires.
+- |
+  Regression. The new generate-eou-candidates meta-EOU shape parses
+  and validates. Same for audit-candidate-eou-set and audit-eou.
+- |
+  Operational test. Run $generate-eou-candidates with cw-cooking-fixture
+  loaded; produce candidates; verify each candidate's
+  distinct_success_criterion names at least one domain_value id from
+  the fixture.
+- |
+  Operational test. Run $audit-candidate-eou-set with cw-cooking-fixture
+  loaded against a candidate set that abandons priority-1
+  domain_value (ingredient over technique); verify Set Value Coverage
+  Test flags the abandonment and audit verdict reflects the finding.
+- |
+  Operational test. Run $eou-audit with cw-cooking-fixture loaded
+  against a fixture EOU that operationalizes priority-1 value;
+  verify pass. Against a fixture EOU that does not; verify blocking
+  finding.
+- |
+  Operational test. Run $eou-audit with NO captured_workflow loaded
+  (app without Stage 0); verify the audit completes normally with no
+  value-operationalization finding either way (rule does not apply).
+- |
+  Regression. AGENTS.md Behavioral constraints section contains the
+  new entry about value operationalization when captured_workflow
+  exists.
+- |
+  Drift check. The new rule file rules/96-domain-values-consumption.md
+  matches frontmatter conventions (name, description) per existing
+  rules. The rule number 96 does not collide with any existing rule.
+
+simulation:
+  status: not_simulated
+  rationale: |
+    Cannot simulate at proposal time because ECP-0015's schema and
+    ECP-0016's producer skill are not yet implemented. Simulation will
+    be performed during 0.7.0 release prep by — (a) implementing
+    ECP-0015 first, (b) producing the cooking fixture captured_workflow
+    via ECP-0016's skill, (c) running ECP-0017's three downstream skills
+    against the fixture, (d) verifying both pass-cases and fail-cases
+    behave as the rule specifies. Simulation result will be appended
+    here before this ECP advances from proposed to approved.
+  simulation_dependencies:
+  - ECP-0015 implemented (schema, validator, fixture)
+  - ECP-0016 implemented (producer skill produces a real captured_workflow)
+  - Fixture EOUs (one passing, one failing each test) extracted from
+    book-workshop or constructed for fixture-foundry
+
+approval:
+  proposed_by: plugin maintainer (Stage 0 design package; consumption
+    layer required to close P4 closure on captured_workflow noun and to
+    operationalize domain_values per dev-docs/06-values-over-rules.md)
+  audited_by: plugin maintainer (adversarial review applied in same design
+    conversation; six should-fix findings identified and applied)
+  approver: xiaolai
+  approved_at: 2026-05-21T00:00:00Z
+  status: implemented
+  implemented_in: 0.7.0
+  implemented_at: 2026-05-21T00:00:00Z
+  rollback_considerations: |
+    Revert — remove rules/96-domain-values-consumption.md; restore the
+    three meta-EOUs to their pre-ECP-0017 form (revert inputs.optional
+    additions and execution.steps additions); restore the six SKILL.md
+    files (three Claude, three Codex) to their pre-ECP-0017 form;
+    remove validate_domain_values_consumption() from
+    scripts/validate_foundry.py and its invocation in validate_foundry().
+
+    If ECP-0016 has already shipped at the time of rollback, apps that
+    produced captured_workflows continue to have those files but no
+    downstream consumption — the orphan-producer scenario this ECP was
+    designed to prevent. CHANGELOG must warn users to either roll back
+    ECP-0016 in lockstep or stop producing new captured_workflows until
+    a replacement consumption ECP ships.
+
+    Apps that activated EOU specs operationalizing domain_values during
+    the ECP-0017-active period retain those specs (specs are
+    governance-stable artifacts). The value invocations remain in
+    must_pass but no longer have a downstream consumer enforcing them.
+    The specs do not break; they just lose the V1 enforcement layer.
+
+submitted_as: null

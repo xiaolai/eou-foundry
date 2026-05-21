@@ -1,0 +1,53 @@
+# End-to-end agentic-judgment fixture run trace.
+#
+# Exercises the full chain — Rule 97 value_invocations[] with all 10
+# required fields, valid domain_value_id (dv-001 from cooking
+# captured_workflow), concrete rejected_alternative (not strawman).
+#
+# Companion EOU: foundry/eous/sample-judgment-eou.yml
+# Expected: validate_foundry.py passes OK on the whole fixture-foundry.
+
+run_id: run-001
+eou_id: sample-judgment-eou
+eou_version: 0.1.0
+status: success
+started_at: 2026-05-21T00:00:00Z
+ended_at: 2026-05-21T00:01:00Z
+executor_identity: fixture-author
+inputs:
+  dish_request: "winter root-vegetable course for the seasonal tasting"
+context_loaded:
+- foundry/captured-workflows/cw-example.yml
+steps_completed:
+- step_id: 1
+  description: load captured_workflow
+  outcome: success
+- step_id: 2
+  description: identify contested case (whether to add a beurre-blanc reduction)
+  outcome: contested
+- step_id: 3
+  description: invoke dv-001 (ingredient over technique) to resolve
+  outcome: success
+- step_id: 4
+  description: produce dish specification
+  outcome: success
+warnings: []
+outputs:
+- description: dish-specification artifact (fixture placeholder)
+validation:
+  passed: true
+human_approval:
+  required: false
+  rationale: "EOU at lifecycle_stage:simulated; human approval not required at this stage per D5.2 gates"
+
+value_invocations:
+- invocation_id: vi-run-001-001
+  timestamp: 2026-05-21T00:00:30Z
+  captured_workflow_id: cw-example
+  captured_workflow_version: 1
+  domain_value_id: dv-001                            # exists in captured_workflow
+  priority_at_invocation: 1
+  rule_conflict: "add a beurre-blanc reduction vs. let the roasted root vegetable be itself"
+  chosen_path: "serve the roasted root vegetable with sea salt and good olive oil; no reduction"
+  rejected_alternative: "roasted root vegetable napped with a 30-minute reduced beurre-blanc enriched with miso, finished with chive oil"
+  justification_against_rejected: "the reduction would have buried the cold-stored sweetness of the root that the entire dish hinges on; the dish would have read as 'good technique on a vegetable' rather than 'this vegetable'"

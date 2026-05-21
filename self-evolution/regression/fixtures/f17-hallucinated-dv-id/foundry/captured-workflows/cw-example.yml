@@ -1,0 +1,157 @@
+# Minimal positive-case captured_workflow fixture.
+# Schema: schemas/captured-workflow.schema.yml (ECP-0015).
+# Purpose: validate that a well-formed captured_workflow passes the
+# validator. For richer hand-drafted example, see
+# dev-docs/canary/cooking-restaurant-captured-workflow.yml.
+
+id: cw-example
+schema_version: 1
+created_at: 2026-05-21T00:00:00Z
+
+inputs:
+  goal: "Operate a small seasonal restaurant that survives five years."
+
+  reference_set:
+    aspirational:
+      - ref: "Chez Panisse"
+        why: "Decades of ingredient-driven food; menu reflects the morning's arrivals."
+    anti_reference:
+      - ref: "Per Se"
+        why: "Same claim on paper but technique buries the ingredient."
+    boundary_case:
+      - ref: "Pop-up dinner series"
+        why: "Same ethos, shorter horizon, lower stakes."
+    mainstream_baseline:
+      - ref: "Neighborhood bistro"
+        why: "The 80% solution — owner-run, weekly specials, survives but rarely thrives."
+    outlier:
+      - ref: "Noma"
+        why: "Wildly successful but technique-forward; user dislikes; forces conscious holding of ingredient-over-technique value."
+
+  constraints:
+    audience: "30 covers/night, 4 nights/week"
+    scale: "single location, owner-cooked"
+    budget: "must break even within 18 months"
+    time: "12 months to opening"
+    risk_tolerance: "low — primary income"
+    desired_effect: "feels like eating at a friend's farm"
+
+  negative_constraints:
+    - "No molecular gastronomy"
+    - "No tasting-menu format"
+    - "No celebrity-chef branding"
+
+  user_contributed_references:
+    aspirational: ["Prune (NYC)"]
+    anti_reference: ["Per Se"]
+    boundary_case: ["Farmers-market direct-sale stands"]
+    mainstream_baseline: ["Hometown diner"]
+    outlier: ["Noma"]
+
+artifact_target:
+  description: "30-cover seasonal restaurant whose dishes pass the five judgment predicates."
+  scale: "~6,000 covers/year"
+
+captured_workflow:
+  prose: |
+    Weekly producer call surfaces what is available; menu is written
+    Monday for the week. Each dish is tested against five judgment
+    predicates before being added. Owner runs the line during service.
+    Failures are recorded weekly and traced to a domain_value or to an
+    unresolved gap.
+
+hidden_judgments:
+  - id: hj-001
+    predicate: "Is the ingredient quality visible in the final dish?"
+    governed_by_value: dv-001
+  - id: hj-002
+    predicate: "Could this dish be simpler without losing something essential?"
+    governed_by_value: dv-002
+  - id: hj-003
+    predicate: "Does this week's menu reflect what is actually in season?"
+    governed_by_value: dv-003
+
+failure_modes:
+  - id: fm-001
+    failure: "Technique grows over time; ingredients get buried"
+    value_violated: dv-001
+  - id: fm-002
+    failure: "Plate complexity drifts upward"
+    value_violated: dv-002
+  - id: fm-003
+    failure: "Menu freezes for marketing; supply industrializes"
+    value_violated: dv-003
+
+decision_boundaries:
+  - id: db-001
+    decision: "Add a new technique vs. let the ingredient speak"
+    governed_by_value: dv-001
+  - id: db-002
+    decision: "Add a sauce vs. omit it"
+    governed_by_value: dv-002
+  - id: db-003
+    decision: "Rewrite menu weekly vs. monthly"
+    governed_by_value: dv-003
+
+domain_values:
+  - id: dv-001
+    formulation: "Ingredient over technique"
+    priority: 1
+    canonical_or_personal: field_canonical
+    protects_against: [fm-001]
+    decides_when:
+      - conflict: "add a sous-vide method vs. let the vegetable be itself"
+        resolution: "let the vegetable be itself"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+
+  - id: dv-002
+    formulation: "Restraint over abundance"
+    priority: 2
+    canonical_or_personal: field_canonical
+    protects_against: [fm-002]
+    decides_when:
+      - conflict: "add the sauce vs. omit it"
+        resolution: "omit if the dish stands without it"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+
+  - id: dv-003
+    formulation: "Seasonal honesty over menu consistency"
+    priority: 3
+    canonical_or_personal: field_canonical
+    protects_against: [fm-003]
+    decides_when:
+      - conflict: "buy out-of-region produce to maintain menu vs. change menu"
+        resolution: "change the menu"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+
+confidence:
+  artifact_target: medium
+  hidden_judgments: medium
+  failure_modes: medium
+  decision_boundaries: high
+  domain_values: medium
+
+human_approval:
+  reference_set_approved_by: fixture-author
+  constraints_approved_by: fixture-author
+  domain_values_approved_by: fixture-author
+  bundle_approved_by: fixture-author
+  approved_at: 2026-05-21T00:00:00Z

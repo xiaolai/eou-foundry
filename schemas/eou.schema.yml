@@ -27,6 +27,13 @@ classification:
   - authority_level
   - risk_level
   - lifecycle_stage
+  optional:
+  - judgment_authorized  # ECP-0018 (0.8.0-pending): boolean, default false. When true,
+                         # EOU may invoke its app's domain_values at runtime to resolve
+                         # contested cases. Forbidden on function:generate per D6.1.
+                         # At risk_level high|critical requires per-EOU ECP; at low|medium
+                         # may be blanket-authorized per app via
+                         # engine/governance.yml rule_98_judgment_blanket_authorization.
   valid_function:
   - generate
   - specify
@@ -140,3 +147,6 @@ invariants:
 - Generating EOUs may not activate, approve, publish, or weaken validators.
 - Each EOU must declare owner/reviewer/approver and non-delegable decisions.
 - High-risk and critical units require human approval.
+- judgment_authorized is forbidden on function:generate (generators may not create authority; ECP-0018 / D6.1).
+- judgment_authorized:true requires the app to have an approved captured_workflow with ≥3 domain_values (ECP-0018).
+- judgment_authorized:true at risk_level high or critical requires per-EOU ECP approval (ECP-0018).

@@ -20,7 +20,7 @@ The test question was:
 ## Problems found
 
 1. **Reader-state drift**
-   - Some chapter cards and TOC acts referenced `S5_SYSTEM_REDESIGN`, but `book/reader-states.yml` did not define that state.
+   - Multiple chapter cards and TOC acts referenced `S5_SYSTEM_REDESIGN`, but `book/reader-states.yml` did not define that state.
 
 2. **Story-device registry drift**
    - `book/mirror-artifacts.yml` referenced `presentation-hiding-weak-strategy`, but there was no corresponding card.

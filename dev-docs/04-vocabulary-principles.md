@@ -152,8 +152,19 @@ Applying the six principles to the foundry's own nouns and verbs.
 `generate | specify | validate | diagnose | promote | refactor | audit | propose | activate | implement | retire`
 
 **Nouns (governed artifacts):**
-EOU spec, ECP, candidate set, incident, audit report, validation report,
-regression case, run trace, no-change record, refactor option, diagnosis
+EOU spec, ECP, candidate set, captured workflow, incident, audit report,
+validation report, regression case, run trace, no-change record,
+refactor option, diagnosis
+
+> `captured_workflow` added in v0.7.0 via ECP-0015. Four-warrant entry
+> (literary: D2.4 step 1; user: literacy-gap case; structural: P4
+> closure of the unnamed step-1-output noun; domain: per-app
+> constitutional layer mirroring V1-V8). Cross-scope noun — produced
+> in the Stage 0 scope by `$generate-captured-workflow-from-references`
+> (ECP-0016), consumed in the EOU-pipeline scope per Rule 96 (ECP-0017).
+> Schema: `schemas/captured-workflow.schema.yml`. Storage:
+> `foundry/captured-workflows/{slug}.yml`. Lifecycle constraint —
+> remains at `candidate` permanently; never promoted.
 
 **Field values (not nouns):**
 lifecycle stages (`candidate | draft | simulated | pilot | active | monitored | stable | deprecated | retired`),
@@ -172,6 +183,7 @@ authority levels (`suggest_only | draft_only | write_candidate | write_inactive 
 | V-07 | P5 | **High** | `activate` — moving an EOU to `lifecycle_stage: active` — is the most consequential lifecycle transition; it appears repeatedly in prose and diagrams as a step but has no top-level verb |
 | V-08 | P5 | Moderate | `retire` is unnamed as a distinct act; folded inside `promote` despite requiring a different judgment (owner decision + successor documentation) from promotion |
 | V-09 | P1 | Low | `validate` and `audit` both produce reports; the deterministic/judgment distinction between them is documented in prose but not surfaced in the vocabulary structure itself |
+| V-10 | P6 | Resolved (ECP-0018) | `judgment_authorized` added in 0.8.0-pending as a classification facet (boolean), not as a noun or verb. Four-warrant entry — literary (dev-docs/07-agentic-judgment-proposal.md "Structural changes" table); user (Stage 0 adopters whose constitutional layer needs runtime invocation); structural (P3 — value_invocations are trace metadata, not separately governed artifact, so flag form is correct; verb form would fail P3); domain (prevents F14_SILENT_JUDGMENT_FAILURE — silent agentic capability without traceable declaration). The flag composes with existing functions (an audit EOU may be judgment_authorized; a specify EOU may be judgment_authorized) rather than partitioning the verb space. |
 
 ### Analysis
 

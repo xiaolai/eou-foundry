@@ -58,7 +58,7 @@ Every serious EOU system needs three audit layers:
 
 ```text
 Output audit — is the artifact valid?
-Run audit    — was the EOU executed correctly?
+Run audit    — was the EOU executed per its declared steps and stop conditions?
 EOU audit    — is the EOU itself well designed?
 ```
 

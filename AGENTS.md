@@ -38,10 +38,12 @@ After editing any SKILL.md, verify the output path it declares matches the path 
 
 | Goal | Use |
 |------|-----|
-| Convert workflow → candidate EOUs | `$generate-eou-candidates` |
-| Audit a candidate set for readiness | `$audit-candidate-eou-set` |
+| Synthesize Stage 0 inputs from references (literacy bridge + per-app constitutional layer) | `$generate-captured-workflow-from-references` |
+| Convert workflow → candidate EOUs | `$generate-eou-candidates` (consults `captured_workflow` when present per Rule 96) |
+| Audit a candidate set for readiness | `$audit-candidate-eou-set` (runs Set Value Coverage Test when `captured_workflow` present) |
 | Convert approved candidate → spec | `$eou-specify` |
-| Audit a spec for V2 compliance | `$eou-audit` |
+| Audit a spec for V2 compliance | `$eou-audit` (runs Value Operationalization Test when `captured_workflow` present per Rule 96) |
+| Audit agentic-judgment invocations (F14–F17 + counterfactual-swap) | `$audit-judgment` (fourth audit layer per D4.1; enforces Rule 97 on EOUs with `judgment_authorized:true`) |
 | Audit the whole foundry | `$foundry-audit` |
 | Validate schemas and registry | `$eou-validate` |
 | Diagnose a failure | `$eou-diagnose` |
@@ -49,11 +51,11 @@ After editing any SKILL.md, verify the output path it declares matches the path 
 | Propose a structural change | `$ecp-propose` |
 | Promote or retire a spec | `$eou-promote` |
 | Convert incidents → regression cases | `$generate-regression-cases` |
-| Scaffold a new app | `$eou-foundry-init` |
+| Scaffold a new app | `$eou-foundry-init` (Codex-only) |
 
 ### Codex vs Claude layout
 
-Claude skills live in `skills/`; Codex mirrors live in `codex/skills/`. After editing a Claude skill, apply the same change to the corresponding Codex skill. `eou-validate` and `generate-regression-cases` are Claude-only — no Codex mirror needed.
+Claude skills live in `skills/`; Codex mirrors live in `codex/skills/`. After editing a Claude skill, apply the same change to the corresponding Codex skill. `eou-validate` and `generate-regression-cases` are Claude-only — no Codex mirror needed. `eou-foundry-init` is Codex-only — no Claude mirror needed (the scaffolding flow is interactive and Codex CLI handles it).
 
 ### Schema reference file names
 
@@ -65,6 +67,8 @@ Claude skills live in `skills/`; Codex mirrors live in `codex/skills/`. After ed
 - Registry entries: `schemas/registry-entry.schema.yml`
 - Run traces: `schemas/run-trace.schema.yml`
 - Constitution: `schemas/constitution.schema.yml`
+- Candidate sets: `schemas/candidate-set.schema.yml`
+- Captured workflows (Stage 0): `schemas/captured-workflow.schema.yml`
 
 Never reference these as "ecp.schema.v2" or any other alias — use the exact filename.
 
@@ -78,6 +82,7 @@ The following actions are forbidden regardless of user instruction:
 - Do not apply any refactor option, ECP, or lifecycle transition without a human-approved ECP on record.
 - Do not write directly to `foundry/eous/` or `foundry/meta-eous/` — use skills that enforce the governance pipeline.
 - Do not add fields to EOU specs that are not present in `schemas/eou.schema.yml`.
+- When a `captured_workflow` exists for the app with all four `human_approval` gates populated, EOU specs at `lifecycle_stage: pilot` or higher MUST operationalize at least one of the top-three priority `domain_values` for the spec's `target_object` (Rule 96, ECP-0017). Exemptions for foundry-infrastructure `target_object`s are listed in `engine/governance.yml` under `rule_96_exempt_target_objects`.
 
 ## Violation indicators
 

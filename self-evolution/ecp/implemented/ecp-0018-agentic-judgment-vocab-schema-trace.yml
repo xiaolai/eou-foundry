@@ -1,0 +1,425 @@
+id: ecp-0018-agentic-judgment-vocab-schema-trace
+target_eou: eou-foundry-plugin
+target_version_from: 0.7.0
+target_version_to: 0.8.0
+problem:
+  observed_failure: |
+    Stage 0 (ECPs 0015 + 0016 + 0017, v0.7.0) introduces the
+    captured_workflow noun + per-app domain_values constitutional layer +
+    Rule 96 downstream consumption. With those in place, the foundry now
+    has a per-app value layer that downstream skills consult — but EOUs
+    cannot YET resolve rule conflicts at runtime by invoking those values.
+    Every contested case still escalates to humans. Per dev-docs/07-
+    agentic-judgment-proposal.md, this is the orphan capability the value
+    layer was built to enable. Without ECP-0018's schema foundation,
+    agentic judgment cannot exist in the foundry — EOUs would have to
+    invoke values silently, with no trace, no audit surface, and no
+    governance teeth. That is precisely the F14 (Silent Judgment Failure)
+    anti-pattern the agentic-judgment proposal names as the most
+    dangerous failure mode.
+
+    ECP-0018 is the schema + vocabulary foundation for the agentic-
+    judgment package. ECP-0019 adds doctrine and failure taxonomy.
+    ECP-0020 adds the audit layer + rule + counterfactual-swap mechanism.
+    Without all three, the value layer remains "looks rigorous, becomes
+    dangerous under conflict" — the exact V5 anti-pattern.
+  failure_class: F3_SCHEMA_FAILURE
+  failure_class_rationale: |
+    F3 (schema mismatch between components) chosen because the central
+    issue is a capability tier that requires schema support and currently
+    has none. EOUs cannot declare judgment authority; trace cannot record
+    value invocations; validators cannot check either. F12 (drift between
+    layers) is arguable since dev-docs already establishes the concept
+    but schemas do not. F3 is preferred because the components are
+    structurally missing, not drifting.
+  evidence:
+  - |
+    dev-docs/07-agentic-judgment-proposal.md "Structural changes to the
+    foundry" table lists 8 changes; the schema/trace ones are the
+    foundation that the rest depend on. Without classification.
+    judgment_authorized and run-trace.value_invocations[], no other
+    change in the proposal can be implemented.
+  - |
+    Stage 0 v0.7.0 (ECPs 0015 + 0016 + 0017) lands the value layer and
+    its downstream consumption. The deferred-status disclaimer in
+    07-agentic-judgment-proposal.md depended on Stage 0 being adopted
+    AND empirically validated. Stage 0 is adopted (0.7.0); empirical
+    validation via the cooking canary's counterfactual-swap audit (4
+    clean flips out of 5 tests; threshold ≥3) passes. The deferral
+    condition is satisfied.
+  - |
+    schemas/eou.schema.yml classification.required currently lists six
+    facets — function, target_object, automation_mode, authority_level,
+    risk_level, lifecycle_stage. There is no place to declare an EOU's
+    judgment-authorization capability. Without ECP-0018, the only path
+    is silent in-execution invocation, which is F14_SILENT_JUDGMENT_FAILURE.
+  - |
+    schemas/run-trace.schema.yml has 14 required fields and 6 optional;
+    value_invocations is not among them. Run traces cannot record which
+    domain_value resolved a contested case, against which alternative,
+    under which captured_workflow version. The audit pipeline has
+    nothing to consult about runtime value decisions.
+
+counter_argument:
+  alternative_considered: |
+    Add `judge` as a 12th canonical verb in VALID_FUNCTIONS (alongside
+    generate, specify, validate, diagnose, promote, refactor, audit,
+    propose, activate, implement, retire). EOUs whose primary function
+    is judgment-arbitration would be classified as judge-type; other
+    EOUs would call out to a $judge sub-routine when contested cases
+    arise.
+  why_alternative_loses: |
+    1. Vocabulary warrant fails P3. A top-level verb earns its place by
+       (a) changing what the executor is permitted to do next, or
+       (b) producing a named governed artifact. value_invocations are
+       trace metadata, not a separately governed artifact (no schema
+       file, no canonical path, no owner). The judge verb produces no
+       new noun. P3 warrant absent.
+    2. V7 minimality. A flag (classification.judgment_authorized) adds
+       one boolean field. A verb adds a 12th entry to VALID_FUNCTIONS,
+       requires every validator/skill/codex-mirror/rule/doctrine update
+       that touches the verb list, and creates a new class of EOUs to
+       reason about. The flag is strictly smaller for the same
+       capability.
+    3. D5.1 separation pattern is preserved either way — agentic
+       capability applies WITHIN an EOU's existing function (an audit
+       EOU with judgment_authorized: true can resolve contested cases
+       during its audit; a specify EOU with judgment_authorized: true
+       can resolve contested cases during specification). The flag
+       composes; the verb would partition.
+    4. Migration cost. A verb-based design would require existing EOUs
+       to consider whether they should become "judge" EOUs. A flag-based
+       design lets existing EOUs opt in without re-classification.
+    5. F4 (Scope Failure) risk. A judge verb invites question "is this
+       EOU really a judge, or just an audit EOU that also invokes
+       values?" The flag eliminates the ambiguity — judgment_authorized
+       is orthogonal to function.
+  recommendation: |
+    Adopt judgment_authorized as a boolean flag on classification, not as
+    a new verb. The flag is V7-minimal, V8-compliant (no new top-level
+    term), preserves D5.1 separation as a composition rather than a
+    partition, and avoids the F4 scope ambiguity a verb would invite.
+
+proposed_change:
+  summary: |
+    Add `classification.judgment_authorized` (bool, default false) to
+    schemas/eou.schema.yml. Add `value_invocations[]` to
+    schemas/run-trace.schema.yml (optional; required when the producing
+    EOU has judgment_authorized: true and the run encounters at least
+    one contested case). Add validator checks: (a) judgment_authorized
+    forbidden on function: generate (D6.1 — generators may not create
+    authority); (b) judgment_authorized: true at risk_level high|critical
+    requires per-EOU ECP approval before activation; (c) value_invocations
+    entry shape validation; (d) judgment_authorized: true requires the
+    consuming app to have an approved captured_workflow with at least 3
+    domain_values. Update dev-docs/04-vocabulary-principles.md self-audit
+    to document the flag (not as a noun or verb — as a classification
+    facet).
+
+    OUT OF SCOPE for ECP-0018: failure taxonomy F14-F17 (ECP-0019);
+    judgment_maturity axis on maturity-model.yml (ECP-0019); D4.1
+    four-audit-layer doctrine (ECP-0019); D5.1 five-step separation
+    chain (ECP-0019); $audit-judgment skill (ECP-0020); Rule 97
+    value-invocation rule (ECP-0020); counterfactual-swap audit
+    mechanism (ECP-0020).
+
+  ordering_dependency:
+    blocked_by: ecp-0015-captured-workflow-noun-and-schema, ecp-0016-captured-workflow-producer-skill, ecp-0017-domain-values-consumption-rule
+    must_coexist_with: ecp-0019-agentic-judgment-doctrine-taxonomy-maturity, ecp-0020-judgment-audit-skill-rule-counterfactual-swap
+    reason: |
+      Stage 0 (ECPs 0015-0017) must be implemented and live before
+      agentic judgment can mean anything — without an approved
+      captured_workflow with domain_values, there is nothing to invoke.
+      ECP-0018 is the schema foundation that ECPs 0019 and 0020 depend
+      on. The schema fields must exist before doctrine can reference
+      them and before skills can produce them.
+    coordinated_release: |
+      ECP-0018, ECP-0019, ECP-0020 form the coordinated agentic-judgment
+      package targeting target_version_to 0.8.0. Required ordering —
+      ECP-0018 (schema) lands first; ECP-0019 (doctrine + taxonomy)
+      lands next; ECP-0020 (skill + rule + counterfactual-swap) lands
+      last. If release sequencing slips, hold the entire package
+      together — partial agentic-judgment is structurally worse than
+      no agentic-judgment (F14 risk surface).
+
+  risk_level_decision:
+    judgment_authorized_severity: high
+    rationale: |
+      judgment_authorized is a high-severity classification facet
+      because it expands the EOU's authority surface. Per V4 (Bounded
+      Authority), expansion of authority requires explicit approval.
+      Per ECP-0018, judgment_authorized: true at risk_level high or
+      critical requires per-EOU ECP; at low or medium it may be
+      blanket-authorized per app via engine/governance.yml. This mirrors
+      the existing risk-tiered authority pattern in the foundry.
+
+  schema_changes:
+    eou_schema_yml:
+      file: schemas/eou.schema.yml
+      add_to_classification_required: false   # judgment_authorized is optional
+      add_to_classification:
+        judgment_authorized:
+          type: boolean
+          default: false
+          description: |
+            When true, the EOU may invoke its app's domain_values at
+            runtime to resolve contested cases (rule conflicts that
+            require constitutional resolution). Each invocation MUST
+            be recorded in run-trace value_invocations[]. Forbidden
+            on function: generate per D6.1. At risk_level high or
+            critical, requires per-EOU ECP approval; at low or medium,
+            may be blanket-authorized per app via engine/governance.yml
+            judgment_blanket_authorization.
+      add_to_invariants:
+      - judgment_authorized is forbidden on function:generate (generators may not create authority).
+      - judgment_authorized:true requires app to have an approved captured_workflow with ≥3 domain_values.
+      - judgment_authorized:true at risk_level high or critical requires per-EOU ECP approval.
+    run_trace_schema_yml:
+      file: schemas/run-trace.schema.yml
+      add_to_optional:
+      - value_invocations
+      value_invocations_entry_required_fields:
+      - invocation_id                       # canonical: vi-{run_id}-{seq}
+      - timestamp                           # ISO-8601 UTC
+      - captured_workflow_id                # which captured_workflow was in effect
+      - captured_workflow_version           # which version of that captured_workflow
+      - domain_value_id                     # the value invoked
+      - priority_at_invocation              # priority of that value at this moment
+      - rule_conflict                       # the contested case description
+      - chosen_path                         # what the EOU did
+      - rejected_alternative                # what was rejected; MUST be concrete artifact
+      - justification_against_rejected      # why the rejected alternative would have been worse
+      value_invocations_required_when: |
+        Required (non-empty) when the producing EOU has
+        classification.judgment_authorized: true AND the run encountered
+        at least one contested case. Optional (may be empty list) when
+        no contested case arose.
+
+  validator_changes:
+  - "Update VALID_AUTHORITY / classification validation in validate_foundry.py to: (a) accept judgment_authorized as a boolean field on classification; (b) reject judgment_authorized: true on function: generate with specific F4_SCOPE_FAILURE message; (c) for judgment_authorized: true at risk_level in {high, critical} at lifecycle_stage in {pilot, active, monitored, stable}: require per-EOU ECP approval recorded in approval section of registry entry; (d) for judgment_authorized: true at any risk_level: require the app to have a foundry/captured-workflows/cw-*.yml with human_approval complete and ≥3 domain_values."
+  - "Update validate_run_traces() to: (a) accept value_invocations[] as optional field; (b) when present, validate each entry has all 10 required fields; (c) reject entries where rejected_alternative is empty or matches /strawman|weak|generic/i (anti-theater check for citation theater)."
+  - "Update validate_foundry() invocation chain to load engine/governance.yml's judgment_blanket_authorization (new optional field) so per-app blanket authorization can be honored without per-EOU ECP at low/medium risk."
+
+  governance_yml_extension:
+    add_optional_field: judgment_blanket_authorization
+    structure: |
+      judgment_blanket_authorization:
+        enabled: boolean       # if true, all EOUs in this app at risk_level low|medium with judgment_authorized:true are blanket-authorized
+        approved_by: string    # named human who approved the blanket
+        approved_at: ISO-8601 UTC timestamp
+        max_risk_level: low | medium    # cap for the blanket; high/critical always require per-EOU ECP
+        captured_workflow_id: string    # which captured_workflow's domain_values are blanket-invocable
+    rationale: |
+      Per the open-question resolution for "per-EOU vs. per-app blanket"
+      (07-agentic-judgment-proposal.md), low and medium risk EOUs can be
+      blanket-authorized at the app level without per-EOU ECP burden.
+      High and critical risk EOUs always require per-EOU ECP. The
+      governance.yml field carries the blanket authorization record.
+
+  files_changed:
+  - schemas/eou.schema.yml — add judgment_authorized to classification (optional, default false); add 3 new invariants
+  - schemas/run-trace.schema.yml — add value_invocations to optional; document entry shape
+  - scripts/validate_foundry.py — judgment_authorized validation (function:generate prohibition; risk-tier ECP requirement; captured_workflow precondition); value_invocations entry shape validation; judgment_blanket_authorization lookup
+  - engine/governance.yml — add judgment_blanket_authorization optional field (initially absent in fixture-foundry — per-EOU ECP required by default)
+  - dev-docs/04-vocabulary-principles.md — self-audit V-10 entry — document judgment_authorized as a classification facet (not noun, not verb), with P6 warrant
+  - tests/fixture-foundry/foundry/registry.yml — no change (no fixture EOU enables judgment_authorized yet; will be added in ECP-0020 with the audit-judgment skill fixture)
+  - CHANGELOG.md — 0.8.0 entry under "Agentic judgment package" with ECP-0018 sub-entry
+
+expected_benefit:
+- |
+  EOUs gain an explicit capability declaration for judgment authority.
+  Today this lives nowhere; agentic capability would be silently
+  conferred by code path, not declared by schema. ECP-0018 makes the
+  capability inspectable per V3.
+- |
+  Run traces gain a structured place to record value invocations.
+  Today these would be free-text prose in arbitrary fields; ECP-0018
+  makes them a typed field with required sub-fields, enabling
+  downstream automated audit.
+- |
+  D6.1 separation is preserved structurally. judgment_authorized
+  forbidden on function:generate prevents the most dangerous failure
+  mode: generators that decide their own contested cases (a form of
+  authority creation).
+- |
+  Per-app vs. per-EOU authorization is made operationally tractable
+  via the risk-tiered hybrid. Low/medium risk apps can adopt agentic
+  judgment without per-EOU ECP burden; high/critical risk EOUs retain
+  the strict per-EOU gate.
+- |
+  ECP-0019 and ECP-0020 become draftable and implementable. Without
+  ECP-0018's schema foundation, neither has a place to land.
+
+risks:
+- |
+  False-negative anti-theater check. validate_run_traces() rejects
+  value_invocations entries where rejected_alternative matches a
+  regex pattern (/strawman|weak|generic/i). This catches the most
+  obvious citation theater but not all of it (an EOU could write a
+  fabricated-but-plausible rejected_alternative). Mitigation —
+  ECP-0020's counterfactual-swap audit is the durable defense;
+  ECP-0018's regex is the cheap pre-check. Reviewers should still
+  spot-check value_invocations even after regex pass.
+- |
+  Forward-coupling on ECPs 0019 and 0020. ECP-0018 ships schema but
+  no doctrine to interpret it, no skill to audit it, no rule to enforce
+  invocation discipline. If ECP-0019 and 0020 slip, ECP-0018 ships a
+  shape that nothing fully governs — an orphan-foundation risk
+  mirroring ECP-0016's orphan-producer scenario at v0.7.0.
+  Mitigation — ordering_dependency mandates coordinated release;
+  ECP-0018 alone should not ship without ECPs 0019 and 0020 ready in
+  the same minor.
+- |
+  Migration burden for apps that already use risk_level high/critical
+  EOUs and want agentic capability. Each such EOU needs its own ECP.
+  Mitigation — judgment_authorized defaults to false; existing apps
+  are unaffected unless they opt in. Per-EOU ECP for high/critical is
+  not new burden — it's V4 (Bounded Authority) applied to a new
+  capability surface.
+- |
+  Governance.yml field judgment_blanket_authorization is
+  optional and absent in the engine baseline. Apps must explicitly
+  add it to enable blanket authorization. Risk — apps might add it
+  without thinking, granting broad authorization without per-EOU
+  scrutiny. Mitigation — schema requires named approver and approved_at;
+  validator enforces max_risk_level cap; auditors must spot-check that
+  blanket-authorized EOUs actually deserve the blanket.
+- |
+  judgment_authorized as a boolean is a binary capability declaration.
+  Real agentic judgment may need finer-grained levels (e.g., "can
+  invoke priority-1 values only"; "can invoke all values"; "can
+  escalate to foundry V1-V8"). Mitigation — start with boolean; future
+  ECP can elaborate if patterns surface.
+- |
+  Schema additions affect every consuming app's validator output.
+  Apps that have not declared judgment_authorized fall through the
+  default (false) — no change in behavior. But validator must handle
+  the field's absence gracefully; ECP-0018 specifies optional with
+  default, which means absence is equivalent to false.
+
+warrant_for_new_classification_facet:
+  literary: |
+    dev-docs/07-agentic-judgment-proposal.md "Structural changes" table
+    line 2 names classification.judgment_authorized as the orthogonal
+    capability flag.
+  user: |
+    The literacy-gap user case from Stage 0 design extends naturally
+    into agentic judgment for users who have adopted Stage 0. Without
+    a way to declare judgment authority, those users either bypass
+    governance (silent invocation) or escalate every contested case
+    (defeating the value layer's purpose). The flag is the bridge.
+  structural: |
+    Per dev-docs/04-vocabulary-principles.md P3, a top-level verb
+    requires producing a governed artifact. value_invocations are trace
+    metadata, not a standalone artifact — so judge would fail P3 as a
+    verb. The flag form avoids the P3 problem; it is a classification
+    facet, parallel to authority_level and risk_level, not a verb.
+  domain: |
+    The capability prevents F14_SILENT_JUDGMENT_FAILURE (defined in
+    ECP-0019 — agentic capability without traceable declaration). Per
+    V1 (Epistemic Integrity), silent capability is the precise failure
+    pattern that values-over-rules discipline is meant to prevent.
+    Without judgment_authorized as a declared facet, every agentic EOU
+    would be F14-vulnerable by construction.
+
+tests_required:
+- |
+  Regression. An EOU spec with classification.function:generate AND
+  classification.judgment_authorized:true fails validation with a
+  specific F4_SCOPE_FAILURE message citing D6.1 (generators may not
+  create authority).
+- |
+  Regression. An EOU spec with classification.judgment_authorized:true
+  AND classification.risk_level:high (or critical) AND
+  lifecycle_stage in {pilot, active, monitored, stable} but no per-EOU
+  ECP in approval section fails validation.
+- |
+  Regression. An EOU spec with classification.judgment_authorized:true
+  in an app whose foundry/captured-workflows/ has no approved
+  captured_workflow (no human_approval populated at all 4 gates) fails
+  validation.
+- |
+  Regression. An EOU spec with classification.judgment_authorized:true
+  in an app whose approved captured_workflow has only 2 domain_values
+  fails validation (minimum 3 required for judgment authorization).
+- |
+  Regression. A run trace with value_invocations[] entries lacking any
+  of the 10 required fields fails validation.
+- |
+  Regression. A run trace with value_invocations[] entries where
+  rejected_alternative is empty or matches the strawman regex fails
+  validation.
+- |
+  Regression. An EOU spec with classification.judgment_authorized:true
+  at risk_level:low in an app with engine/governance.yml
+  judgment_blanket_authorization.enabled:true AND
+  max_risk_level:medium passes validation without per-EOU ECP.
+- |
+  Regression. An EOU spec with classification.judgment_authorized:true
+  at risk_level:high in an app with blanket authorization
+  max_risk_level:medium fails validation (the cap is respected).
+- |
+  Operational test. Add a fixture EOU to tests/fixture-foundry with
+  classification.judgment_authorized:false (the default-equivalent);
+  validation passes; no value_invocations required.
+- |
+  Operational test. Add the same fixture EOU with
+  judgment_authorized:true at risk_level:medium AND a fixture
+  judgment_blanket_authorization at medium; validation passes without
+  per-EOU ECP.
+- |
+  Operational test. Run trace without value_invocations[] for an
+  EOU with judgment_authorized:false validates as today (the optional
+  field's absence is unchanged behavior for non-agentic EOUs).
+- |
+  Vocabulary test. dev-docs/04-vocabulary-principles.md self-audit
+  contains a new V-10 entry documenting judgment_authorized as a
+  classification facet with the four-warrant entry above.
+
+simulation:
+  status: simulated
+  rationale: |
+    Simulation evidence — (1) the cooking canary at
+    dev-docs/canary/cooking-restaurant-captured-workflow.yml passed
+    counterfactual-swap audit with 4 clean flips out of 5 tests,
+    demonstrating that the value layer is load-bearing and would
+    produce different outcomes under different invocation orderings —
+    the precondition for value invocations being meaningful. (2)
+    ECP-0017's Rule 96 enforcement was verified empirically against
+    four synthetic spec scenarios (bad spec flagged; good spec passes;
+    draft skipped; exempt target_object skipped). The same enforcement
+    pattern extends to judgment_authorized validation in ECP-0018.
+    (3) Stage 0 production is implementation-validated as of v0.7.0
+    end-to-end (fixture-foundry validator: OK: foundry).
+  simulation_artifacts:
+  - dev-docs/canary/cooking-restaurant-captured-workflow.yml
+  - tests/fixture-foundry/foundry/captured-workflows/cw-example.yml
+
+approval:
+  proposed_by: plugin maintainer (agentic-judgment package, derived from dev-docs/07-agentic-judgment-proposal.md after Stage 0 v0.7.0 satisfies all three deferral conditions)
+  audited_by: plugin maintainer (adversarial review applied in same session as drafting)
+  approver: xiaolai
+  approved_at: 2026-05-21T00:00:00Z
+  status: implemented
+  implemented_in: 0.8.0
+  implemented_at: 2026-05-21T00:00:00Z
+  rollback_considerations: |
+    Revert — remove classification.judgment_authorized from
+    schemas/eou.schema.yml; remove value_invocations from
+    schemas/run-trace.schema.yml; remove judgment_authorized validation
+    from scripts/validate_foundry.py; remove judgment_blanket_authorization lookup from
+    governance.yml integration; remove V-10 entry from
+    dev-docs/04-vocabulary-principles.md.
+
+    If ECPs 0019 and 0020 have already shipped at rollback time, they
+    must be reverted in lockstep — they depend structurally on ECP-0018's
+    schema. CHANGELOG must warn users to roll back the entire
+    agentic-judgment package together.
+
+    Apps that activated judgment_authorized:true EOUs during the
+    ECP-0018-active period retain their EOUs (the spec field's removal
+    is backward-compatible — absent field defaults to false). Existing
+    value_invocations in run traces become orphan metadata but do not
+    fail validation (optional field).
+
+submitted_as: null

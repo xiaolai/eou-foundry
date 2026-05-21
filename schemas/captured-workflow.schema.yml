@@ -1,0 +1,222 @@
+schema_id: captured-workflow.schema.v1
+additionalProperties: true   # 0.7.0 — relaxed for first minor; tighten in 0.8.0
+required:
+- id
+- schema_version
+- created_at
+- inputs
+- artifact_target
+- captured_workflow
+- hidden_judgments
+- failure_modes
+- decision_boundaries
+- domain_values
+- confidence
+- human_approval
+optional:
+- unstructured_notes       # documented load-bearing escape hatch, not decoration
+- canary_for               # set on canary artifacts under dev-docs/canary/
+- status_note              # narrative status flag
+- canary_validation        # set on canary artifacts only
+
+# ─────────────────────────────────────────────────────────────────────
+# inputs structure
+# ─────────────────────────────────────────────────────────────────────
+inputs_required_subfields:
+- goal
+- reference_set
+- constraints
+- negative_constraints
+- user_contributed_references
+
+reference_set_required_role_slots:
+- aspirational
+- anti_reference
+- boundary_case
+- mainstream_baseline
+- outlier      # mandatory "I dislike this but it succeeds" slot — V1 defense
+
+reference_set_role_slot_minimum_entries: 1
+reference_item_required_subfields:
+- ref          # human-readable identifier of the work
+- why          # per-slot justification — V5 enforcement of judgment-over-form
+
+user_contributed_references_rule: |
+  user_contributed_references MUST be a mapping with all 5 role-slot
+  keys. Each key MUST have a non-empty list. Per V2 (anti-abdication),
+  the user MUST contribute at least one reference per slot, not only
+  approve the AI's proposals. Schema validation fails if any role slot
+  has empty user_contributed_references.
+
+# ─────────────────────────────────────────────────────────────────────
+# domain_values structure (the constitutional layer)
+# ─────────────────────────────────────────────────────────────────────
+domain_values_minimum_count: 3
+domain_values_maximum_count: 8   # mirrors foundry V1-V8 sizing
+domain_values_required_subfields:
+- id                       # canonical: dv-{slug}
+- formulation              # MUST be "X over Y" form; Y must not be a strawman
+- priority                 # int; total order across all values; no ties; no gaps
+- canonical_or_personal
+- protects_against         # list of failure_mode ids
+- decides_when             # list of {conflict, resolution} mappings
+- inclusion_test_passes    # mapping of 6 booleans, ≥1 true required
+
+domain_values_canonical_or_personal_enum:
+- field_canonical
+- user_personal
+- user_diverges_from_canonical
+
+domain_values_conditionally_required:
+  justification_if_diverges_required_when:
+  - canonical_or_personal == user_personal
+  - canonical_or_personal == user_diverges_from_canonical
+
+inclusion_test_keys:
+- prevents_domain_failure
+- resolves_rule_conflict
+- exposes_hidden_judgment
+- resists_false_success
+- protects_invariant
+- removal_makes_practice_dangerous
+
+inclusion_test_rule: |
+  Each domain_value MUST have an inclusion_test_passes mapping with all
+  6 keys present as booleans. At least 1 of the 6 MUST be true. Mirrors
+  the inclusion test from dev-docs/06-values-over-rules.md.
+
+priority_rule: |
+  domain_values priority MUST be a total order — every value has a
+  distinct integer priority, no ties, no gaps. For N values, priorities
+  must be exactly the set {1, 2, ..., N}. Schema validation fails on
+  duplicates or gaps.
+
+formulation_rule: |
+  Each domain_value.formulation MUST match the pattern "X over Y"
+  (case-insensitive). Y MUST NOT be a known strawman value (initial
+  strawman list empty; expandable as cases surface). Validator rejects
+  formulations where Y appears in the strawman list.
+
+# ─────────────────────────────────────────────────────────────────────
+# hidden_judgments structure
+# ─────────────────────────────────────────────────────────────────────
+hidden_judgments_required_subfields:
+- id                       # canonical: hj-{slug}
+- predicate                # the testable judgment question
+- governed_by_value        # forward reference to domain_values.id
+hidden_judgments_optional_subfields:
+- surfaced_from            # list of reference ids that surfaced the judgment
+- counterfactual           # what fails without this judgment
+
+# ─────────────────────────────────────────────────────────────────────
+# failure_modes structure
+# ─────────────────────────────────────────────────────────────────────
+failure_modes_required_subfields:
+- id                       # canonical: fm-{slug}
+- failure                  # description of the failure
+- value_violated           # domain_value.id; OR literal string "multiple" for meta-failures
+failure_modes_optional_subfields:
+- surfaced_from
+- escalation_note          # used when value_violated == "multiple"
+value_violated_accepts_multiple_literal: |
+  The value_violated field MAY be the literal string "multiple" for
+  meta-failures that don't map to a single domain_value. Such entries
+  SHOULD include an escalation_note explaining the meta-failure pattern.
+  This was a canary finding (cooking-canary fm-006: "survival pressure
+  forces compromises").
+
+# ─────────────────────────────────────────────────────────────────────
+# decision_boundaries structure
+# ─────────────────────────────────────────────────────────────────────
+decision_boundaries_required_subfields:
+- id                       # canonical: db-{slug}
+- decision                 # the decision text, typically "X vs Y"
+- governed_by_value        # domain_value.id
+decision_boundaries_optional_subfields:
+- secondary_value          # second domain_value.id when multiple values implicated
+- note                     # any clarifying context
+
+# ─────────────────────────────────────────────────────────────────────
+# confidence structure
+# ─────────────────────────────────────────────────────────────────────
+confidence_required_subfields:
+- artifact_target
+- hidden_judgments
+- failure_modes
+- decision_boundaries
+- domain_values
+confidence_value_enum:
+- low
+- medium
+- high
+confidence_rule: |
+  All 5 subfields required. Each value MUST be one of {low, medium,
+  high}. Validator rejects other values. Schema does not enforce a
+  minimum confidence level — captured_workflows MAY honestly report
+  low confidence per V1 (epistemic integrity).
+
+# ─────────────────────────────────────────────────────────────────────
+# human_approval structure (V2 multi-gate enforcement)
+# ─────────────────────────────────────────────────────────────────────
+human_approval_required_subfields:
+- reference_set_approved_by
+- constraints_approved_by
+- domain_values_approved_by
+- bundle_approved_by
+- approved_at
+human_approval_rule: |
+  All 4 approver gates AND approved_at MUST be present and non-null.
+  Schema validation fails if any gate is null or missing. Same approver
+  identity MAY fill multiple gates (e.g., a solo founder approves all
+  four), but the gates must be separately recorded so that future
+  governance can distinguish per-gate approval if needed.
+
+# ─────────────────────────────────────────────────────────────────────
+# Lifecycle and authority constraints
+# ─────────────────────────────────────────────────────────────────────
+lifecycle_constraint: |
+  captured_workflow artifacts remain at lifecycle_stage candidate
+  permanently. They are NOT promoted to draft, pilot, active,
+  monitored, or stable. Failures attribute back via incident records;
+  the artifact may be superseded by a new version (with a new id) but
+  is never claimed to be active.
+
+cross_scope_noun_note: |
+  captured_workflow is a cross-scope noun per dev-docs/04-vocabulary-
+  principles.md P4 — produced in the Stage 0 scope, consumed in the
+  EOU-pipeline scope by $generate-eou-candidates, $audit-candidate-
+  eou-set, and $eou-audit per Rule 96.
+
+storage: foundry/captured-workflows/{slug}.yml
+
+# ─────────────────────────────────────────────────────────────────────
+# Purpose
+# ─────────────────────────────────────────────────────────────────────
+purpose: |
+  captured_workflow artifact: the output of Stage 0 reference-grounded
+  workflow capture. Synthesizes a workflow description, artifact target,
+  hidden judgments, failure modes, decision boundaries, and the
+  per-app constitutional layer (domain_values) from a user goal,
+  structured reference set, and constraints. Feeds the inputs that
+  D2.4 step 1-5 outputs would otherwise provide to step 6
+  ($generate-eou-candidates).
+
+  Required fields: see required list above. Each domain_value MUST pass
+  the inclusion test (≥1 of 6 booleans true) and use contested-form
+  "X over Y" formulation where Y is not a strawman. priority MUST be a
+  total order. user_contributed_references MUST be ≥1 per role slot
+  (V2 anti-abdication enforcement).
+
+  Storage: foundry/captured-workflows/{slug}.yml
+
+  Produced by: $generate-captured-workflow-from-references (function:
+  generate, target_object: captured_workflow, authority_level:
+  write_candidate, risk_level: medium).
+
+  Consumed by: $generate-eou-candidates, $audit-candidate-eou-set,
+  $eou-audit — when present, Rule 96 (domain-values-consumption)
+  applies and downstream skills MUST consult domain_values.
+
+  Introduced in: ECP-0015 (0.7.0). Producer skill: ECP-0016. Downstream
+  consumption rule: ECP-0017. See dev-docs/08-stage-0-design.md for
+  the full design rationale.

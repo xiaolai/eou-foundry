@@ -282,7 +282,7 @@ A serious failure should not vanish after repair. It should become:
 incident
 diagnosis
 ECP or no-change record
-regression case when appropriate
+regression case when the failure is repeatable or traces to a validator gap
 audit finding
 portfolio lesson
 ```

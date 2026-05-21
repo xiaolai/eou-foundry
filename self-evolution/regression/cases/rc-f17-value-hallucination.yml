@@ -1,0 +1,34 @@
+id: rc-f17-value-hallucination
+target_eou: eou-validate
+failure_class: F17_VALUE_HALLUCINATION_FAILURE
+failure_observed: |
+  A run trace's value_invocations[] entry references a domain_value_id
+  that does not resolve in any approved captured_workflow's domain_values
+  list. The EOU's runtime fabricated a value id with no constitutional
+  basis. Per ECP-0020 / Rule 97, this is a blocking F17 violation.
+fixture: self-evolution/regression/fixtures/f17-hallucinated-dv-id/
+expected_behavior:
+  validator_function: validate_value_invocation_discipline
+  validator_must_emit: |
+    "F17_VALUE_HALLUCINATION_FAILURE — invocation `vi-001` references
+    domain_value_id `dv-999` which does not resolve in any approved
+    captured_workflow (known ids: ['dv-001', 'dv-002', 'dv-003'])"
+  validator_return_code: nonzero
+  audit_judgment_skill_must_flag: F17_VALUE_HALLUCINATION_FAILURE
+  severity: blocking
+activation_status: active
+requires_approval: false
+introduced_in_ecp: ecp-0020-judgment-audit-skill-rule-counterfactual-swap
+introduced_at: 2026-05-21
+notes: |
+  This regression case is the canonical exercise of
+  validate_value_invocation_discipline(). It is also reproducible via
+  the negative-test fixture under
+  self-evolution/regression/fixtures/f17-hallucinated-dv-id/, which
+  contains:
+    - a copy of the cooking captured_workflow (cw-example.yml with
+      dv-001, dv-002, dv-003 in domain_values)
+    - a run trace whose value_invocations[0].domain_value_id is dv-999
+      (not in the captured_workflow)
+  Running validate_foundry.py against the fixture root must emit the
+  F17 message above and return nonzero exit code.

@@ -1,0 +1,162 @@
+id: audit-judgment
+name: Audit Judgment
+version: 0.1.0
+classification:
+  function: audit
+  target_object: value_invocations
+  automation_mode: LLM_assisted
+  authority_level: write_inactive
+  risk_level: medium
+  lifecycle_stage: candidate
+  judgment_authorized: false   # audit-judgment AUDITS invocations; it does not invoke
+purpose:
+  statement: |
+    Audit the value_invocations[] entries in run traces for EOUs with
+    classification.judgment_authorized:true. Verify that invocations
+    match the captured_workflow's declared priority (no F15), do not
+    drift from declared priority over time (no F16), do not reference
+    hallucinated values (no F17), and that silent decisions (no
+    invocation on contested cases) are caught (F14). Run
+    counterfactual-swap audit on sampled runs to verify invocations
+    are load-bearing (V1 anti-theater defense per
+    dev-docs/07-agentic-judgment-proposal.md).
+  non_goals:
+  - Do not invoke values directly. audit-judgment is the fourth audit layer; per D5.1 the audit and judge acts are structurally distinct.
+  - Do not re-classify failures outside F14-F17 (other failure types are audited by other skills).
+  - Do not promote judgment_maturity directly. Promotion requires $eou-promote per D5.2 lifecycle gate evidence; audit-judgment's verdict is one piece of that evidence.
+  - Do not mutate the audited EOU. Produce a judgment-audit report only.
+operating_hypothesis: |
+  Given an EOU with judgment_authorized:true, its app's captured_workflow,
+  and ≥1 run trace with value_invocations, this audit can determine
+  whether invocations are load-bearing, priority-respecting, and
+  drift-free, and emit findings against F14-F17 with severity tied to
+  the target EOU's lifecycle_stage per Rule 97.
+inputs:
+  required:
+  - target_eou_spec                      # path to the EOU under audit
+  - foundry/captured-workflows/cw-{app_id}.yml
+  - foundry/runs/{target_eou_id}/        # all run traces for this EOU
+  optional:
+  - foundry/audits/eou-audits/{target_eou_id}.audit.yml  # prior $eou-audit findings
+  forbidden_assumptions:
+  - Do not assume the target EOU's value_invocations are correct because they parse.
+  - Do not assume counterfactual swap is meaningful for fewer than 3 swap-tests.
+  - Do not assume the audit-judgment skill itself has agentic capability — it does not.
+context_manifest:
+  source_of_truth:
+  - target_eou_spec
+  - foundry/captured-workflows/
+  - foundry/runs/{target_eou_id}/
+  - rules/97-value-invocation.md
+  supporting:
+  - engine/failure-taxonomy.yml          # for F14-F17 definitions
+  - engine/maturity-model.yml            # for judgment_maturity axis
+  - schemas/run-trace.schema.yml         # for value_invocations entry shape
+  - schemas/captured-workflow.schema.yml # for domain_values structure
+  forbidden:
+  - foundry/eous/                        # cannot mutate audited EOUs
+  - foundry/meta-eous/
+  - foundry/captured-workflows/          # cannot mutate the constitution
+  - foundry/registry.yml
+execution:
+  steps:
+  - Load target_eou_spec; verify classification.judgment_authorized:true; if false, emit "rule does not apply" and return.
+  - Load the app's captured_workflow; extract domain_values block with priority order.
+  - Load run traces; collect all value_invocations entries.
+  - F17 check (value hallucination) — for each invocation, verify domain_value_id resolves in the captured_workflow's current domain_values list. Mismatched ids → F17 finding.
+  - F15 check (value hierarchy) — for each invocation, examine rule_conflict; if a higher-priority domain_value would have resolved the same conflict differently, flag F15.
+  - F16 check (value drift) — across ≥3 runs, compute invocation distribution per domain_value_id; compare to declared priority weights; deviations >20% on top-three values → F16 finding.
+  - F14 check (silent judgment) — scan run traces for execution steps that indicate contested cases (decision_points entries flagged as contested in trace) without corresponding value_invocations OR escalations_triggered entries. Each unrecorded contested case → F14 finding.
+  - Counterfactual-swap audit — for up to 5 sampled invocations, construct swapped captured_workflow (swap priority of invoked value with another value); re-run the producing EOU under swap; record output diff. If <3 swap-driven changes out of 5 swap-tests → emit HIGH-severity F14 (silent judgment, theater pattern).
+  - Compose judgment-audit report at foundry/audits/judgment-audits/{target_eou_id}.judgment-audit.yml with verdict (PASS / FAIL / CONDITIONAL_PASS) and findings.
+  decision_points:
+  - Whether the target EOU has judgment_authorized:true (if false, skip).
+  - Whether the captured_workflow is approved and has ≥3 domain_values (if not, skip with explanation — judgment_authorized:true would itself be a validator failure per ECP-0018).
+  - Whether enough runs exist for F16 drift analysis (≥3 required; otherwise emit "drift not yet evaluable" status).
+  - Whether to run counterfactual-swap audit (per-EOU budget; default 5 swap-tests; reducible for expensive LLM_assisted EOUs).
+  stop_conditions:
+  - target_eou_spec not found or not at lifecycle_stage simulated or higher (Rule 97 enforcement begins at simulated per exemption).
+  - target_eou has judgment_authorized:false or absent (rule does not apply).
+  - No captured_workflow with complete human_approval (judgment_authorized:true would itself be invalid).
+  - No run traces exist for the target EOU (judgment_maturity is J0 or J1; nothing to audit yet).
+  allowed_tools:
+  - Read (target_eou_spec, captured_workflow, run traces, governance.yml)
+  - Write (foundry/audits/judgment-audits/, foundry/runs/audit-judgment/, foundry/runs/audit-judgment/swap-tests/)
+  prohibited_actions:
+  - Mutating the audited EOU, the captured_workflow, the registry, the constitution.
+  - Producing value_invocations (audit-judgment audits invocations; it does not invoke).
+  - Writing outside the blast_radius.allowed_scope.
+  - Modifying ECPs (those go through $ecp-propose).
+outputs:
+  primary:
+  - foundry/audits/judgment-audits/{target_eou_id}.judgment-audit.yml
+  secondary:
+  - foundry/runs/audit-judgment/swap-tests/{run_id}/         # transient swap-test artifacts
+  trace:
+  - foundry/runs/audit-judgment/{run_id}.yml
+success_criteria:
+  must_pass:
+  - Report emitted at foundry/audits/judgment-audits/{target_eou_id}.judgment-audit.yml.
+  - Every value_invocation in target EOU's traces is checked against F14, F15, F16, F17.
+  - When ≥3 runs exist, F16 drift analysis completes (no exceptions on sparse data).
+  - When counterfactual-swap audit runs, swap-test artifacts isolated to foundry/runs/audit-judgment/swap-tests/.
+  - Report includes verdict (PASS / FAIL / CONDITIONAL_PASS) and per-finding severity.
+  should_pass:
+  - Counterfactual-swap audit produces ≥3 swap-driven output changes out of 5 swap-tests on a target EOU with truly load-bearing invocations.
+validation:
+  deterministic:
+  - domain_value_id resolution check (F17) against captured_workflow
+  - rejected_alternative strawman regex (inherited from ECP-0018 validator)
+  - invocation count vs. contested-case count (F14)
+  judgment:
+  - Whether a contested case was actually contested (not all decision_points are contested).
+  - Whether priority deviation in F16 analysis reflects genuine drift or sample-size artifact.
+  - Counterfactual-swap audit interpretation (output diffs may have multiple causes for LLM_assisted EOUs; baseline control runs help).
+  red_team:
+  - What if value_invocations are fabricated wholesale (consistent self-justifying invocations)? Counterfactual-swap is the defense; humans remain the final defense for sophisticated theater per V2.
+  - What if the captured_workflow is mid-amendment (ECP in flight)? Audit uses the current approved version; flags any invocations referencing the future version.
+  - What if the target EOU is itself agentic (judgment_authorized:true) AND non-deterministic (LLM_assisted)? Counterfactual-swap uses ≥2 control runs at the original priority to establish baseline variance; swap-driven changes are measured relative to baseline.
+failure_modes:
+  known:
+  - F4_SCOPE_FAILURE — audit-judgment attempts to invoke values (would violate judgment_authorized:false self-declaration)
+  - F12_DRIFT_FAILURE — audit-judgment's understanding of value_invocations schema diverges from schemas/run-trace.schema.yml
+  - F13_PERFORMANCE_FAILURE — counterfactual-swap audit on LLM_assisted EOUs becomes prohibitively expensive at scale
+  warning_signs:
+  - All findings produced are F14 (suggests over-strict contested-case detection)
+  - No findings produced ever (suggests under-strict checking or skill not actually running)
+  - Counterfactual-swap audit consistently produces 5/5 swap-driven changes (suggests EOU output is noise, not value-driven)
+  repair_actions:
+  - Per-EOU swap-test budget configurable in generation_budget; reduce for expensive EOUs.
+  - Add baseline control-run requirement to counterfactual-swap interpretation.
+  - Spot-check audit findings against human reviewer for first audits of any new EOU at judgment_authorized:true.
+escalation:
+  require_human_when:
+  - Counterfactual-swap audit detects ≥4 out of 5 swap-tests with no output change (almost-certain theater pattern; F14 with HIGH severity)
+  - F16 drift findings cross 50% deviation from declared priority on top-three values (suggests captured_workflow amendment needed via ECP)
+  - F17 findings reference a domain_value_id that resembles but does not exactly match an existing id (suggests prompt/training-data contamination requiring investigation)
+  require_approval_for:
+  - Promotion of judgment_maturity beyond J3 (drift monitoring requires named human approval per ECP-0019)
+responsibility:
+  executor: Claude / Codex (LLM_assisted)
+  reviewer: human owner of the target EOU
+  approver: human owner of the target EOU
+  cannot_delegate:
+  - Decision to escalate counterfactual-swap findings to ECP for captured_workflow amendment
+  - Acceptance of audit verdict for promotion of judgment_maturity beyond J2
+versioning:
+  supersedes: []
+  changelog:
+  - "0.1.0 — initial introduction (ECP-0020)."
+blast_radius:
+  allowed_scope:
+  - foundry/audits/judgment-audits/
+  - foundry/runs/audit-judgment/
+  - foundry/runs/audit-judgment/swap-tests/
+  forbidden_scope:
+  - foundry/eous/
+  - foundry/meta-eous/
+  - foundry/captured-workflows/
+  - foundry/registry.yml
+  - foundry/self-evolution/
+  - schemas/
+  - engine/

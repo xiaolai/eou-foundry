@@ -59,6 +59,38 @@ failure_taxonomy:
       latency; tier-down automation_mode from LLM_assisted to deterministic for the
       expensive step; split the EOU to isolate the scaling problem; or promote the
       check to a faster tool.
+  # ECP-0019 (0.8.0-pending): agentic-judgment failure codes (F14-F17).
+  F14_SILENT_JUDGMENT_FAILURE:
+    definition: EOU made a contested choice without invoking any value from the
+      captured_workflow's domain_values block. The choice may have been correct,
+      but it is unaccountable — no trace records what reasoning resolved the conflict.
+      Looks like rule-following; is actually opaque agentic judgment. The most
+      dangerous agentic-judgment failure mode per V1 (Epistemic Integrity).
+    repair: Require value_invocations[] entry for every contested case detected in the
+      run. Update the EOU's execution to surface contested cases explicitly and require
+      invocation or escalation. Add a regression case for the specific contested pattern.
+  F15_VALUE_HIERARCHY_FAILURE:
+    definition: EOU invoked a lower-priority domain_value over a higher-priority one for
+      the same contested case. The priority order in the captured_workflow was violated
+      by the invocation.
+    repair: Examine the rule_conflict in the value_invocations entry; determine whether
+      the priority order needs revision (ECP amending the captured_workflow) or the
+      invocation was wrong (regression case for the EOU). Most often the latter.
+  F16_VALUE_DRIFT_FAILURE:
+    definition: EOU's invocation pattern over multiple runs has diverged from the
+      captured_workflow's declared priority order — without any captured_workflow
+      amendment ECP. The system is silently rewriting its own constitution by
+      precedent.
+    repair: Triage the drift — either reset the EOU's invocation behavior (regression
+      suite), or formalize the drift as a captured_workflow amendment (ECP). Never let
+      drift continue undocumented per D5.5 (constitution).
+  F17_VALUE_HALLUCINATION_FAILURE:
+    definition: EOU invoked a value not declared in the captured_workflow's domain_values
+      block. The invocation cites a domain_value_id that does not resolve.
+    repair: Validate domain_value_id against the captured_workflow at invocation time;
+      reject invocations with unknown ids. Add a regression case for the specific
+      hallucinated id pattern. Investigate whether the EOU's prompt or training data
+      introduced the fabricated value.
 diagnosis_outcome:
   # Not every diagnosed failure becomes an ECP. Record the decision explicitly.
   change:   An ECP was opened. See foundry/self-evolution/ecp/proposed/.

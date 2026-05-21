@@ -24,6 +24,7 @@ inputs:
   optional:
   - foundry/self-evolution/regression/cases/  # to check regression coverage
   - runs/*/trace.yml                           # to check execution evidence
+  - foundry/captured-workflows/cw-{app_id}.yml # ECP-0017 / Rule 96: when present and approved, run Value Operationalization Test
   forbidden_assumptions:
   - Do not assume the EOU's steps are correct because they are present.
   - Do not assume classification facets are correct because they are populated.
@@ -48,6 +49,7 @@ execution:
   - Check self-approval risk — responsibility.executor must not equal responsibility.approver.
   - Check registry.yml for lifecycle_stage consistency with the spec.
   - Check regression coverage — at least one fixture in foundry/self-evolution/regression/cases/ for each pilot or active EOU.
+  - "ECP-0017 / Rule 96 — IF the audited EOU is in an app whose foundry/captured-workflows/ contains an approved captured_workflow AND target_object is not in engine/governance.yml rule_96_exempt_target_objects, run the Value Operationalization Test. Verify that success_criteria.must_pass contains at least one entry whose text references at least one domain_value id of priority ≤ 3. Severity of violation — blocking at lifecycle_stage active or higher; high at pilot; medium at draft or candidate. Record the operationalized domain_value ids in the audit report so future audits can detect drift."
   - Write audit findings.
   decision_points:
   - If zero findings after all checks, force-add a "vacuous audit" finding — no nontrivial EOU has zero structural gaps.

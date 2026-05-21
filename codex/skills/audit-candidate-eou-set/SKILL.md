@@ -7,6 +7,10 @@ description: Audit a generated candidate EOU set for boundary quality, minimalit
 
 Audit `$path` (a candidate-set artifact under `foundry/self-evolution/candidate-sets/`, schema `schemas/candidate-set.schema.yml` — ECP-0013).
 
+## Optional input (ECP-0017 / Rule 96)
+
+If `foundry/captured-workflows/cw-{app_id}.yml` exists with all four `human_approval` gates populated, load it. The Set Value Coverage Test runs against its `domain_values` block.
+
 ## Required reading
 
 1. `foundry/constitution.yml`
@@ -59,6 +63,11 @@ If the candidate set includes EOUs that generate outputs, it must also include E
 
 ### High-Stakes Test
 Candidates touching finance, health, legal, safety, content about minors, public claims, publication, or active governance must have `responsibility.approver` set to a named human role and `escalation.require_human_when` non-empty. Flag candidates in these domains missing human ownership.
+
+### Set Value Coverage Test (ECP-0017 / Rule 96)
+**Skip if no captured_workflow is loaded with complete `human_approval`.**
+
+For each `domain_value` of priority ≤ 3 in the loaded captured_workflow, verify that at least one candidate in `minimal_recommended_subset` operationalizes the value via its `distinct_success_criterion` (the value's `id` must appear in the criterion text). Emit findings in `audit_outcome.notes` naming each unserved value and its priority. Unserved priority-1 values escalate the verdict to FAIL; unserved priority-2 or priority-3 values escalate to REVISE.
 
 ## Verdict thresholds
 

@@ -1,0 +1,562 @@
+# Cooking-restaurant canary captured_workflow
+#
+# Purpose: hand-drafted captured_workflow.yml against the design in
+# dev-docs/08-stage-0-design.md. This file is the canary validation
+# artifact — its job is to either prove the design is real (inclusion
+# test passes, counterfactual-swap flips downstream decisions) or
+# expose where the design is still aspirational.
+#
+# Scenario: a user who has never run a restaurant wants to open a
+# small seasonal restaurant. They have eaten at restaurants but cannot
+# articulate the operating logic that makes a small restaurant survive
+# five years. Stage 0 input synthesis from their taste, references,
+# and constraints.
+#
+# Status: canary artifact, not a real foundry input. Not promoted to
+# any production directory. Read with dev-docs/08-stage-0-design.md
+# alongside.
+
+id: cw-cooking-restaurant-canary-001
+schema_version: 1
+created_at: 2026-05-21T00:00:00Z
+canary_for: dev-docs/08-stage-0-design.md
+status_note: |
+  Canary artifact. Not validated against a schema (the schema does not
+  yet exist — proposing it via ECP-0015). Shape follows the proposed
+  schema as documented in dev-docs/08-stage-0-design.md.
+
+# ─────────────────────────────────────────────────────────────────────
+# Inputs (universal across domains; this is what the user provides)
+# ─────────────────────────────────────────────────────────────────────
+
+inputs:
+  goal: >
+    Open and operate a small seasonal restaurant that survives five
+    years without losing the user's relationship with cooking.
+
+  reference_set:
+    aspirational:
+      - ref: "Chez Panisse (Berkeley, Alice Waters)"
+        why: >
+          Forty-plus years of ingredient-driven food. The menu literally
+          reflects what arrived from local farms that morning. Survived
+          changing food fashions by refusing to participate in them.
+      - ref: "Prune (NYC, Gabrielle Hamilton, 1999–2020)"
+        why: >
+          Twenty years on the same corner. Hamilton's voice in every
+          dish. Small. Owner-cooked. Closed on her own terms during
+          COVID, not because the model failed.
+        contributed_by: user
+
+    anti_reference:
+      - ref: "Per Se (NYC, Thomas Keller)"
+        why: >
+          Same ingredient-driven claim on paper, but the experience
+          buries the ingredient under labor and technique. Three-hour
+          tasting menus. $400 per person. The food becomes about the
+          kitchen, not the table.
+        contributed_by: user
+      - ref: "Generic fine-dining 'fusion' restaurants"
+        why: >
+          Surface similarity to seasonal cooking (rotating menus,
+          'chef's selection') but ingredient choices are driven by
+          marketability of dish names, not by what's actually best
+          that week.
+
+    boundary_case:
+      - ref: "Pop-up dinners and supper clubs"
+        why: >
+          Same ingredient-driven, owner-cooked ethos but with shorter
+          time horizons and lower financial stakes. Tests whether the
+          model can be sustained beyond a season.
+      - ref: "Farmers-market direct-sale prepared-food stands"
+        why: >
+          The model stripped to its barest form — cook the ingredient
+          in front of the person who grew it. Bounds the question of
+          how far you can scale before the soul breaks.
+        contributed_by: user
+
+    mainstream_baseline:
+      - ref: "Typical neighborhood bistro"
+        why: >
+          The 80% solution — small, owner-run, serves a stable menu,
+          changes specials weekly. Survives but rarely thrives. The
+          reference for 'this is what working in the median looks like.'
+      - ref: "User's hometown diner (operating since 1962)"
+        why: >
+          Specific to user's history. Demonstrates that small,
+          consistent, owner-rooted food can outlast trends. Different
+          economics (low rent, generational ownership) but the
+          structural lesson stands.
+        contributed_by: user
+
+    outlier:
+      # MANDATORY slot per design — "I dislike this but it succeeds."
+      - ref: "Noma (Copenhagen, René Redzipi)"
+        why: >
+          Wildly successful, defines the molecular/foraging movement.
+          User dislikes it strongly — technique forward, performative,
+          opposite of everything the aspirational references stand for.
+          Forces user to consciously hold "ingredient over technique"
+          as a value rather than assume it's universal.
+        contributed_by: user
+      - ref: "Olive Garden (chain)"
+        why: >
+          Hugely profitable. Consistent. Survives recessions. User
+          dislikes the food, but the operational discipline behind a
+          chain at scale teaches things small operators cannot ignore
+          (training, inventory, supply chain, food cost discipline).
+
+  constraints:
+    audience: "~30 covers per night, 4 nights per week"
+    scale: "single location, owner-cooked"
+    budget: "limited — must reach break-even within 18 months"
+    time: "12 months from lease to opening"
+    risk_tolerance: "low — this is the user's primary income and savings"
+    desired_effect: >
+      Guests feel like they ate at a friend's farm. Coming back is
+      easy. Sending friends is easy. The room feels lived-in, not
+      designed.
+
+  negative_constraints:
+    - No molecular gastronomy or modernist technique
+    - No tasting-menu / degustation format
+    - No celebrity-chef branding or media positioning
+    - No expansion plans (second location, franchise, brand licensing)
+    - No fixed menu — menu must change as supply changes
+
+  user_contributed_references:
+    aspirational: ["Prune"]
+    anti_reference: ["Per Se"]
+    boundary_case: ["Farmers-market direct-sale stands"]
+    mainstream_baseline: ["User's hometown diner"]
+    outlier: ["Noma"]
+    # Per V2 enforcement: ≥1 per role. User contributed in every slot.
+
+# ─────────────────────────────────────────────────────────────────────
+# Outputs (universal — synthesized from inputs)
+# ─────────────────────────────────────────────────────────────────────
+
+artifact_target:
+  description: >
+    A 30-cover, 4-nights-per-week, owner-cooked seasonal restaurant
+    that produces dishes which pass the five judgment predicates
+    (see hidden_judgments below) and that survives five years
+    without violating the priority-ordered domain_values.
+  scale: "30 covers × 4 nights × 50 weeks ≈ 6,000 covers per year"
+
+captured_workflow:
+  prose: >
+    Each week begins with the producer call — what is actually
+    available, what is ending, what is starting. The menu is written
+    Monday for the week, never longer. Each dish is tested by the
+    owner against the five judgment predicates before being added.
+    Service is run by the owner on the line, not from an office.
+    Specials decrease as the night goes; running out is honest.
+    Failures (a dish that didn't work, a guest who left unhappy) are
+    recorded weekly with their root cause linked to a domain_value
+    or an unresolved gap.
+  steps:
+    - step: "Sunday producer call — surface what's actually available"
+    - step: "Monday menu writing — one week only, never longer"
+    - step: "Tuesday-Saturday: cook, serve, observe, record failures"
+    - step: "Sunday: review failure log against domain_values"
+
+hidden_judgments:
+  - id: hj-001
+    predicate: "Is the ingredient quality visible in the final dish?"
+    governed_by_value: dv-001  # ingredient over technique
+    surfaced_from:
+      - "Chez Panisse"
+      - "Prune"
+      - "Farmers-market stands"
+    counterfactual: |
+      If we removed this judgment, dishes could pass on technique
+      alone — which is exactly what Per Se and Noma do, and what
+      the user explicitly rejected.
+
+  - id: hj-002
+    predicate: "Could this dish be simpler without losing something essential?"
+    governed_by_value: dv-002  # restraint over abundance
+    surfaced_from:
+      - "Chez Panisse"
+      - "Prune"
+    counterfactual: |
+      Without this, plates grow over time as the kitchen feels
+      pressure to add. Generic fine-dining drift.
+
+  - id: hj-003
+    predicate: "Does this week's menu reflect what's actually in season?"
+    governed_by_value: dv-003  # seasonal honesty over menu consistency
+    surfaced_from:
+      - "Chez Panisse"
+      - "Farmers-market stands"
+    counterfactual: |
+      Without this, the menu becomes a marketing artifact ("seasonal
+      menu" as branding) decoupled from supply. Common drift mode.
+
+  - id: hj-004
+    predicate: "Is the room hospitable when the room is half-full?"
+    governed_by_value: dv-004  # hospitality over performance
+    surfaced_from:
+      - "Prune"
+      - "User's hometown diner"
+    counterfactual: |
+      Performative restaurants thrive on full rooms; their model
+      breaks on quiet Tuesdays. Hospitality must hold at low
+      occupancy.
+
+  - id: hj-005
+    predicate: "Could the owner herself cook this dish on a busy night?"
+    governed_by_value: dv-005  # owner-cooked over chef-branded
+    surfaced_from:
+      - "Prune (Hamilton)"
+      - "User's hometown diner"
+    counterfactual: |
+      Without this, dishes drift to brigade-only complexity; the
+      owner gets pulled into office work; the soul is delegated.
+
+failure_modes:
+  - id: fm-001
+    failure: "Technique grows over time; ingredients get buried"
+    value_violated: dv-001
+    surfaced_from: ["Per Se", "generic fine-dining fusion"]
+
+  - id: fm-002
+    failure: "Plate complexity drifts upward; kitchen-sink dishes appear"
+    value_violated: dv-002
+
+  - id: fm-003
+    failure: "Menu freezes for marketing; supply chain industrializes"
+    value_violated: dv-003
+    surfaced_from: ["restaurants claiming 'seasonal' with year-round menu"]
+
+  - id: fm-004
+    failure: "Dining room becomes performative; quiet nights feel empty"
+    value_violated: dv-004
+    surfaced_from: ["Noma (large performance dining room)"]
+
+  - id: fm-005
+    failure: "Owner becomes a brand, not a cook; line work is outsourced"
+    value_violated: dv-005
+    surfaced_from: ["Per Se (Keller as brand)", "celebrity-chef restaurants"]
+
+  - id: fm-006
+    failure: "Survival pressure forces compromises that violate higher values"
+    value_violated: multiple
+    surfaced_from: ["business reality"]
+    escalation_note: |
+      No single value covers this. When survival forces a value
+      compromise, escalate — do not let the agent resolve via lower
+      values masquerading as higher ones.
+
+decision_boundaries:
+  - id: db-001
+    decision: "Add a new cooking technique vs. let the ingredient speak"
+    governed_by_value: dv-001
+
+  - id: db-002
+    decision: "Add a sauce or component vs. omit it"
+    governed_by_value: dv-002
+
+  - id: db-003
+    decision: "Rewrite menu weekly vs. monthly vs. seasonally"
+    governed_by_value: dv-003
+
+  - id: db-004
+    decision: "Owner visible on floor vs. owner in office"
+    governed_by_value: dv-004
+
+  - id: db-005
+    decision: "Owner cooks vs. hires a head chef"
+    governed_by_value: dv-005
+
+  - id: db-006
+    decision: "Hire a celebrity chef weekend guest spot vs. don't"
+    governed_by_value: dv-005
+    secondary_value: dv-004
+    note: |
+      Useful test case — multiple values implicated.
+
+# ─────────────────────────────────────────────────────────────────────
+# Domain values (the constitutional layer)
+# ─────────────────────────────────────────────────────────────────────
+
+domain_values:
+  - id: dv-001
+    formulation: "Ingredient over technique"
+    priority: 1
+    canonical_or_personal: field_canonical
+    # Alice Waters, Hamilton, the entire farm-to-table tradition canonical.
+    protects_against: [fm-001]
+    decides_when:
+      - conflict: "add a new sous-vide method vs. let the vegetable be itself"
+        resolution: "let the vegetable be itself"
+      - conflict: "buy higher-quality ingredient at lower margin vs. cheaper ingredient at higher margin"
+        resolution: "higher-quality ingredient — margin recovered elsewhere or accept lower margin"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true       # Per Se / Noma look like quality but bury ingredients
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+    # 6/6 pass.
+
+  - id: dv-002
+    formulation: "Restraint over abundance"
+    priority: 2
+    canonical_or_personal: field_canonical
+    protects_against: [fm-002]
+    decides_when:
+      - conflict: "add the sauce vs. omit it"
+        resolution: "omit if the dish stands without it"
+      - conflict: "five components on the plate vs. three"
+        resolution: "three, unless a fourth is essential"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true       # overstuffed plates look generous, hide flavors
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+    # 6/6 pass.
+
+  - id: dv-003
+    formulation: "Seasonal honesty over menu consistency"
+    priority: 3
+    canonical_or_personal: field_canonical
+    protects_against: [fm-003]
+    decides_when:
+      - conflict: "keep the popular winter dish on the menu through April vs. retire it"
+        resolution: "retire it; April is not winter"
+      - conflict: "buy out-of-region produce to maintain the menu vs. change the menu"
+        resolution: "change the menu"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+    # 6/6 pass.
+
+  - id: dv-004
+    formulation: "Hospitality over performance"
+    priority: 4
+    canonical_or_personal: user_personal
+    # Many successful restaurants (Noma, the entire fine-dining theater
+    # genre) choose performance over hospitality. The user's preference
+    # for hospitality is real but is a personal stake, not field-canonical.
+    justification_if_diverges: |
+      The user explicitly rejects performative dining in negative_constraints.
+      The aspirational references (Chez Panisse, Prune) center hospitality;
+      the outlier (Noma) centers performance. This is a contested value in
+      the field; the user is taking the hospitality side as personal stake.
+    protects_against: [fm-004]
+    decides_when:
+      - conflict: "design the dining room for the camera vs. for the people in it"
+        resolution: "for the people in it"
+      - conflict: "open kitchen as theater vs. open kitchen as honest"
+        resolution: "honest — owner cooks and is seen; not a show"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+    # 6/6 pass.
+
+  - id: dv-005
+    formulation: "Owner-cooked over chef-branded"
+    priority: 5
+    canonical_or_personal: user_diverges_from_canonical
+    # Canonical fine-dining career path is owner → brand → multiple locations →
+    # licensing. User explicitly rejects this trajectory. This divergence is
+    # itself a constitutional choice and must be recorded.
+    justification_if_diverges: |
+      The user's negative_constraints explicitly exclude expansion, branding,
+      and franchising. The mainstream restaurant industry — including the
+      restaurant business-school case studies — treats brand and scale as the
+      path to durability. The user takes the opposite position: durability
+      comes from owner-rootedness, not brand. This is a deliberate divergence
+      from the canonical operator path.
+    protects_against: [fm-005]
+    decides_when:
+      - conflict: "owner trains a head chef to take over the line vs. owner stays on the line"
+        resolution: "owner stays on the line — head chef is a sous, not a successor"
+      - conflict: "open a second location while the first is profitable vs. don't"
+        resolution: "don't — the business is a place, not a brand"
+    inclusion_test_passes:
+      prevents_domain_failure: true
+      resolves_rule_conflict: true
+      exposes_hidden_judgment: true
+      resists_false_success: true
+      protects_invariant: true
+      removal_makes_practice_dangerous: true
+    # 6/6 pass.
+
+# ─────────────────────────────────────────────────────────────────────
+# Confidence (honest about epistemic position)
+# ─────────────────────────────────────────────────────────────────────
+
+confidence:
+  artifact_target: medium       # scale derived from constraints, defensible
+  hidden_judgments: medium      # extracted from references, plausible but unfalsifiable
+  failure_modes: medium         # likely failure modes named, but not all enumerable
+  decision_boundaries: high     # concrete and observable
+  domain_values: medium         # contested-form and inclusion-tested, but
+                                #   user_personal and user_diverges_from_canonical
+                                #   values introduce subjectivity by design
+
+# ─────────────────────────────────────────────────────────────────────
+# Escape hatch for things the schema missed
+# ─────────────────────────────────────────────────────────────────────
+
+unstructured_notes: |
+  fm-006 ("survival pressure forces compromises") does not map cleanly
+  to any single value. This is the kind of meta-failure that may
+  warrant escalation rather than agentic resolution — flagged for
+  attention if the agentic-judgment proposal (07-agentic-judgment-
+  proposal.md) ever moves forward. A "no applicable value found"
+  escalation case.
+
+  The user's "hometown diner" reference is structurally important
+  but has different economics (low rent, generational ownership). The
+  structural lesson transfers; the operating economics don't. This
+  asymmetry isn't captured by any field; the unstructured_notes is
+  doing real work here.
+
+# ─────────────────────────────────────────────────────────────────────
+# Human approval (multiple gates per design)
+# ─────────────────────────────────────────────────────────────────────
+
+human_approval:
+  reference_set_approved_by: user-canary-test
+  constraints_approved_by: user-canary-test
+  domain_values_approved_by: user-canary-test
+  bundle_approved_by: user-canary-test
+  approved_at: 2026-05-21T00:00:00Z
+  note: |
+    All four gates filled by the same identity in this canary
+    because the canary is a single-author hand-draft. Real
+    captured_workflows may have separate identities at different
+    gates (e.g., founder approves goal and constraints; founder
+    plus advisor jointly approve domain_values).
+
+# ─────────────────────────────────────────────────────────────────────
+# CANARY VALIDATION RESULTS
+# ─────────────────────────────────────────────────────────────────────
+
+canary_validation:
+  inclusion_test_summary:
+    dv-001_ingredient_over_technique:    "6/6 pass"
+    dv-002_restraint_over_abundance:     "6/6 pass"
+    dv-003_seasonal_honesty:             "6/6 pass"
+    dv-004_hospitality_over_performance: "6/6 pass"
+    dv-005_owner_cooked:                 "6/6 pass"
+    aggregate: "all five values pass inclusion test"
+
+  counterfactual_swap_audit:
+    methodology: |
+      Reorder priorities of two values, identify downstream EOU
+      decisions that would change. Design says ≥3 flips required.
+    tests:
+      - swap: "swap dv-001 (priority 1) with dv-005 (priority 5)"
+        decision: "Should we hire a celebrity guest chef for weekend marketing?"
+        under_current_priority:
+          # dv-001 is high, dv-005 is low.
+          # Celebrity chef might still cook ingredient-driven food → dv-001 not violated.
+          # dv-005 (owner-cooked) violated, but lowest priority.
+          result: "Hire might be acceptable if guest chef respects ingredient discipline"
+        under_swapped_priority:
+          # dv-005 (owner-cooked) now top priority. Celebrity chef violates flagship value.
+          result: "Refuse — guest chef violates highest priority value"
+        flips: true
+
+      - swap: "swap dv-002 (priority 2) with dv-003 (priority 3)"
+        decision: "Include a six-ingredient salad showcasing prized winter root vegetables?"
+        under_current_priority:
+          # dv-002 (restraint) > dv-003 (seasonal). Six ingredients violates restraint.
+          result: "Reduce to 3-4 components; showcase fewer ingredients more clearly"
+        under_swapped_priority:
+          # dv-003 (seasonal) > dv-002 (restraint). The six ingredients ARE what's in season this week.
+          result: "Include all six; the season has them all peaking simultaneously"
+        flips: true
+
+      - swap: "swap dv-001 (priority 1) with dv-004 (priority 4)"
+        decision: "Guest reports a peanut allergy; only prepped protein tonight uses peanut oil. Source replacement from a non-canonical supplier?"
+        under_current_priority:
+          # dv-001 (ingredient) > dv-004 (hospitality). Non-canonical supplier violates ingredient sourcing.
+          result: "Refuse — recommend another restaurant"
+        under_swapped_priority:
+          # dv-004 (hospitality) > dv-001 (ingredient). Hospitality demands accommodating.
+          result: "Source replacement; ingredient compromise accepted"
+        flips: true
+
+      - swap: "swap dv-003 (priority 3) with dv-004 (priority 4)"
+        decision: "Lock down menu for the next 8 weeks to enable advance group bookings (small wedding)?"
+        under_current_priority:
+          # dv-003 (seasonal) > dv-004 (hospitality). Cannot lock menu — supply will change.
+          result: "Refuse the 8-week lock; offer a 1-week lock instead"
+        under_swapped_priority:
+          # dv-004 (hospitality) > dv-003 (seasonal). Hospitality to the wedding wins.
+          result: "Lock the menu; source what's needed to make it work"
+        flips: true
+
+      - swap: "swap dv-002 (priority 2) with dv-005 (priority 5)"
+        decision: "Add a complex 7-component signature dish that requires a brigade kitchen?"
+        under_current_priority:
+          # dv-002 (restraint) high. Seven components violates.
+          # dv-005 (owner-cooked) low. Brigade is a separate concern.
+          result: "Refuse — restraint violated regardless of who cooks"
+        under_swapped_priority:
+          # dv-002 (restraint) low. dv-005 (owner-cooked) high.
+          # Seven components might pass restraint test in new ordering;
+          # brigade requirement violates dv-005.
+          result: "Could simplify to 4-5 components and keep owner-cooked, then approve"
+        flips: true   # The mechanism the choice routes through changes,
+                      # even though both lead to refusal — the REASONING is
+                      # value-determined.
+
+    aggregate: |
+      5 swap tests performed. 4 produced clean choice flips. 1 produced
+      a reasoning flip (same outcome via different value invocation). Design
+      requires ≥3 flips. Result: 4 clean flips + 1 reasoning flip = 5
+      load-bearing invocations. PASSES counterfactual swap audit.
+
+  overall_canary_verdict: PASS
+  verdict_rationale: |
+    Both required tests pass: inclusion test (all 5 values, 6/6 each)
+    and counterfactual swap (4 clean flips, exceeds ≥3 threshold).
+    The domain_values layer is real, contested-form, and load-bearing
+    — not decoration.
+  failure_modes_observed:
+    - "fm-006 (survival pressure forces compromises) does not map to
+       any single value. Captured in unstructured_notes. Suggests the
+       escalation-when-no-value-applies path in 07-agentic-judgment-
+       proposal.md is necessary."
+    - "user_diverges_from_canonical (dv-005) and user_personal (dv-004)
+       both required the justification_if_diverges field to be load-
+       bearing — schema should make this required, not optional."
+
+  recommendations_for_design:
+    - "Make `justification_if_diverges` REQUIRED when canonical_or_personal
+       is user_personal OR user_diverges_from_canonical."
+    - "Add a `secondary_value` field to decision_boundaries (used in db-006)
+       for cases where multiple values are implicated."
+    - "Add a `multiple` enum value for failure_modes.value_violated to
+       handle meta-failures like fm-006."
+    - "Document in the schema that `unstructured_notes` is doing real
+       work; the field is not optional decoration."
+
+  recommendations_for_ecp_0015:
+    - "Schema must enforce: priority is a total order across all values
+       (no ties, no gaps)."
+    - "Schema must enforce: at least 3 values, no more than 8 (mirrors
+       foundry's own V1-V8 sizing)."
+    - "Validator must check inclusion_test_passes contains at least 1
+       boolean true per value."
+    - "Validator must reject 'X over Y' formulations where Y is a known
+       strawman (configurable list, expandable as cases surface)."

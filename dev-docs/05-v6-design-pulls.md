@@ -67,7 +67,7 @@ Worth naming because these are the most valuable absorptions, regardless of whet
 
 4. **Anti-self-deception system, not automation system.** From V6's D1: *"V6 is not primarily an automation system. It is an anti-self-deception system."* This is the line that should sit on the wall.
 
-5. **Pipeline-membership override as legitimate naming pressure.** V6's audit of its own pipeline phases (simulate, observe) recognized that some verbs earn names by being required pipeline members, not by independently gating-or-producing. This is the override clause we eventually wrote into P3 of our vocabulary principles.
+5. **Pipeline-membership override as legitimate naming pressure.** V6's audit of its own pipeline phases (simulate, observe) recognized that pipeline-phase verbs earn names by being required pipeline members, not by independently gating-or-producing. This is the override clause we eventually wrote into P3 of our vocabulary principles.
 
 ---
 

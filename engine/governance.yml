@@ -80,6 +80,42 @@ risk_escalation:
   - decision record
   - cannot_delegate final decision
   - trace required
+# ECP-0018 (0.8.0-pending): judgment_blanket_authorization field —
+# governance apparatus for the judgment_authorized classification facet.
+# Not a separately-numbered rule; enforcement lives in
+# validate_eou_card's _validate_judgment_authorization_precondition().
+# Apps may declare this optional block to grant blanket judgment_authorized
+# permission to EOUs at risk_level low|medium without per-EOU ECP. High and
+# critical risk EOUs always require per-EOU ECP regardless of this setting.
+# Absent block (default in engine baseline) = per-EOU ECP required at every
+# risk_level.
+#
+# Structure when enabled:
+#   judgment_blanket_authorization:
+#     enabled: true
+#     approved_by: <named human>
+#     approved_at: <ISO-8601 UTC timestamp>
+#     max_risk_level: low | medium    # cap; high/critical never blanket-authorized
+#     captured_workflow_id: <cw-{slug}>   # which captured_workflow's values are invocable
+
+# ECP-0017 (v0.7.0): Rule 96 (domain-values-consumption) exemption list.
+# Specs whose target_object is in this set are exempt from Rule 96 even
+# when the app has an approved captured_workflow. These target_objects
+# are governed by foundry V1-V8, not by app-level domain_values.
+# Future additions land via vocabulary ECP.
+rule_96_exempt_target_objects:
+- registry
+- ECP
+- candidate_set
+- candidate EOU set
+- run_trace
+- incident
+- regression_case
+- no_trace_justification
+- captured_workflow
+- foundry governance object
+- value_invocations          # ECP-0020 — audit-judgment target; agentic-judgment infrastructure
+
 decision_records:
   # Not every diagnosed failure becomes an ECP. When diagnosis concludes "acceptable —
   # no change needed", record that decision explicitly so the Foundry's audit trail

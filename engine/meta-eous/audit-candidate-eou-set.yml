@@ -23,6 +23,7 @@ inputs:
   optional:
   - foundry/failure-taxonomy.yml
   - foundry/maturity-model.yml
+  - foundry/captured-workflows/cw-{app_id}.yml   # ECP-0017 / Rule 96: when present and approved, run Set Value Coverage Test
   forbidden_assumptions:
   - Do not assume missing context exists.
   - Do not assume a candidate is valid because it is present in the set.
@@ -47,6 +48,7 @@ execution:
   - Run the Counter-Generation Test — verify each kept candidate has arguments_against; flag candidates missing this field.
   - Run the Set Composition Test — if the set includes generating EOUs, verify a corresponding audit or approval EOU exists (or is referenced); flag generation-only sets.
   - Run the High-Stakes Test — for candidates in finance, health, legal, safety, children, public claims, or active governance domains: verify responsibility.approver is a named human role and escalation.require_human_when is non-empty; flag violations.
+  - "ECP-0017 / Rule 96 — IF captured_workflow is present AND human_approval is complete at all four gates, run the Set Value Coverage Test. For each domain_value of priority ≤ 3, verify that at least one candidate in minimal_recommended_subset operationalizes the value via its distinct_success_criterion. Flag domain_values that no surviving candidate operationalizes; emit findings in audit_outcome.notes naming each unserved value and its priority."
   - Apply verdict thresholds (see success_criteria) and write audit report.
   decision_points:
   - If any Authority or High-Stakes test fails, verdict is FAIL regardless of other results.

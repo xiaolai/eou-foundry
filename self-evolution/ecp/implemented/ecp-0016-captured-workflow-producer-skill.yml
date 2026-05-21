@@ -1,0 +1,693 @@
+id: ecp-0016-captured-workflow-producer-skill
+target_eou: eou-foundry-plugin
+target_version_from: 0.6.0
+target_version_to: 0.7.0
+problem:
+  observed_failure: |
+    ECP-0015 introduces the captured_workflow noun, its schema, the canonical
+    path foundry/captured-workflows/{slug}.yml, and the validator walker. But
+    ECP-0015 deliberately defers the producing skill — without which, the
+    noun is governance furniture nobody can build. Apps that would benefit
+    from Stage 0 (per dev-docs/08-stage-0-design.md) have a target shape to
+    produce but no tool to produce it. The closure is half-finished: the
+    noun is named and schematized, but no verb produces it. Per
+    dev-docs/04-vocabulary-principles.md P4, every noun must be the target
+    of at least one verb — without ECP-0016 the captured_workflow noun
+    fails its own closure test.
+  failure_class: F12_DRIFT_FAILURE
+  failure_class_rationale: |
+    F12 (drift between spec, validator, skill, and docs) chosen because
+    after ECP-0015 lands, the foundry has a schema, a validator, a path,
+    and doctrine that all reference captured_workflow, but no skill — the
+    skill layer is the drift point. F4 (scope failure — EOU attempts work
+    outside scope) is wrong because no EOU is misbehaving; the work is
+    simply unassigned. F12 is precise: the layers disagree about whether
+    captured_workflow is a real artifact (validator says yes, no skill
+    produces it).
+  evidence:
+  - ECP-0015 proposed_change.files_changed adds schemas/captured-workflow.schema.yml,
+    scripts/validate_foundry.py walker, dev-docs/04-vocabulary-principles.md
+    noun entry, and a fixture. Skill files are explicitly OUT OF SCOPE in
+    ECP-0015. This ECP fills that gap.
+  - dev-docs/08-stage-0-design.md "ECP package shape" section lists ECP-0016
+    as "the producer skill (separate skill chosen via counter-generation
+    argument)" — the design records the resolution; this ECP implements it.
+  - |
+    rules/95-generating-eous.md requires every function:generate EOU to
+    declare generation_envelope, generation_budget, registry_diff,
+    minimality_test, operational_value_test, counter_generation, and
+    blast_radius. Without ECP-0016, the producing skill cannot exist
+    because there is no meta-EOU declaring these.
+  - |
+    The cooking canary at dev-docs/canary/cooking-restaurant-captured-workflow.yml
+    is hand-drafted. The mechanism that produces such artifacts at scale
+    must itself be a governed EOU — not loose prompt engineering. The skill
+    is the mechanism; ECP-0016 declares it.
+
+counter_argument:
+  # Per rule 95 spirit, document why a SEPARATE skill rather than a MODE
+  # extension on $generate-eou-candidates. This is the architectural-level
+  # counter-argument. The skill's own per-candidate counter_generation
+  # lives in the meta-EOU spec (see proposed_change below).
+  alternative_considered: |
+    Mode extension on $generate-eou-candidates. Add a reference_set input
+    field to the existing skill; when present, the skill first synthesizes
+    a captured_workflow internally then proceeds to candidate proposal as
+    today. One skill, two modes. V7 minimality argument: fewer skills, less
+    six-layer sync surface.
+  why_alternative_loses: |
+    1. D5.1 separation principle. Taste extraction from references and
+       candidate proposal are structurally different judgment kinds. The
+       foundry doctrine (dev-docs/01-foundations.md §3) says combining
+       different judgment modes creates self-deception. Mode extension
+       collapses them.
+    2. D2.4 step boundary. The 16-step construction sequence says "Do
+       not jump from messy workflow directly to automation." Steps 1-5
+       (capture/identify) and step 6 (propose candidates) are separated
+       on purpose. Mode extension violates this separation.
+    3. F12 drift risk. Two modes in one skill means SKILL.md, meta-EOU
+       YAML, and validator branches must all handle two modes. They will
+       drift. Two separate skills, each with one job, have no mode
+       branches to drift.
+    4. Lifecycle reuse. captured_workflow produced once, consumed many
+       times by repeated $generate-eou-candidates invocations. Mode
+       extension forces re-derivation on every invocation.
+    5. Risk_level distinction. captured_workflow is medium-risk
+       (unfalsifiable taste extraction). candidate_set is lower-risk
+       (each candidate has arguments_against and audit pipeline catches
+       issues downstream). Mode extension collapses risk levels.
+    6. V4 bounded authority. captured_workflow has multi-gate approval
+       (reference_set, constraints, domain_values, bundle). candidate_set
+       has different approval surface. Mode extension puts two different
+       approval surfaces in one EOU.
+    7. Optionality clarity. Stage 0 is optional. Mode extension means
+       every $generate-eou-candidates invocation now branches on whether
+       reference_set is present even when literacy gap doesn't apply.
+       Existing apps inherit complexity they don't want.
+  v7_minimality_check: |
+    V7 says "A new EOU is justified only when it prevents a concrete
+    failure, improves a concrete decision, exposes hidden judgment, or
+    improves traceability enough to exceed its maintenance cost."
+    Path A (separate skill) prevents F12 drift between modes, exposes
+    the taste-extraction judgment that was previously implicit in
+    workflow prose, improves traceability (separate run traces per
+    judgment kind), and improves the decision of which mode to invoke
+    (clear skill choice replaces hidden mode branch). The V7
+    justification bar is met. Path B's cost-saving claim does not
+    outweigh.
+  recommendation: |
+    Adopt this ECP as a separate skill. The seven structural arguments
+    above hold and Path A meets V7's justification bar.
+
+proposed_change:
+  summary: |
+    Add a new generating EOU and its skill files: meta-EOU spec at
+    engine/meta-eous/generate-captured-workflow-from-references.yml;
+    Claude skill at skills/generate-captured-workflow-from-references/SKILL.md;
+    Codex mirror at codex/skills/generate-captured-workflow-from-references/SKILL.md.
+    Skill is mechanism-only — contains zero domain assertions — and is
+    universally applicable across craft domains (cinema, code, music,
+    writing, cooking, therapy, teaching, investing, etc.). Add the skill
+    to AGENTS.md skill-selection table.
+
+    The skill produces ONE captured_workflow per invocation (max_candidates:
+    1). This is a deliberate specialization of the rule-95 generating-EOU
+    pattern: the artifact's content (5 reference role slots, 3-8 domain
+    values, ...) is the multi-element structure; the artifact itself is
+    one bundle.
+
+  ordering_dependency:
+    blocked_by: ecp-0015-captured-workflow-noun-and-schema
+    must_coexist_with: ecp-0017-domain-values-consumption-rule
+    reason: |
+      The captured_workflow schema and validator walker must exist before
+      a skill can write artifacts that conform to them. ECP-0016 cannot
+      be implemented (or even meaningfully simulated) until ECP-0015 is
+      implemented.
+    coordinated_release: |
+      ECP-0015, ECP-0016, and ECP-0017 form a coordinated Stage-0 package
+      targeting target_version_to 0.7.0. The required ordering is strict —
+      ECP-0017 must land BEFORE OR SIMULTANEOUSLY WITH ECP-0016, never
+      after. Reason — if ECP-0016 lands first, captured_workflow files
+      can be produced but no downstream skill knows how to consume them,
+      creating an orphan-producer window that violates V3 (inspectable
+      evidence — produced artifacts must have downstream consumers per
+      P4 closure). The recommended release sequence within 0.7.0 prep is —
+      ECP-0015 (schema/validator) → ECP-0017 (consumption rule preparing
+      downstream skills to accept the new input) → ECP-0016 (producer skill
+      activated last so its outputs immediately have consumers).
+  risk_level_decision:
+    value_for_meta_eou: medium
+    rationale: |
+      Inherited from ECP-0015's risk_level_decision for the captured_workflow
+      artifact. Recorded here explicitly so this ECP is self-contained.
+      The meta-EOU's risk_level mirrors the artifact's risk_level because
+      the producing skill IS the primary source of artifact quality —
+      errors in skill execution propagate to every captured_workflow
+      produced, and from there into every downstream EOU's success
+      criteria via domain_values invocation. Two layers of downstream
+      audit (eou-audit per spec, foundry-audit at portfolio level) sit
+      between skill output and end-user harm, keeping medium below high.
+
+  files_changed:
+  - engine/meta-eous/generate-captured-workflow-from-references.yml — new
+    meta-EOU spec, function:generate, target_object:captured_workflow,
+    automation_mode:LLM_assisted, authority_level:write_candidate,
+    risk_level:medium, lifecycle_stage:candidate (itself starts at
+    candidate; cannot be activated without an ECP per D5.3)
+  - skills/generate-captured-workflow-from-references/SKILL.md — new
+    skill prose, mechanism-only, no domain assertions
+  - codex/skills/generate-captured-workflow-from-references/SKILL.md —
+    Codex mirror of above
+  - AGENTS.md — add row to skill-selection table linking goal "synthesize
+    Stage 0 inputs from references" to this skill; cross-reference at
+    "Convert workflow → candidate EOUs" row noting captured_workflow as
+    an optional input branch
+  - tests/fixture-foundry/foundry/captured-workflows/cw-stage-0-fixture.yml —
+    a real (skill-produced) captured_workflow fixture replacing the
+    canary-derived stub from ECP-0015. Used by validator regression.
+  - CHANGELOG.md — 0.7.0 entry under "Stage 0 (literacy bridge)"
+
+  meta_eou_required_fields:
+    # From schemas/eou.schema.yml D2.1 plus rule 95 for generating EOUs.
+    classification:
+      function: generate
+      target_object: captured_workflow
+      automation_mode: LLM_assisted
+      authority_level: write_candidate
+      risk_level: medium
+      lifecycle_stage: candidate
+    purpose:
+      statement: |
+        Synthesize a captured_workflow (D2.4 step 1-5 outputs plus
+        domain_values constitutional layer) from a user goal, structured
+        reference set, and constraints — for users who cannot articulate
+        a workflow unaided and for any user who needs the constitutional
+        layer made explicit.
+      non_goals:
+      - Generate candidate EOUs (that is $generate-eou-candidates' job).
+      - Teach domain vocabulary (the skill is not a curriculum).
+      - Curate canonical practitioner lists (the user provides references).
+    operating_hypothesis: |
+      Given a user goal, a 5-role reference set with justifications, and
+      explicit constraints + negative constraints + user contributions
+      per slot, this EOU should produce a captured_workflow.yml that
+      passes structural validation and whose domain_values block passes
+      both the inclusion test and a counterfactual swap audit at
+      acceptable rate (≥3 swap-driven flips on a 5-test panel).
+    inputs:
+      required:
+      - user_goal
+      - reference_set with all 5 role slots filled (aspirational,
+        anti_reference, boundary_case, mainstream_baseline, outlier)
+      - constraints (audience, scale, budget, time, risk_tolerance,
+        desired_effect)
+      - negative_constraints
+      - user_contributed_references (≥1 per role slot — V2 enforcement)
+      optional:
+      - starter_pack reference (if engine/starter-packs/{domain}.yml
+        exists; this ECP does not introduce starter packs)
+      forbidden_assumptions:
+      - that the user can name the field's vocabulary
+      - that the user knows the canonical practitioners
+      - that the field's taxonomy is known to either party
+    context_manifest:
+      source_of_truth:
+      - schemas/captured-workflow.schema.yml (from ECP-0015)
+      - dev-docs/06-values-over-rules.md (for inclusion test discipline)
+      supporting:
+      - dev-docs/08-stage-0-design.md (design rationale)
+      - dev-docs/04-vocabulary-principles.md (vocabulary discipline)
+      forbidden:
+      - any prior captured_workflow from another app (would contaminate
+        this app's domain extraction with another domain's values)
+    execution:
+      steps:
+      - Validate inputs against the schema; refuse if any role slot is
+        empty or user_contributed_references is empty per slot.
+      - For each reference, prompt the user (or, in LLM_assisted mode,
+        propose) a `why` justification; persist.
+      - Perform counterfactual deconstruction across references to
+        surface hidden_judgments.
+      - Perform negative-space analysis across references and
+        anti-references to surface failure_modes.
+      - Perform comparative analysis across the reference set to surface
+        decision_boundaries.
+      - Converge on artifact_target via reference convergence + constraints.
+      - Synthesize captured_workflow prose.
+      - Detect pattern of repeated trade-off resolution across references
+        to surface candidate domain_values; for each, run the six-test
+        inclusion check; reject candidates that fail every test.
+      - Order surviving domain_values by user-confirmed priority (total
+        order, no ties).
+      - For each value, mark canonical_or_personal; require
+        justification_if_diverges when non-canonical.
+      - Bundle output; require user approval at four gates separately.
+      decision_points:
+      - Whether a candidate domain_value passes inclusion test (per-test
+        booleans must be recorded, ≥1 true required).
+      - Whether the "X over Y" form has a real Y (configurable strawman
+        list check; fail if Y is strawman).
+      - Whether user_contributed_references meet the ≥1-per-slot rule.
+      - Whether confidence per section is low/medium/high (no other values).
+      stop_conditions:
+      - Any role slot empty after best-effort elicitation → halt; ask
+        user to provide.
+      - user_contributed_references empty for any slot → halt; V2 violation.
+      - Fewer than 3 surviving domain_values after inclusion-test filtering
+        → halt; the value layer is not load-bearing enough.
+      - More than 8 surviving domain_values → halt; cap mirrors the foundry's
+        own V1-V8 sizing.
+      - Counterfactual swap audit reveals <3 flips out of 5 tests → halt;
+        the value layer is decoration, not load-bearing.
+      allowed_tools:
+      - read access to schemas/, dev-docs/, engine/starter-packs/ (if
+        present), engine/constitution-defaults.yml
+      - write access to foundry/captured-workflows/ only
+      prohibited_actions:
+      - writing to foundry/eous/, foundry/meta-eous/, foundry/registry.yml,
+        foundry/self-evolution/ecp/, foundry/self-evolution/regression/
+      - producing an eou_candidate or candidate_set artifact (separation
+        per D5.1 — that is $generate-eou-candidates' job)
+      - inventing canonical practitioner claims not provided by user
+      - producing a captured_workflow at lifecycle_stage other than candidate
+    outputs:
+      primary:
+      - foundry/captured-workflows/{slug}.yml (one file per run)
+      trace:
+      - foundry/runs/generate-captured-workflow-from-references/{run_id}.yml
+        (per ECP-0014 trace obligation)
+    success_criteria:
+      must_pass:
+      - output passes schemas/captured-workflow.schema.yml validation
+      - all 5 reference_set role slots non-empty
+      - user_contributed_references ≥1 per slot
+      - domain_values count in [3, 8]
+      - priority is total order with no duplicates or gaps
+      - every domain_value has ≥1 inclusion_test_passes true
+      - every "X over Y" formulation has Y not in configurable strawman list
+      - human_approval populated at all four gates
+      should_pass:
+      - counterfactual swap audit (≥3 flips on 5-test panel) produces
+        evidence of load-bearing values (this is a should_pass, not
+        must_pass, because the skill itself cannot verify counterfactual
+        swap — that requires downstream generation)
+    validation:
+      deterministic:
+      - structural schema check via scripts/validate_foundry.py
+      - role-slot non-emptiness check
+      - user-contribution per-slot check
+      - domain_values count check
+      - priority totality check
+      - contested-form check (X-over-Y formulation) against strawman list
+      - inclusion_test boolean check
+      judgment:
+      - whether the captured workflow prose faithfully reflects the
+        reference set (LLM or human review)
+      - whether hidden_judgments surfaced are non-trivial (not "the food
+        should taste good" → "is the ingredient quality visible?")
+      red_team:
+      - what happens if a user submits 5 references but no
+        anti_reference? (must halt)
+      - what happens if all 5 references are the same work in different
+        editions? (should detect, halt with diversity error)
+      - what happens if user submits a reference set in a domain the
+        skill has never seen? (must succeed — skill is mechanism-only)
+    failure_modes:
+      known:
+      - F1_INPUT_FAILURE — missing role slot or empty user contribution
+      - F4_SCOPE_FAILURE — skill produces eou_candidate instead of captured_workflow
+      - F12_DRIFT_FAILURE — skill's understanding of the schema diverges from schemas/captured-workflow.schema.yml
+      - F17_VALUE_HALLUCINATION_FAILURE (proposed in 07-agentic-judgment-proposal.md) — skill invents domain_values not justified by references
+      warning_signs:
+      - confidence_per_section all "high" (likely overconfident given unfalsifiable inputs)
+      - formulaic domain_values that all read "quality over Y" where Y varies (not contested-form)
+      repair_actions:
+      - reject and return to user with specific findings; do not
+        silently degrade
+    escalation:
+      require_human_when:
+      - any domain_value is marked user_diverges_from_canonical
+      - inclusion_test_passes has all six false on any candidate value
+      - contested-form pattern match flags the opposing value as a strawman
+      - more than 2 stop_conditions hit in a single run
+      require_approval_for:
+      - the four approval gates (reference_set, constraints, domain_values,
+        bundle) per the schema
+    responsibility:
+      executor: LLM with skill prompt
+      reviewer: user (the human running the skill)
+      approver: user
+      cannot_delegate:
+      - approval of any of the four gates
+      - justification of user_diverges_from_canonical
+      - decision to add a reference the AI did not propose (V2)
+    versioning:
+      supersedes: []
+      changelog:
+      - 0.7.0 — initial introduction (ECP-0016)
+    blast_radius:
+      allowed_scope:
+      - foundry/captured-workflows/
+      - foundry/runs/generate-captured-workflow-from-references/
+      forbidden_scope:
+      - foundry/eous/
+      - foundry/meta-eous/
+      - foundry/registry.yml
+      - foundry/self-evolution/ (constitution, ECPs, regression)
+      - schemas/ (the skill consumes the schema, never modifies it)
+      - engine/
+
+    # Rule-95 generating-EOU additional requirements:
+    generation_envelope:
+      allowed_outputs:
+      - captured_workflow
+      forbidden_outputs:
+      - active_eou
+      - approved_eou
+      - eou_candidate            # deliberate — that's $generate-eou-candidates' job
+      - candidate_set            # same separation
+      - schema_change
+      - constitution_change
+      - validator_weakening
+      - domain_authority_claim   # the skill never asserts "X is canonical"
+                                 # without source citation
+      default_status: candidate
+      max_candidates: 1          # single bundled output per run
+    generation_budget:
+      max_candidates: 1
+      max_runtime_per_call: |
+        Soft cap — skill should not loop indefinitely. Halt on stop_conditions.
+      max_references_processed: 25  # 5 slots × ≤5 refs per slot
+    registry_diff:
+      required: true
+      questions:
+      - Does the foundry already have a captured_workflow for this app?
+        (If yes, propose superseding via new version, not parallel.)
+      - Does the proposed domain_values block duplicate an existing
+        captured_workflow's values? (If yes, suggest reuse rather than
+        re-extraction.)
+    minimality_test:
+      required: true
+      questions:
+      - Could the user's literacy be sufficient that $generate-eou-candidates
+        with workflow prose would work, making this skill unnecessary?
+      - Could a context-manifest extension on $generate-eou-candidates
+        suffice for this app's case?
+      - Does this app actually have a value layer worth capturing, or is
+        the goal so simple that domain_values is over-engineering?
+    operational_value_test:
+      required: true
+      reject_if:
+      - user_contributed_references is empty for any role slot
+      - reference_set has fewer than 3 filled role slots overall
+      - constraints lack negative_constraints (the user has no rejections
+        to record — likely insufficient taste data)
+      - user can articulate a workflow unaided (skill is the wrong tool;
+        use $generate-eou-candidates directly)
+      - the app is governance scaffolding only (no real craft domain)
+    counter_generation:
+      required: true
+      requires_for_each_candidate:
+      # The "candidate" here is the single captured_workflow produced
+      # per run. arguments_against must address whether the captured
+      # workflow itself should be rejected.
+      - arguments_against
+      - minimality_result
+      - distinct_success_criterion
+      - operational_value
+      example_arguments_against_template: |
+        - over-formalization risk: this captured_workflow may over-formalize
+          the user's intent because the references are not diverse enough
+          to warrant a domain_values layer with ≥3 contested values
+        - decorative-value risk: two of the surfaced domain_values may fail
+          counterfactual swap on at least one tested decision boundary, so
+          the value layer is partially decorative
+        - provisional-status note: the user has produced sufficient taste
+          data for hidden_judgments, but the value layer should remain
+          provisional until at least one downstream candidate set is
+          generated and audited against it
+
+  skill_md_required_sections:
+    # Per AGENTS.md skill discipline and the universality requirement.
+    # Each entry: heading text + brief description of contents.
+    - heading: "## What this skill does"
+      contents: |
+        One sentence — synthesize Stage 0 inputs from references for
+        downstream consumption by $generate-eou-candidates.
+    - heading: "## Inputs required"
+      contents: list of required input fields with format
+    - heading: "## Inputs forbidden"
+      contents: |
+        What the skill must not accept — e.g., pre-existing workflow
+        prose belongs in $generate-eou-candidates, not this skill.
+    - heading: "## Output path"
+      contents: foundry/captured-workflows/{slug}.yml
+    - heading: "## Stop conditions"
+      contents: exact list matching meta-EOU stop_conditions
+    - heading: "## What this skill REFUSES to do"
+      contents: |
+        Explicit refusals —
+        1. Refuse to produce eou_candidates or candidate_set
+        2. Refuse to write to foundry/eous/, foundry/meta-eous/, etc.
+        3. Refuse to invent canonical practitioner claims without source
+        4. Refuse to mark captured_workflow at any lifecycle_stage other than candidate
+        5. Refuse to override foundry V1-V8 (domain_values strengthen but
+           never weaken foundry values per D5.5)
+    - heading: "## Mechanism, not content"
+      contents: |
+        Disclaimer that the skill contains zero domain assertions; all
+        domain content lives in the produced captured_workflow artifact
+        and in the user's reference choices.
+
+expected_benefit:
+- |
+  The captured_workflow noun introduced in ECP-0015 gains a producer.
+  P4 closure for this noun is achieved.
+- |
+  Literacy-gap users can use the foundry. Today they cannot — there is
+  no path from "I want to make X" to "I have a workflow to pass to step
+  6." This skill is that path.
+- |
+  Domain-expert users gain a tool to make their constitutional layer
+  explicit. The skill is useful even when literacy is not the issue —
+  it forces articulation of domain_values that would otherwise stay
+  tacit and ungoverned.
+- |
+  The agentic-judgment proposal (07-agentic-judgment-proposal.md) gains
+  its precondition. Without this skill producing well-defined
+  domain_values, agentic execution cannot be safely enabled. ECP-0016
+  is the gate.
+- |
+  Universal mechanism. The skill works for any craft domain without
+  per-domain configuration. Cooking, code, cinema, music, therapy — same
+  skill, same input shape, same output shape. The foundry stays
+  domain-neutral.
+
+risks:
+- |
+  The skill may produce captured_workflows that pass structural validation
+  but contain fabricated or shallow content (the V1 attack surface —
+  value theater per 07-agentic-judgment-proposal.md). Mitigation: the
+  schema requires inclusion_test_passes booleans per value; counterfactual
+  swap audit is a should_pass criterion (skill cannot verify directly,
+  but downstream consumption surfaces this); operational_value_test
+  reject conditions catch the most obvious cases (empty user contributions,
+  insufficient reference diversity).
+- |
+  V2 anti-abdication risk. The user may approve the four gates without
+  meaningful engagement. Mitigation: skill REFUSES to proceed if
+  user_contributed_references is empty per slot — the user MUST add
+  content the AI did not propose. The skill cannot do all the work and
+  ask the user to rubber-stamp.
+- |
+  Over-formalization (V5 risk). A user who could have articulated steps
+  1-5 in conversation may be forced into a structured artifact that
+  loses nuance. Mitigation: skill is OPTIONAL; the operational_value_test
+  rejects the skill's use when the user can articulate a workflow unaided.
+- |
+  Single-output specialization of rule-95 (max_candidates: 1) is unusual.
+  Rule 95 was written assuming generators produce sets. The skill's
+  counter_generation declares arguments_against per single bundled
+  output, not per candidate-of-many. Mitigation: documented above in
+  proposed_change as a deliberate specialization; audit-candidate-eou-set
+  will need to be aware (handled by ECP-0017's downstream rule).
+- |
+  Skill prose drift risk. SKILL.md, codex mirror, and the meta-EOU spec
+  must agree. Mitigation: ECP-0016 includes both files; future updates
+  must touch all three (and the validator should grow a drift check —
+  out of scope for this ECP but flagged for ECP-0018 candidacy).
+- |
+  Forward-coupling with ECP-0017. Without ECP-0017 (downstream
+  consumption rule), $generate-eou-candidates does not know how to read
+  captured_workflow. Mitigation — ECP-0016 ships the producer; ECP-0017
+  ships the consumption rule; ordering_dependency.coordinated_release
+  above mandates that ECP-0017 land BEFORE OR SIMULTANEOUSLY WITH
+  ECP-0016, never after. If release sequencing slips, ECP-0016 must be
+  held until ECP-0017 is ready.
+- |
+  LLM model drift. The skill is automation_mode LLM_assisted. Different
+  LLM models (Claude Opus vs. Sonnet, GPT-5 vs. GPT-4) and even different
+  versions of the same model family produce different captured_workflows
+  from identical inputs. This is a V1 risk — epistemic quality of
+  domain_values invocations becomes model-dependent. Mitigation —
+  the meta-EOU's outputs.trace must record the model identity per ECP-0014
+  trace obligation; regression cases for the skill must be tagged with
+  the model that produced the expected output; cross-model regression
+  testing is recommended as model versions update (out of scope here,
+  flagged as future-ECP candidate). Apps using the skill must accept that
+  captured_workflows are not perfectly reproducible across models.
+- |
+  Domain-content leakage in skill prose. The SKILL.md sections are
+  declared as mechanism-only (the "Mechanism, not content" section is
+  required per skill_md_required_sections above). But prompts INSIDE
+  the skill — the actual LLM prompts the skill issues — may inadvertently
+  encode domain assumptions even when the skill prose is clean.
+  Example — "extract craft choices" presupposes that all domains have
+  "craft." Mitigation — the skill_md_required_sections enforce a
+  Mechanism-not-content disclaimer; future ECP-0018 candidacy includes
+  a skill-prose audit that grep-checks for domain-specific terms (food,
+  cinema, code, etc.) in the SKILL.md and Codex mirror. Manual audit at
+  write time is the immediate guard; mechanical audit is the durable
+  guard.
+- |
+  Starter packs deferral. dev-docs/08-stage-0-design.md notes starter
+  packs (per-domain canonical-reference seed lists in
+  engine/starter-packs/{domain}.yml) as an open question with current
+  leaning "opt-in only." ECP-0016 takes no position; the skill accepts
+  optional starter_pack input per inputs.optional but does not require
+  the engine/starter-packs/ directory to exist. Rot watch — if a third
+  app needs Stage 0 and the same starter pack content is reinvented
+  three times, draft an ECP introducing the starter pack noun and
+  canonical directory. Until then, starter packs live as per-app
+  notes outside the foundry.
+
+warrant_for_skill:
+  # P3 verb warrant (gates or produces).
+  produces: |
+    captured_workflow (governed artifact with schema, path, owner, per
+    ECP-0015). Verb production warrant satisfied.
+  gates: |
+    The skill gates whether Stage 0 is "complete" for an app. Apps that
+    have not run this skill do not have a captured_workflow; therefore
+    cannot use Stage-0-aware downstream flows. The gate is structural.
+  pipeline_membership: |
+    The skill is a required precondition step in the Stage 0 pipeline
+    for literacy-gap apps. Per P3 pipeline-membership override, even
+    if "gates or produces" were borderline, pipeline-membership confers
+    warrant.
+
+tests_required:
+- |
+  Regression. The meta-EOU spec at
+  engine/meta-eous/generate-captured-workflow-from-references.yml passes
+  validate_foundry.py's meta-EOU validation (function in VALID_FUNCTIONS,
+  authority_level in VALID_AUTHORITY, all required EOU schema fields
+  populated).
+- |
+  Regression. The meta-EOU declares all rule-95 generating-EOU required
+  fields (generation_envelope, generation_budget, registry_diff,
+  minimality_test, operational_value_test, counter_generation,
+  blast_radius). Missing any one fails validation.
+- |
+  Regression. The meta-EOU's generation_envelope.allowed_outputs contains
+  ONLY captured_workflow. forbidden_outputs explicitly includes
+  eou_candidate, candidate_set, active_eou, approved_eou, schema_change,
+  constitution_change. If any forbidden output appears in allowed,
+  validation fails.
+- |
+  Regression. The meta-EOU's classification.authority_level is
+  write_candidate (not approve, publish, or mutate_active). Per rule 95,
+  generating EOUs may NOT hold higher authority.
+- |
+  Regression. SKILL.md and codex/skills/.../SKILL.md exist and are not
+  empty. The Claude SKILL.md and Codex mirror must contain the same set
+  of section headers (drift check).
+- |
+  Operational test. Run the skill against the cooking canary inputs
+  (extracted from dev-docs/canary/cooking-restaurant-captured-workflow.yml).
+  The output captured_workflow validates against the schema and matches
+  the canary's structure within tolerance (≥4 of 5 domain_values, ≥3
+  of 5 reference role slots match canary content).
+- |
+  Operational test. Run the skill against an unfamiliar-domain input
+  (e.g., a small ceramics studio). The skill produces a structurally
+  valid captured_workflow without invoking any cooking-specific content.
+  This proves universality / no domain bake-in.
+- |
+  Operational test. Run the skill with a deliberately broken input
+  (one empty role slot). The skill halts on the stop_condition and
+  returns a specific error.
+- |
+  Operational test. Run the skill on an input where the user could
+  have articulated a workflow unaided (the operational_value_test
+  reject case). The skill detects this and recommends
+  $generate-eou-candidates directly instead. Detection mechanism —
+  the skill prompts the user explicitly "Can you describe your operating
+  workflow without consulting references?"; if user answers yes,
+  operational_value_test fires.
+- |
+  Regression. The skill REFUSES the five documented refusals from
+  SKILL.md section "What this skill REFUSES to do." Test scenarios —
+  (a) skill invoked with intent to produce eou_candidate fails with
+  documented refusal; (b) skill attempts to write outside
+  foundry/captured-workflows/ fails; (c) skill emits domain_authority_claim
+  without source citation fails; (d) skill marks captured_workflow at
+  lifecycle_stage other than candidate fails; (e) skill produces a
+  domain_value that contradicts a foundry V1-V8 invariant fails.
+- |
+  Regression. A captured_workflow produced by the skill with fewer
+  than 4 populated human_approval gates fails downstream consumption
+  (per ECP-0017's consumption rule). The skill MAY produce drafts with
+  partial approval, but the captured_workflow is not considered
+  consumption-ready until all 4 gates have named approvers.
+- |
+  Operational test. Run the skill twice against the same inputs, with
+  the second run using a different LLM model (Claude vs. Codex, or
+  same family different version). The two captured_workflows MAY
+  differ, but both MUST be structurally valid AND each MUST record
+  its producing model identity in outputs.trace per ECP-0014.
+
+simulation:
+  status: not_simulated
+  rationale: |
+    Cannot simulate at proposal time because ECP-0015's schema is not yet
+    landed. Simulation will be performed during 0.7.0 release prep, after
+    ECP-0015 implementation, by running the skill against the cooking
+    canary inputs and comparing the output to the hand-drafted canary.
+    Simulation result will be appended here before this ECP advances
+    from proposed to approved.
+  simulation_dependencies:
+  - ECP-0015 implemented (schema and validator landed)
+  - Cooking canary inputs extracted into a runnable format
+  - Comparison harness for canary-vs-skill-output diff
+
+approval:
+  proposed_by: plugin maintainer (Stage 0 design package; counter-generation
+    argument resolved in favor of separate skill, see counter_argument
+    section above)
+  audited_by: plugin maintainer (adversarial review applied in same design
+    conversation; six should-fix findings identified and applied)
+  approver: xiaolai
+  approved_at: 2026-05-21T00:00:00Z
+  status: implemented
+  implemented_in: 0.7.0
+  implemented_at: 2026-05-21T00:00:00Z
+  rollback_considerations: |
+    Revert: remove engine/meta-eous/generate-captured-workflow-from-references.yml,
+    skills/generate-captured-workflow-from-references/, and
+    codex/skills/generate-captured-workflow-from-references/. Revert the
+    AGENTS.md skill-table entry. Remove the fixture at
+    tests/fixture-foundry/foundry/captured-workflows/cw-stage-0-fixture.yml.
+
+    If ECP-0017 has already implemented downstream consumption when this
+    ECP is rolled back, ECP-0017 must also be reverted in lockstep — apps
+    that started using captured_workflows would have no producer left.
+
+    Apps that have produced captured_workflow files before rollback retain
+    their files (the artifact is a governed noun under ECP-0015 which is
+    NOT rolled back). They simply cannot regenerate without the skill.
+    CHANGELOG notes this and recommends not relying on the skill until
+    0.7.x post-release stabilization.
+
+submitted_as: null
