@@ -246,13 +246,14 @@ ok "scaffolded $APP_NAME/"
 
 # --- git ---
 if [ "$NO_GIT" = "0" ]; then
+  plugin_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$PLUGIN_DIR/.claude-plugin/plugin.json")"
   (
     cd "$APP_NAME"
     git init -q -b main
     git add -A
     git commit -q -m "chore: initialize EOU-governed application from eou-foundry plugin
 
-Scaffolded by /eou-foundry:init with plugin version $(cat "$PLUGIN_DIR/.claude-plugin/plugin.json" | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"version\"])')."
+Scaffolded by /eou-foundry:init with plugin version ${plugin_version}."
   )
   ok "git repo initialized in $APP_NAME/"
 else

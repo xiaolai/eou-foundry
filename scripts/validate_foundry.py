@@ -152,18 +152,32 @@ def find_plugin_root() -> Path:
         if (p / ".claude-plugin" / "plugin.json").exists():
             return p
 
-    # Read Claude Code's installed_plugins registry.
+    # Read Claude Code's installed_plugins registry. The registry may list
+    # multiple installs (different versions and/or scopes); their array order
+    # is not version-sorted, so resolve to the highest installed version rather
+    # than the first entry that happens to be valid.
     registry = Path.home() / ".claude" / "plugins" / "installed_plugins.json"
     if registry.exists():
         try:
             data = json.loads(registry.read_text())
             entries = (data.get("plugins") or {}).get("eou-foundry@xiaolai") or []
+            best: tuple[tuple[int, int, int], Path] | None = None
             for entry in entries:
                 install_path = entry.get("installPath")
-                if install_path:
-                    p = Path(install_path).expanduser().resolve()
-                    if (p / ".claude-plugin" / "plugin.json").exists():
-                        return p
+                if not install_path:
+                    continue
+                p = Path(install_path).expanduser().resolve()
+                if not (p / ".claude-plugin" / "plugin.json").exists():
+                    continue
+                ver_str = entry.get("version") or read_plugin_version(p) or "0.0.0"
+                try:
+                    ver = _parse_version(ver_str)
+                except (ValueError, AttributeError):
+                    ver = (0, 0, 0)
+                if best is None or ver > best[0]:
+                    best = (ver, p)
+            if best is not None:
+                return best[1]
         except (OSError, json.JSONDecodeError, AttributeError):
             pass
 
